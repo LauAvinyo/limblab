@@ -13,11 +13,16 @@ spacing = (0.65, 0.65, 2)
 # size    = (1024, 1024, 296)  # high res
 size = (512, 512, 296)  # low res
 clip_range = (60, 600)
+data_path = '../data/HCR'
 
 ################################################
 settings.default_font = "Calco"
 
-basename = os.path.basename(filename).replace(".tif", ".vti")
+basename = os.path.join(
+    data_path, 
+    os.path.basename(filename).replace(".tif", ".vti")
+)
+
 if os.path.exists(basename):  # load existing volume
     vol = Volume(basename)
     h = histogram(vol, bins=75, logscale=1, max_entries=1e5)
