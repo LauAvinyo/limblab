@@ -6,7 +6,13 @@ from vedo.applications import IsosurfaceBrowser
 from vedo.pyplot import histogram
 
 settings.annotated_cube_texts = [
-    "Distal", "Proxim", "Anter", "Poster", "Dorso", "Ventral"]
+    "Distal",
+    "Proxim",
+    "Anter",
+    "Poster",
+    "Dorso",
+    "Ventral",
+]
 settings.annotated_cube_text_scale = 0.18
 
 # NOTE:
@@ -16,7 +22,7 @@ settings.annotated_cube_text_scale = 0.18
 refname = dataurl + "270.vtk"
 filename = "HCR12_8a_sox9_594.tif"
 iso_value = 145  # isosurface value
-data_path = '../data/HCR'
+data_path = "../data/HCR"
 
 ################################################
 settings.default_font = "Calco"

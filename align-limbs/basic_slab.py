@@ -1,9 +1,16 @@
 import os
-import json
-from vedo import ask, dataurl, printc, settings, show
-from vedo import Axes, Mesh, Volume, Box, LinearTransform
-from vedo.applications import IsosurfaceBrowser
-from vedo.pyplot import histogram
+
+from vedo import (
+    Axes,
+    Box,
+    LinearTransform,
+    Mesh,
+    Volume,
+    dataurl,
+    printc,
+    settings,
+    show,
+)
 
 ################################################
 refname = dataurl + "270.vtk"
@@ -13,7 +20,13 @@ iso_value = 145  # isosurface value
 ################################################
 settings.default_font = "Calco"
 settings.annotated_cube_texts = [
-    "Distal", "Proxim", "Anter", "Poster", "Dorso", "Ventral"]
+    "Distal",
+    "Proxim",
+    "Anter",
+    "Poster",
+    "Dorso",
+    "Ventral",
+]
 settings.annotated_cube_text_scale = 0.18
 
 # Read volume
@@ -27,18 +40,18 @@ else:
 # load transformation matrix and apply it to volume
 tname = filename.replace(".tif", ".mat")
 T = LinearTransform(tname).print()
-vol.apply_transform(T, interpolation='cubic')
+vol.apply_transform(T, interpolation="cubic")
 
 iso = vol.isosurface(iso_value).color("blue5", 0.2)
 
 # Compare with reference
 reference = Mesh(refname).color("yellow5", 0.2)
 vaxes = Axes(vol, xygrid=False, htitle=filename.replace("_", "-"))
-slab = vol.slab([350, 355], axis='z', operation='mean')
+slab = vol.slab([350, 355], axis="z", operation="mean")
 bbox = slab.metadata["slab_bounding_box"]
-slab.z(-bbox[5]+vol.zbounds()[0])  # move slab to the bottom
+slab.z(-bbox[5] + vol.zbounds()[0])  # move slab to the bottom
 slab_box = Box(bbox).wireframe().c("black")
-slab.cmap('Set1_r', vmin=50, vmax=400).add_scalarbar("slab")
+slab.cmap("Set1_r", vmin=50, vmax=400).add_scalarbar("slab")
 
 # histogram(slab).show().close()  # quickly inspect it
 
