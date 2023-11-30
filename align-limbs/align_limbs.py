@@ -13,15 +13,12 @@ spacing = (0.65, 0.65, 2)
 # size    = (1024, 1024, 296)  # high res
 size = (512, 512, 296)  # low res
 clip_range = (60, 600)
-data_path = '../data/HCR'
+data_path = "../data/HCR"
 
 ################################################
 settings.default_font = "Calco"
 
-basename = os.path.join(
-    data_path, 
-    os.path.basename(filename).replace(".tif", ".vti")
-)
+basename = os.path.join(data_path, os.path.basename(filename).replace(".tif", ".vti"))
 
 if os.path.exists(basename):  # load existing volume
     vol = Volume(basename)
@@ -53,7 +50,7 @@ surface.decimate(0.1)
 refmesh = Mesh(refname).pickable(False)
 
 printc("Manually align mesh by toggling 'a'", invert=True)
-show(surface, refmesh, axes=1).close()
+show(surface, refmesh, axes=14).close()
 
 # ############################################### save stuff
 T = surface.apply_transform_from_actor()
@@ -70,4 +67,4 @@ else:
 
 printc("-> Writing", basename.replace(".vti", "_surface.vtk"))
 surface.write(basename.replace(".vti", "_surface.vtk"))
-show(surface, refmesh, axes=1)
+show(surface, refmesh, axes=14)
