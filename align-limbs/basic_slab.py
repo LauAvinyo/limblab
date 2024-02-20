@@ -31,6 +31,8 @@ settings.annotated_cube_text_scale = 0.18
 
 # Read volume
 basename = "../data/HCR/" + os.path.basename(filename).replace(".tif", ".vti")
+basename = ""
+print(basename)
 if os.path.exists(basename):  # load existing volume
     vol = Volume(basename)
 else:
