@@ -19,10 +19,15 @@ from vedo import (
     settings,
     show,
     vector,
+    dataurl,
 )
 
 version = "0.3"
 blackandwhite = True
+
+
+source = Mesh(dataurl + "limb_surface.vtk").color("k5")
+source.rotate_y(90).rotate_z(-60).rotate_x(40)
 
 # ########################################################### parse user command line input
 pr = argparse.ArgumentParser(description="GENE MAPPER - version 0.1")
@@ -275,7 +280,7 @@ id1 = plt.add_callback("key press", keypress)
 id2 = plt.add_callback("left click", leftClick)
 id3 = plt.add_callback("right click", rightClick)
 
-plt += [pic, instrucs]
+plt += [source, instrucs]
 plt.show(zoom="tightest", mode="image")
 plt.remove_callback(id1).remove_callback(id2).remove_callback(id3)
 if not ageh:  # not staged so exit peacefully
