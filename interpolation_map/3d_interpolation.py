@@ -1,11 +1,11 @@
-from vedo import np, show, TetMesh, CellCenters, NonLinearTransform
 import json
-
 import os
 
+from utils import get_integer_basename
+from vedo import CellCenters, NonLinearTransform, TetMesh, np
 
-output_folder = "/Users/lauavino/Documents/PhD/code/sharpe/TOPSECRET/interpolation_map/transformations"
-# Define the folder path
+# TODO: Pass this as arguments
+t_folder = "/Users/lauavino/Documents/PhD/code/sharpe/TOPSECRET/interpolation_map/transformations"
 folder = "/Users/lauavino/Desktop/tet_meshes_medium/"
 
 # List all files in the folder
@@ -15,15 +15,6 @@ files = os.listdir(folder)
 files = [
     f for f in files if os.path.isfile(os.path.join(folder, f)) and f != ".DS_Store"
 ]
-
-
-# Define a function to extract the basename (integer part)
-def get_integer_basename(filename):
-    basename, _ = os.path.splitext(filename)
-    try:
-        return int(basename)
-    except ValueError:
-        return None
 
 
 # Sort the files based on their integer basename
@@ -53,9 +44,9 @@ for current_file, next_file in zip(files_sorted, files_sorted[1:] + [None]):
 
     # exit()
 
-    # Apply the streching to the limb at t0
+    # Apply the streching to the limb0
     tname = current_file.replace(".vtu", ".mat")
-    T = NonLinearTransform(os.path.join(output_folder, tname))
+    T = NonLinearTransform(os.path.join(t_folder, tname))
     limb0.apply_transform(T)
 
     # Use the centers of the tetrahedron
