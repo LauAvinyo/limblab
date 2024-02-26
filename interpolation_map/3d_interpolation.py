@@ -31,7 +31,6 @@ for current_file, next_file in zip(files_sorted, files_sorted[1:] + [None]):
     else:
         break
 
-    # Do whatever you want with the current and next files
     print("Current file:", current_file_path, sep="\t")
     print("Next file:", next_file_path, sep="\t")
 
