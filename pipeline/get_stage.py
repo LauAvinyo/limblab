@@ -1,5 +1,5 @@
 import numpy as np
-from vedo import settings, dataurl, fit_plane, printc, vector, grep
+from vedo import settings, fit_plane, printc, vector, grep
 from vedo import Mesh, Points, Axes, Text2D, LinearTransform
 from vedo.applications import SplinePlotter
 import os
@@ -12,9 +12,16 @@ limbstager_exe = (
     "/Users/lauavino/Documents/PhD/code/sharpe/TOPSECRET/limb-stagig/src/limbstager"
 )
 
+
+# TODO: This should be the input
+folder = "HCR12_8a_dapi_405"
+
+# Get the the data from the pipeline file
+pipeline = os.path.join(folder, "pipeline.txt")
+surface = grep(pipeline, "SURFACE")[0][1]
+
 limbstager_file = ".tmp_staging_file.txt"
 outfile = ".tmp_out_file.txt"
-pipeline_file = "./pipeline_file.txt"
 
 
 def compute_rotation_matrix_to_align(v, target=(0, 0, 1)):
@@ -96,8 +103,8 @@ def kfunc(event):
                 printc("Error - Could not stage the limb, RESULT tag is missing", c="r")
                 return
             stage = result[0][1]
-            with open(pipeline_file, "w") as f:
-                print("stage", stage, sep="\t", file=f)
+            with open(pipeline, "a") as f:
+                print("STAGE", stage, file=f)
             txt.text(f"Limb staged as {stage}")
             plt.render()
     elif event.keypress == "r":
@@ -111,10 +118,8 @@ settings.enable_default_keyboard_callbacks = False
 settings.default_font = "Dalim"
 
 # load a 3D mesh of the limb to stage
-example_mesh = (
-    "/Users/lauavino/Documents/PhD/code/sharpe/TOPSECRET/useful_scripts/297.vtk"
-)
-msh = Mesh(example_mesh).c("blue8", 0.8)
+
+msh = Mesh(surface).c("blue8", 0.8)
 txt = Text2D(pos="top-center", bg="yellow5", s=1.5)
 
 plt = SplinePlotter(msh, title="3D Stager", N=2, sharecam=0, size=(2000, 1000), axes=14)

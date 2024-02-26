@@ -3,21 +3,45 @@ import os
 from vedo import (
     Axes,
     Box,
-    LinearTransform,
     NonLinearTransform,
     Mesh,
     Volume,
     dataurl,
     printc,
     settings,
-    show,
+    grep,
     Plotter,
 )
 
+
+def closest_value(input_list, target):
+    closest = input_list[0]  # Assume the first value is the closest initially
+    min_diff = abs(target - closest)  # Initialize minimum difference
+
+    for value in input_list:
+        diff = abs(target - value)
+        if diff < min_diff:
+            min_diff = diff
+            closest = value
+
+    return closest
+
+
+# TODO: This should be the input
+folder = "HCR12_8a_dapi_405"
+
 ################################################
-refname = dataurl + "270.vtk"
-filename = "../data/HCR/HCR12_8a_sox9_594.tif"
-iso_value = 145  # isosurface value
+pipeline = os.path.join(folder, "pipeline.txt")
+# volume = grep(pipeline, "VOLUME")[0][1]
+volume = (
+    "/Users/lauavino/Documents/PhD/code/sharpe/TOPSECRET/data/HCR/HCR12_8a_sox9_594.vti"
+)
+surface = grep(pipeline, "SURFACE")[0][1]
+stage = int(grep(pipeline, "STAGE")[0][1])
+
+reference_meshes = (250, 260, 270, 290)
+reference_stage = closest_value(reference_meshes, int(stage))
+
 
 ################################################
 settings.default_font = "Calco"
@@ -32,40 +56,43 @@ settings.annotated_cube_texts = [
 settings.annotated_cube_text_scale = 0.18
 
 # Read volume
-basename = "../data/HCR/" + os.path.basename(filename).replace(".tif", ".vti")
-if os.path.exists(basename):  # load existing volume
-    vol = Volume(basename)
+if os.path.exists(volume):  # load existing volume
+    vol = Volume(volume).resize([100, 100, 100])
 else:
     printc("Run the first algorithm!")
     exit()
 
-# load transformation matrix and apply it to volume
-# tname = filename.replace(".tif", ".mat")
-tname = "transformation.mat"
+iso = Mesh(surface).color("blue5", 0.2)
+iso_base = iso.clone().color("green3", 0.5)
+
+
+# Apply non linear tranformation
+tname = os.path.join(folder, "nonlinear_transformation.mat")
 T = NonLinearTransform(tname)
 T.update()
-# print(T)
-# exit()
-vol.apply_transform(T)
-
-iso = vol.isosurface(iso_value).color("blue5", 0.2)
-# iso.apply_transform(T)
+vol.apply_transform(T).rotate_y(-30)
+iso.apply_transform(T).rotate_y(-30)
 
 # Compare with reference
-reference = Mesh(refname).color("yellow5", 0.2)
-vaxes = Axes(vol, xygrid=False, htitle=filename.replace("_", "-"))
+reference = Mesh(dataurl + f"{reference_stage}.vtk").color("yellow5", 0.2)
+reference.rotate_y(-30)
+vaxes = Axes(
+    vol,
+    xygrid=False,
+)  # htitle=volume.replace("_", "-")
 
 # Box
-vmin = 340
-vmax = 400
+vmin = 0
+vmax = 500
 box_min = vmin
 box_max = vmax
 box_limits = [box_min, box_max]
 slab = vol.slab(box_limits, axis="z", operation="mean")
 bbox = slab.metadata["slab_bounding_box"]
-slab.z(-bbox[5] + vol.zbounds()[0])  # move slab to the bottom
+zslab = slab.zbounds()[0] + 1000
+slab.z(-zslab)  # move slab to the bottom  # move slab to the bottom
 slab_box = Box(bbox).wireframe().c("black")
-slab.cmap("Set1_r", vmin=50, vmax=400).add_scalarbar("slab")
+slab.cmap("viridis", vmin=50, vmax=400).add_scalarbar("slab")
 
 # histogram(slab).show().close()  # quickly inspect it
 
@@ -89,9 +116,10 @@ def slider1(widget, event):
     plt.remove(slab_box)
     slab = vol.slab(box_limits, axis="z", operation="mean")
     bbox = slab.metadata["slab_bounding_box"]
-    slab.z(-bbox[5] + vol.zbounds()[0])  # move slab to the bottom
+    zslab = slab.zbounds()[0] + 1000
+    slab.z(-zslab)  # move slab to the bottom
     slab_box = Box(bbox).wireframe().c("black")
-    slab.cmap("Set1_r", vmin=50, vmax=400).add_scalarbar("slab")
+    slab.cmap("viridis", vmin=50, vmax=400).add_scalarbar("slab")
     plt.add(slab)
     plt.add(slab_box)
 
@@ -109,9 +137,10 @@ def slider2(widget, event):
     plt.remove(slab_box)
     slab = vol.slab(box_limits, axis="z", operation="mean")
     bbox = slab.metadata["slab_bounding_box"]
-    slab.z(-bbox[5] + vol.zbounds()[0])  # move slab to the bottom
+    zslab = slab.zbounds()[0] + 1000
+    slab.z(-zslab)  # move slab to the bottom
     slab_box = Box(bbox).wireframe().c("black")
-    slab.cmap("Set1_r", vmin=50, vmax=400).add_scalarbar("slab")
+    slab.cmap("viridis", vmin=50, vmax=400).add_scalarbar("slab")
     plt.add(slab)
     plt.add(slab_box)
 
