@@ -1,17 +1,8 @@
 import os
+import sys
 
-from vedo import (
-    Axes,
-    Box,
-    NonLinearTransform,
-    Mesh,
-    Volume,
-    dataurl,
-    printc,
-    settings,
-    grep,
-    Plotter,
-)
+from utils import file2dic
+from vedo import Axes, Box, Mesh, NonLinearTransform, Plotter, Volume, dataurl
 
 
 def closest_value(input_list, target):
@@ -27,49 +18,30 @@ def closest_value(input_list, target):
     return closest
 
 
-# TODO: This should be the input
-folder = "HCR12_8a_dapi_405"
+if len(sys.argv) != 2:
+    print("Usage: python script_name.py folder_name")
+    sys.exit(1)
 
-################################################
-pipeline = os.path.join(folder, "pipeline.txt")
-# volume = grep(pipeline, "VOLUME")[0][1]
-volume = (
-    "/Users/lauavino/Documents/PhD/code/sharpe/TOPSECRET/data/HCR/HCR12_8a_sox9_594.vti"
-)
-surface = grep(pipeline, "SURFACE")[0][1]
-stage = int(grep(pipeline, "STAGE")[0][1])
+folder = sys.argv[1]
+
+pipeline_file = os.path.join(folder, "pipeline.txt")
+pipeline = file2dic(pipeline_file)
+surface = pipeline["SURFACE"]
+stage = pipeline["STAGE"]
+volume = pipeline["SOX9"]
 
 reference_meshes = (250, 260, 270, 290)
 reference_stage = closest_value(reference_meshes, int(stage))
 
 
-################################################
-settings.default_font = "Calco"
-settings.annotated_cube_texts = [
-    "Distal",
-    "Proxim",
-    "Anter",
-    "Poster",
-    "Dorso",
-    "Ventral",
-]
-settings.annotated_cube_text_scale = 0.18
-
-# Read volume
-if os.path.exists(volume):  # load existing volume
-    vol = Volume(volume).resize([100, 100, 100])
-else:
-    printc("Run the first algorithm!")
-    exit()
+vol = Volume(volume).resize([100, 100, 100])
 
 iso = Mesh(surface).color("blue5", 0.2)
-iso_base = iso.clone().color("green3", 0.5)
 
 
 # Apply non linear tranformation
-tname = os.path.join(folder, "nonlinear_transformation.mat")
-T = NonLinearTransform(tname)
-T.update()
+# tname = os.path.join(folder, "nonlinear_transformation.mat")
+T = NonLinearTransform(pipeline["TRANSFORMATION"])
 vol.apply_transform(T).rotate_y(-30)
 iso.apply_transform(T).rotate_y(-30)
 
@@ -93,10 +65,6 @@ zslab = slab.zbounds()[0] + 1000
 slab.z(-zslab)  # move slab to the bottom  # move slab to the bottom
 slab_box = Box(bbox).wireframe().c("black")
 slab.cmap("viridis", vmin=50, vmax=400).add_scalarbar("slab")
-
-# histogram(slab).show().close()  # quickly inspect it
-
-# show(vol, iso, reference, slab, slab_box, vaxes, axes=5, zoom=1.5)
 
 plt = Plotter()
 
@@ -167,13 +135,3 @@ plt.add_slider(
 
 
 plt.show(axes=14, zoom=1.5).close()
-
-# plt.add_slider(
-#     slider2,
-#     xmin=vmin,
-#     xmax=vmax,
-#     value=vmax,
-#     c=secondary,
-#     pos="top-right",  # type: ignore
-#     title="Isoline Max value",
-# )

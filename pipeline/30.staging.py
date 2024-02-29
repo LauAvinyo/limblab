@@ -1,25 +1,36 @@
-import numpy as np
-from vedo import settings, fit_plane, printc, vector, grep
-from vedo import Mesh, Points, Axes, Text2D, LinearTransform
-from vedo.applications import SplinePlotter
 import os
+import sys
 
-
-# TODO: Set this as arguments!
-limbstager_exe = (
-    "/Users/lauavino/Documents/PhD/code/sharpe/TOPSECRET/limb-stagig/src/limbstager"
+from utils import dic2file, file2dic
+from vedo import (
+    Axes,
+    LinearTransform,
+    Mesh,
+    Points,
+    Text2D,
+    fit_plane,
+    grep,
+    printc,
+    settings,
+    vector,
 )
+from vedo.applications import SplinePlotter
 
+# python script_name.py HCR12_8a_dapi_405 ../limb-stagig/src/limbstager
 
-# TODO: This should be the input
-folder = "HCR12_8a_dapi_405"
+if len(sys.argv) != 3:
+    print("Usage: python script_name.py folder_name limbstager_exe_path")
+    sys.exit(1)
+
+folder = sys.argv[1]
+limbstager_exe = sys.argv[2]
 
 # Get the the data from the pipeline file
-pipeline = os.path.join(folder, "pipeline.txt")
-surface = grep(pipeline, "SURFACE")[0][1]
+pipeline_file = os.path.join(folder, "pipeline.txt")
+pipeline = file2dic(pipeline_file)
+surface = pipeline["SURFACE"]
 
-limbstager_file = ".tmp_staging_file.txt"
-outfile = ".tmp_out_file.txt"
+outfile = ".tmp_out.txt"
 
 
 def kfunc(event):
@@ -64,7 +75,7 @@ def kfunc(event):
                 printc("INFO: limbstager executable not found.", c="lg")
                 return
 
-            print("Reasing the grep!")
+            # print("Reasing the grep!")
             result = grep(".tmp_out.txt", "RESULT")
             if not len(result):
                 printc("Error - Could not stage the limb, RESULT tag is missing", c="r")
@@ -72,6 +83,7 @@ def kfunc(event):
             stage = result[0][1]
             txt.text(f"Limb staged as {stage}")
             plt.at(0).render()
+            pipeline["STAGE"] = stage
 
     elif event.keypress == "r":
         plt.reset_camera().render()
@@ -104,3 +116,5 @@ plt.add_callback("on keypress", kfunc)
 plt.at(0).add(Axes(msh, c="k", xygrid=False, ztitle=" "))
 plt.at(1).add(txt)
 plt.at(0).show(interactive=True)
+
+dic2file(pipeline, pipeline_file)

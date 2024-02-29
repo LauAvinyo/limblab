@@ -1,0 +1,7 @@
+BASE ../data/HCR/HCR12_8a_dapi_405.tif
+DAPI ../data/HCR/HCR12_8a_dapi_405.vti
+SOX9 ../data/HCR/HCR12_8a_sox9_594.vti
+ISOVAL 236.46596684355399
+SURFACE ../data/HCR/HCR12_8a_dapi_405_surface.vtk
+STAGE 268
+TRANSFORMATION ../data/HCR/HCR12_8a_dapi_405.mat
