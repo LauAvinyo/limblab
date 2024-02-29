@@ -3,3 +3,5 @@ data/
 .DS_Store
 src/
 .tmp/
+fmap.json
+*.vtk
