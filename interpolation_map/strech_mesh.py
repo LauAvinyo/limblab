@@ -1,11 +1,10 @@
-from vedo import TetMesh, Lines, NonLinearTransform, show
+from vedo import TetMesh, Lines, NonLinearTransform
 
 import os
 
 
 output_folder = "/Users/lauavino/Documents/PhD/code/sharpe/TOPSECRET/interpolation_map/transformations"
-# Define the folder path
-folder = "/Users/lauavino/Desktop/tet_meshes_medium/"
+folder = "/Users/lauavino/Desktop/medium_resolution/"
 
 
 # List all files in the folder
