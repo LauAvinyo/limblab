@@ -2,7 +2,7 @@ import os
 import sys
 
 from utils import file2dic
-from vedo import Axes, Box, Mesh, NonLinearTransform, Plotter, Volume, dataurl
+from vedo import Axes, Box, Mesh, NonLinearTransform, Plotter, Volume, dataurl, show
 
 
 def closest_value(input_list, target):
@@ -18,17 +18,20 @@ def closest_value(input_list, target):
     return closest
 
 
-if len(sys.argv) != 2:
-    print("Usage: python script_name.py folder_name")
+if len(sys.argv) != 3:
+    print("Usage: python script_name.py folder_name channel")
     sys.exit(1)
 
 folder = sys.argv[1]
+channel = sys.argv[2]
 
 pipeline_file = os.path.join(folder, "pipeline.txt")
 pipeline = file2dic(pipeline_file)
 surface = pipeline["SURFACE"]
 stage = pipeline["STAGE"]
-volume = pipeline["SOX9"]
+volume = pipeline[channel.upper()]
+
+CMAP = "Greys"
 
 reference_meshes = (250, 260, 270, 290)
 reference_stage = closest_value(reference_meshes, int(stage))
@@ -64,7 +67,7 @@ bbox = slab.metadata["slab_bounding_box"]
 zslab = slab.zbounds()[0] + 1000
 slab.z(-zslab)  # move slab to the bottom  # move slab to the bottom
 slab_box = Box(bbox).wireframe().c("black")
-slab.cmap("viridis", vmin=50, vmax=400).add_scalarbar("slab")
+slab.cmap(CMAP, vmin=50, vmax=400).add_scalarbar("slab")
 
 plt = Plotter()
 
@@ -87,7 +90,7 @@ def slider1(widget, event):
     zslab = slab.zbounds()[0] + 1000
     slab.z(-zslab)  # move slab to the bottom
     slab_box = Box(bbox).wireframe().c("black")
-    slab.cmap("viridis", vmin=50, vmax=400).add_scalarbar("slab")
+    slab.cmap(CMAP, vmin=50, vmax=400).add_scalarbar("slab")
     plt.add(slab)
     plt.add(slab_box)
 
@@ -108,7 +111,7 @@ def slider2(widget, event):
     zslab = slab.zbounds()[0] + 1000
     slab.z(-zslab)  # move slab to the bottom
     slab_box = Box(bbox).wireframe().c("black")
-    slab.cmap("viridis", vmin=50, vmax=400).add_scalarbar("slab")
+    slab.cmap(CMAP, vmin=50, vmax=400).add_scalarbar("slab")
     plt.add(slab)
     plt.add(slab_box)
 
@@ -135,3 +138,10 @@ plt.add_slider(
 
 
 plt.show(axes=14, zoom=1.5).close()
+
+print(slab)
+
+l, u = slab.metadata["slab_range"]
+
+slab_path = os.path.join(folder, f"{channel}_slab_{l}_{u}.py")
+show(slab).screenshot(slab_path).close()
