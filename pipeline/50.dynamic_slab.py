@@ -2,7 +2,9 @@ import os
 import sys
 
 from utils import file2dic
-from vedo import Axes, Box, Mesh, NonLinearTransform, Plotter, Volume, dataurl, show
+from vedo import Axes, Box, Mesh, NonLinearTransform, Plotter, Volume, dataurl, show, np
+
+import json
 
 
 def closest_value(input_list, target):
@@ -141,7 +143,34 @@ plt.show(axes=14, zoom=1.5).close()
 
 print(slab)
 
+
+def load_mesh(file):
+    with open(file, "r") as f:
+        meshes_raw = json.load(f)["morphomovie"]
+
+    mesh = {}
+    for m in meshes_raw:
+        mesh[round(m["t"])] = {
+            "nodes": np.array(tuple((x, y) for _, x, y in m["nodes"])),
+            "elements": np.array(
+                tuple((a - 1, b - 1, c - 1) for _, a, b, c in m["elements"])
+            ),
+        }
+    return mesh
+
+
 l, u = slab.metadata["slab_range"]
 
 slab_path = os.path.join(folder, f"{channel}_slab_{l}_{u}.py")
-show(slab).screenshot(slab_path).close()
+
+# One option is to get the screenshot of the slab.
+# show(slab).screenshot(slab_path).close()
+
+# Another option is to map it onto the morphomovie and send the mesh to LimbNET
+mesh_2d = load_mesh("../data/fineFgfsNorm8.mm.mesh.ol.json")[int(stage) * 60]
+msh = Mesh([mesh_2d["nodes"], mesh_2d["elements"]])
+msh.z(-zslab)
+
+msh.interpolate_data_from(slab, n=3).cmap("viridis")
+
+show(msh).close()
