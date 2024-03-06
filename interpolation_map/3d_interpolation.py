@@ -17,7 +17,10 @@ folder = sys.argv[2]
 files = os.listdir(folder)
 files_sorted = humansort(
     [f for f in files if os.path.isfile(os.path.join(folder, f)) and f != ".DS_Store"]
-)
+)[20:30]
+
+# print(files_sorted)
+# exit()
 
 
 # Iterate through the sorted files and their next file
@@ -66,7 +69,8 @@ for current_file, next_file in zip(files_sorted, files_sorted[1:] + [None]):
         # Store it on the fmap
         fmap[f"{t0}-{t1}"].append([(i, arr1[k]) for k in ids])
 
-with open("fmap.json", "w") as f:
+file_name = "imap_265_274"
+with open(file_name, "w") as f:
     print(fmap.keys())
     json.dump(fmap, f)
     # show(limb0, limb1, N=2, axes=1)
