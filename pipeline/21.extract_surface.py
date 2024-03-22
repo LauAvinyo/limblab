@@ -57,3 +57,6 @@ surface.write(path_surface)
 # Store the path
 pipeline["SURFACE"] = path_surface
 dic2file(pipeline, pipeline_file)
+
+# TODO:
+# Close the surface
