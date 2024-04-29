@@ -9,9 +9,14 @@ pip install -U git+https://github.com/marcomusy/vedo.git
 The pipeline assumes the user has at least two `.tif` volumes, one with the DAPI channel and one with the Sox9 channel.
 With @Heura's nomenclature.
 
+> [!WARNING]
+> For now we just do the mean projection of the slab.
+> The user needs to get the reference limbs!
+
+
 `00.make_folder.py`
 The first script receives the DAPI channel and creates a working folder with the name of the experiment (extracted from the input file) and a pipeline file that will be used to write the paths to the generated files and values used for that particular experiment. 
-ß
+
 `01.clean_volume.py`
 This script receives a `.tif` volume and generates a properly spaced `.vti`.
 
@@ -31,17 +36,11 @@ This is the 3D staging system. It uses the extracted DAPI surface to stage the l
 Using the extracted surface from the DAPI and the _Canonical 3D surface_ for that stage the user has to manually click the morphing points. The script stores the non-linear transformation needed for the morphing and it does store the path in the pipeline file.
 
 `41.simple_rotation.py`
-This script allows the user to perform a linear transformation to the limb, in order to align it with the reference limb, without morphing it. 
-
-> [!IMPORTANT]
-> The user needs to get the reference limbs!
-
+This script allows the user to perform a linear transformation to the limb, in order to align it with the reference limb, without morphing it. Transformation is saved for both. 
 
 `50.dynamic_slab.py`
 The user can select the upper and lower bounds of the slab. 
 
-> [!WARNING]
-> For now we just do the mean projection of the slab 
 
 
 

@@ -1,3 +1,6 @@
+import os
+import re
+
 def file2dic(file):
     with open(file, "r") as f:
         pipeline = {}
@@ -22,7 +25,8 @@ def dic2file(data_dict, filename):
             file.write(f"{key} {value}\n")
 
 
-def closest_value(input_list, target):
+def closest_value(input_list: list, target: int) -> int:
+    """"Get the closest value of the list to our target."""
     closest = input_list[0]  # Assume the first value is the closest initially
     min_diff = abs(target - closest)  # Initialize minimum difference
 
@@ -33,3 +37,33 @@ def closest_value(input_list, target):
             closest = value
 
     return closest
+
+
+
+REFERENCE_LIMB_FOLDER = "/Users/lauavino/Documents/Code/limb-hcr-pipeline/data/limb"
+
+files = [file for file in os.listdir(REFERENCE_LIMB_FOLDER)
+         if os.path.isfile(os.path.join(REFERENCE_LIMB_FOLDER, file))
+         and not file.startswith(".DS") or file.startswith("-")]
+reference_stages = [int(file.split(".")[0].split("_")[1]) for file in files]
+
+def get_reference_limb(stage: int) -> str:
+    """From the stage, get the refernce limb path"""
+    file = os.path.join(REFERENCE_LIMB_FOLDER, "Limb-rec_"+str(stage)+".vtk")
+    if os.path.isfile(file):
+        return file
+    return False
+
+
+
+# Regular expression pattern to match RF, LF, RH, LH
+PATTERN = r'\b(RF|LF|RH|LH)\b'
+
+def get_side_postion(file):
+    matches = re.findall(PATTERN, file.replace("_", " "))
+
+    if len(matches) == 1:
+        side = matches[0][0]
+        position = matches[0][1]
+        return side, position
+    return None

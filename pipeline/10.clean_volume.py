@@ -1,7 +1,7 @@
 import os
 import sys
 
-from utils import file2dic, dic2file
+from utils import dic2file, file2dic, get_side_postion
 from vedo import Volume, printc
 from vedo.applications import IsosurfaceBrowser
 from vedo.pyplot import histogram
@@ -19,8 +19,10 @@ volume = raw_volume.replace(".tif", ".vti")
 channel = os.path.basename(volume).split("_")[2].upper()
 
 
-# TODO: This should be in the name
-side = "R"  # Left or Right limb
+sp = get_side_postion(volume)
+if sp is not None:
+    side, position = sp
+
 
 spacing = (0.65, 0.65, 2)
 # size    = (1024, 1024, 296)  # high res
@@ -30,7 +32,7 @@ clip_range = (60, 600)
 
 if os.path.exists(volume) and pipeline.get(channel, False):
     print("This is already done!")
-    exit()
+    sys.exit()
 
 v0, v1 = clip_range
 vol = Volume(raw_volume).spacing(spacing).cmap("Paired", vmin=v0, vmax=v1)
@@ -50,4 +52,6 @@ printc("-> Writing resized volume", volume)
 vol.write(volume)
 
 pipeline[channel] = volume
+pipeline["SIDE"] = side
+pipeline["POSITION"] = position
 dic2file(pipeline, pipeline_file)

@@ -3,8 +3,7 @@
 # download and unpack root v6 from https://root.cern/install/all_releases/
 # update ROOTSYS below to match the install directory:
 
-ROOTSYS=/opt/local
-
+ROOTSYS=/opt/homebrew/Cellar/root/6.30.06/
 
 ###################### On Mac ##########################
 # brew install root

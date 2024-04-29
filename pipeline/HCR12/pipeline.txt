@@ -1,7 +1,11 @@
-BASE ../data/HCR/HCR12_8a_dapi_405.tif
-DAPI ../data/HCR/HCR12_8a_dapi_405.vti
-SOX9 ../data/HCR/HCR12_8a_sox9_594.vti
-ISOVAL 200.66753706554186
-SURFACE ../data/HCR/HCR12_8a_dapi_405_surface.vtk
+BASE /Users/lauavino/Desktop/HCR_examples/HCR12_13c_dapi_405.tif
+DAPI /Users/lauavino/Desktop/HCR_examples/HCR12_13c_dapi_405.vti
+SOX9 /Users/lauavino/Desktop/HCR_examples/HCR12_13c_sox9_594.vti
 STAGE 268
-TRANSFORMATION ../data/HCR/HCR12_8a_dapi_405.mat
+ISOVAL 276.3246058926803
+SURFACE /Users/lauavino/Desktop/HCR_examples/HCR12_13c_dapi_405_surface.vtk
+TRANSFORMATION /Users/lauavino/Desktop/HCR_examples/HCR12_13c_dapi_405_rotation.mat
+ROTATION /Users/lauavino/Desktop/HCR_examples/HCR12_13c_dapi_405_rotation.mat
+L1 ../../../Desktop/Sox9Database/AFF3/HCR12_AFF3_L1_dapi_405_RF.vti
+SIDE R
+POSITION F

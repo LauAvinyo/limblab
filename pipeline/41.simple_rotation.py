@@ -1,46 +1,40 @@
 import os
+import sys
 
-from vedo import Mesh, ask, dataurl, printc, show, grep
+from utils import (
+    closest_value,
+    dic2file,
+    file2dic,
+    get_reference_limb,
+    reference_stages,
+)
+from vedo import Mesh, ask, printc, show
 
+if len(sys.argv) != 2:
+    print("Usage: python script_name.py folder_name")
+    sys.exit(0)
 
-def closest_value(input_list, target):
-    closest = input_list[0]  # Assume the first value is the closest initially
-    min_diff = abs(target - closest)  # Initialize minimum difference
+folder = sys.argv[1]
 
-    for value in input_list:
-        diff = abs(target - value)
-        if diff < min_diff:
-            min_diff = diff
-            closest = value
+pipeline_file = os.path.join(folder, "pipeline.txt")
+pipeline = file2dic(pipeline_file)
+surface = pipeline["SURFACE"]
+stage = pipeline.get("STAGE", False)
 
-    return closest
+if not stage:
+    print("Please run the staging algorithm first!")
+    sys.exit(0)
 
+# Get the target stage
+reference_stage = closest_value(reference_stages, int(stage))
+print(f"The stage of the limb is {stage} and we are using as reference {reference_stage}.")
+refence_limb = get_reference_limb(stage)
+print(f"The reference limb is in file {refence_limb}.")
 
-# TODO: This should be the input
-folder = "HCR12_8a_dapi_405"
-
-################################################
-
-# Get the the data from the pipeline file
-pipeline = os.path.join(folder, "pipeline.txt")
-surface = grep(pipeline, "SURFACE")[0][1]
-stage = int(grep(pipeline, "STAGE")[0][1])
-
-reference_meshes = (250, 260, 270, 290)
-reference_stage = closest_value(reference_meshes, int(stage))
-
-print(reference_stage, stage)
-
-
-# # Apply non linear tranformation
-# tname = os.path.join(folder, "nonlinear_transformation.mat")
-# T = NonLinearTransform(tname)
-# T.update()
-# source.apply_transform(T)
-
+# Get the Surfaces
 source = Mesh(surface)
 target = (
-    Mesh(dataurl + f"{reference_stage}.vtk")
+    Mesh(refence_limb)
     .cut_with_plane(origin=(1, 0, 0))
     .color("yellow5")
 )
@@ -48,9 +42,10 @@ target = (
 printc("Manually align mesh by toggling 'a'", invert=True)
 show(source, target, axes=14).close()
 
-# ############################################### save stuff
+
+# Store the Transformation
 T = source.apply_transform_from_actor()
-tname = "linear_transformation.mat"
+tname = surface.replace("_surface.vtk", "_rotation.mat")
 if os.path.isfile(tname):
     answer = ask("Overwrite existing transformation matrix? (y/N)", c="y")
     if answer == "y":
@@ -62,5 +57,8 @@ else:
     print(T)
 
 
-with open(pipeline, "a") as f:
-    print("LINTRANS", os.path.join(folder, tname), file=f)
+pipeline["TRANSFORMATION"] = tname
+dic2file(pipeline, pipeline_file)
+
+pipeline["ROTATION"] = tname
+dic2file(pipeline, pipeline_file)

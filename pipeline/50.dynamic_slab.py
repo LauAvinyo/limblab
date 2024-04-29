@@ -75,7 +75,7 @@ plt = Plotter()
 
 plt += vol
 plt += iso
-plt += reference
+# plt += reference
 plt += slab
 plt += slab_box
 plt += vaxes
