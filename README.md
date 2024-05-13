@@ -15,7 +15,7 @@ With @Heura's nomenclature.
 
 
 `00.make_folder.py`
-The first script receives the DAPI channel and creates a working folder with the name of the experiment (extracted from the input file) and a pipeline file that will be used to write the paths to the generated files and values used for that particular experiment. 
+The first script receives the DAPI channel and creates a working folder with the name of the experiment (extracted from the input file) and a pipeline file that will be used to write the paths to the generated files and values used for that particular experiment. Change.
 
 `01.clean_volume.py`
 This script receives a `.tif` volume and generates a properly spaced `.vti`.
