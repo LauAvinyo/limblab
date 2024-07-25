@@ -19,7 +19,6 @@ primary = "#0d1b2a"
 secondary = "#1b263b"
 background = "#fb8f00"
 
-
 if len(sys.argv) > 3:
     print("Usage: python script_name.py folder_name")
     sys.exit(1)
@@ -28,27 +27,11 @@ channel = "SOX9"
 if len(sys.argv) == 3:
     channel = sys.argv[2].upper()
 
-
 # Get the paths
 pipeline_file = os.path.join(folder, "pipeline.log")
 # pipeline_file = os.path.join(folder, "pipeline.txt")
 pipeline = file2dic(pipeline_file)
 transformation = pipeline.get("TRANSFORMATION", False)
-
-
-# def pick_evenly_distributed_values(arr, resolution=0.1):
-#     # Determine the number of values to pick (10% of the filtered array length)
-#     num_values = max(1, int(len(arr) * resolution))
-#     # Ensure the number of values is at least 1
-#     if num_values < 1:
-#         num_values = 1
-
-#     # Generate indices for evenly spaced values
-#     indices = np.linspace(0, len(arr) - 1, num=num_values, dtype=int)
-#     # Pick the values from the filtered array
-#     picked_values = arr[indices]
-#     return picked_values
-
 
 # Check if the surfaces are computes:
 
@@ -105,11 +88,13 @@ def interpolate_colors(color1, color2, num_values):
 
     # Generate linearly spaced values between the two colors
     interpolated_colors = [
-        rgb1 + (rgb2 - rgb1) * i / (num_values - 1) for i in range(num_values)]
+        rgb1 + (rgb2 - rgb1) * i / (num_values - 1) for i in range(num_values)
+    ]
 
     # Convert RGB values back to hexadecimal format
-    interpolated_colors_hex = [mcolors.to_hex(
-        color) for color in interpolated_colors]
+    interpolated_colors_hex = [
+        mcolors.to_hex(color) for color in interpolated_colors
+    ]
 
     return interpolated_colors_hex
 
@@ -139,8 +124,10 @@ def load_isosurfaces(isosurface_folder, transformation):
 
     # Read array
     all_files = os.listdir(isosurface_folder)
-    file_names = [f for f in all_files if os.path.isfile(
-        os.path.join(isosurface_folder, f))]
+    file_names = [
+        f for f in all_files
+        if os.path.isfile(os.path.join(isosurface_folder, f))
+    ]
     isovalues = np.sort(
         np.array([int(os.path.splitext(f)[0]) for f in file_names]))
 
@@ -149,8 +136,8 @@ def load_isosurfaces(isosurface_folder, transformation):
     for isovalue in progressbar(isovalues, title="Loading surfaces..."):
         surface = Mesh(os.path.join(isosurface_folder, f"{isovalue}.vtk"))
         surface.name = str(isovalue)
-        isosurfaces[isovalue] = surface.alpha(
-            0.3).lighting("off").frontface_culling()
+        isosurfaces[isovalue] = surface.alpha(0.3).lighting(
+            "off").frontface_culling()
         if transformation:
             T = LinearTransform(os.path.join(folder, transformation))
             isosurfaces[isovalue].apply_transform(T)
@@ -163,13 +150,11 @@ if not os.path.exists(isosurface_folder):
 
 # Load isosurfaces
 # isosurface_folder = os.path.join(folder, "isosurfaces")
-isosurfaces, isovalues = load_isosurfaces(
-    isosurface_folder, transformation)
+isosurfaces, isovalues = load_isosurfaces(isosurface_folder, transformation)
 
 # Load volume
 
-surface = os.path.join(folder,
-                       pipeline.get("BLENDER", pipeline["SURFACE"]))
+surface = os.path.join(folder, pipeline.get("BLENDER", pipeline["SURFACE"]))
 
 limb = Mesh(surface)
 limb.color(background).alpha(0.1)
@@ -204,8 +189,8 @@ def clean_plotter():
 
 def add_isosurfaces():
     global plt, number_isosurfaces, current_isovalues, min_value, max_value
-    selected_isovalues = pick_values(
-        isovalues, min_value, max_value, number_isosurfaces)
+    selected_isovalues = pick_values(isovalues, min_value, max_value,
+                                     number_isosurfaces)
     colors = interpolate_colors(color1, color2, number_isosurfaces)
     if not (selected_isovalues.shape[0]):
         print("Oh no! There is no isosurfaces found!")
@@ -249,8 +234,8 @@ def n_surfaces_slider(widget, event):
 
 
 # Initial isovalues
-current_isovalues = pick_values(
-    isovalues, min_value, max_value, number_isosurfaces)
+current_isovalues = pick_values(isovalues, min_value, max_value,
+                                number_isosurfaces)
 colors = interpolate_colors(color1, color2, number_isosurfaces)
 for i, isovalue in enumerate(current_isovalues):
     plt += isosurfaces[isovalue].color(colors[i])
@@ -290,13 +275,10 @@ plt.add_slider(
     c=secondary,
     pos="bottom-right-vertical",  # type: ignore
     title="Number isolines",
-    delayed=True
-
-)
+    delayed=True)
 
 plt.show()
 plt.close()
-
 
 # reference_stage = closest_value(reference_stages, int(stage))
 # print(

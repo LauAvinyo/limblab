@@ -11,7 +11,7 @@ from vedo.applications import SplinePlotter
 
 if len(sys.argv) != 3:
     # print("Usage: python script_name.py folder_name limbstager_exe_path")
-    limbstager_exe = "/Users/lauavino/Documents/Code/limblab/limb-stagig/src/limbstager"
+    limbstager_exe = "/Users/lauavino/Documents/Code/limblab/limb-staging/src/limbstager"
 else:
     limbstager_exe = sys.argv[2]
 
@@ -25,10 +25,14 @@ surface = pipeline["SURFACE"]
 # outfile = "/Users/lauavino/Documents/Code/limb-hcr-pipeline/limb-stagig/.tmp_out.txt"
 
 outfile = os.path.join(folder, "staging.txt")
-connect = requests.get("http://127.0.0.1:8000")
 
-if connect.status_code == 200:
-    SERVER = True
+try:
+    connect = requests.get("http://127.0.0.1:8000")
+    if connect.status_code == 200:
+        SERVER = True
+except:
+    SERVER = False
+    print("Using local exe")
 
 
 def kfunc(event):
