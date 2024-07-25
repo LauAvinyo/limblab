@@ -2,35 +2,28 @@ import os
 import sys
 
 from utils import dic2file, file2dic
-from vedo import (
-    Axes,
-    LinearTransform,
-    Mesh,
-    Points,
-    Text2D,
-    fit_plane,
-    grep,
-    printc,
-    settings,
-    vector,
-)
+from vedo import (Axes, LinearTransform, Mesh, Points, Text2D, fit_plane, grep,
+                  printc, settings, vector)
 from vedo.applications import SplinePlotter
 
 # python script_name.py HCR12_8a_dapi_405 ../limb-stagig/src/limbstager
 
 if len(sys.argv) != 3:
-    print("Usage: python script_name.py folder_name limbstager_exe_path")
-    sys.exit(1)
+    # print("Usage: python script_name.py folder_name limbstager_exe_path")
+    limbstager_exe = "/Users/lauavino/Documents/Code/limb-hcr-pipeline/limb-stagig/src/limbstager"
+else:
+    limbstager_exe = sys.argv[2]
 
 folder = sys.argv[1]
-limbstager_exe = sys.argv[2]
 
 # Get the the data from the pipeline file
-pipeline_file = os.path.join(folder, "pipeline.txt")
+pipeline_file = os.path.join(folder, "pipeline.log")
 pipeline = file2dic(pipeline_file)
 surface = pipeline["SURFACE"]
 
-outfile = ".tmp_out.txt"
+# outfile = "/Users/lauavino/Documents/Code/limb-hcr-pipeline/limb-stagig/.tmp_out.txt"
+
+outfile = os.path.join(folder, "staging.txt")
 
 
 def kfunc(event):
@@ -46,7 +39,8 @@ def kfunc(event):
             fitline.name = "Fit"
             axes = Axes(fitline, c="k")
             axes.name = "Fit"
-            plt.at(1).remove("Fit").add(fitpoints, fitline, axes).reset_camera()
+            plt.at(1).remove("Fit").add(fitpoints, fitline,
+                                        axes).reset_camera()
             #
             # stage the limb
             txt.text("Staging your limb, please wait...")
@@ -62,8 +56,7 @@ def kfunc(event):
 
                 # now stage: a .tmp_out.txt file is created
                 errnr = os.system(
-                    f"{limbstager_exe} {outfile} > .tmp_out.txt 2> /dev/null"
-                )
+                    f"{limbstager_exe} {outfile} > .tmp_out.txt 2> /dev/null")
                 if errnr:
                     printc(
                         f"limbstager executable {limbstager_exe} returned error:",
@@ -78,7 +71,9 @@ def kfunc(event):
             # print("Reasing the grep!")
             result = grep(".tmp_out.txt", "RESULT")
             if not len(result):
-                printc("Error - Could not stage the limb, RESULT tag is missing", c="r")
+                printc(
+                    "Error - Could not stage the limb, RESULT tag is missing",
+                    c="r")
                 return
             stage = result[0][1]
             txt.text(f"Limb staged as {stage}")
@@ -97,24 +92,26 @@ settings.enable_default_keyboard_callbacks = False
 settings.default_font = "Dalim"
 
 # load a 3D mesh of the limb to stage
+surface = os.path.join(folder, surface)
 msh = Mesh(surface).c("blue8", 0.8)
 txt = Text2D(pos="top-center", bg="yellow5", s=1.5)
 
-plt = SplinePlotter(msh, title="3D Stager", N=2, sharecam=0, size=(2000, 1000), axes=14)
+plt = SplinePlotter(msh,
+                    title="3D Stager",
+                    N=2,
+                    sharecam=0,
+                    size=(2000, 1000),
+                    axes=14)
 plt.verbose = False
-plt.instructions.text(
-    (
-        "Click to add a point\n"
-        "Right-click to remove it\n"
-        "Press c to clear points\n"
-        "Press s to stage the limb\n"
-        "Press r to reset camera\n"
-        "Press q to quit"
-    )
-)
+plt.instructions.text(("Click to add a point\n"
+                       "Right-click to remove it\n"
+                       "Press c to clear points\n"
+                       "Press s to stage the limb\n"
+                       "Press r to reset camera\n"
+                       "Press q to quit"))
 plt.add_callback("on keypress", kfunc)
 plt.at(0).add(Axes(msh, c="k", xygrid=False, ztitle=" "))
 plt.at(1).add(txt)
 plt.at(0).show(interactive=True)
 
-dic2file(pipeline, pipeline_file)
+# dic2file(pipeline, pipeline_file)

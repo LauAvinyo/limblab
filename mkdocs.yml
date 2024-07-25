@@ -1,0 +1,29 @@
+site_name: LimbLab
+site_url: https://mydomain.org/mysite
+
+theme:
+  name: material
+  palette:
+    scheme: default
+    primary: black
+    accent: orange
+    
+  features:
+    - navigation.instant
+
+  logo: assets/logo.png
+
+copyright: Copyright &copy; 2024 Sharpe Lab
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://fosstodon.org/@squidfunk
+      name: Github Repository
+
+nav:
+  - LimbLab: index.md
+  - GettingStarted: 
+    - Instalation: instalation.md
+    - Pipeline Overview: pipeline.md
+  - User Guide: 
+    - Volume Cleaning: volume.md

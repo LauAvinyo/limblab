@@ -1,10 +1,10 @@
+import json
 import os
 import sys
 
 from utils import file2dic
-from vedo import Axes, Box, Mesh, NonLinearTransform, Plotter, Volume, dataurl, show, np
-
-import json
+from vedo import (Axes, Box, Mesh, NonLinearTransform, Plotter, Volume,
+                  dataurl, np, show)
 
 
 def closest_value(input_list, target):
@@ -27,7 +27,7 @@ if len(sys.argv) != 3:
 folder = sys.argv[1]
 channel = sys.argv[2]
 
-pipeline_file = os.path.join(folder, "pipeline.txt")
+pipeline_file = os.path.join(folder, "pipeline.log")
 pipeline = file2dic(pipeline_file)
 surface = pipeline["SURFACE"]
 stage = pipeline["STAGE"]
@@ -38,11 +38,9 @@ CMAP = "Greys"
 reference_meshes = (250, 260, 270, 290)
 reference_stage = closest_value(reference_meshes, int(stage))
 
-
 vol = Volume(volume).resize([100, 100, 100])
 
 iso = Mesh(surface).color("blue5", 0.2)
-
 
 # Apply non linear tranformation
 # tname = os.path.join(folder, "nonlinear_transformation.mat")
@@ -138,7 +136,6 @@ plt.add_slider(
     title="Isoline Max Value",
 )
 
-
 plt.show(axes=14, zoom=1.5).close()
 
 print(slab)
@@ -151,10 +148,11 @@ def load_mesh(file):
     mesh = {}
     for m in meshes_raw:
         mesh[round(m["t"])] = {
-            "nodes": np.array(tuple((x, y) for _, x, y in m["nodes"])),
-            "elements": np.array(
-                tuple((a - 1, b - 1, c - 1) for _, a, b, c in m["elements"])
-            ),
+            "nodes":
+            np.array(tuple((x, y) for _, x, y in m["nodes"])),
+            "elements":
+            np.array(
+                tuple((a - 1, b - 1, c - 1) for _, a, b, c in m["elements"])),
         }
     return mesh
 

@@ -12,9 +12,9 @@ if len(sys.argv) != 2:
 
 folder = sys.argv[1]
 
-pipeline_file = os.path.join(folder, "pipeline.txt")
+pipeline_file = os.path.join(folder, "pipeline.log")
 pipeline = file2dic(pipeline_file)
-surface = pipeline["SURFACE"]
+surface = os.path.join(folder, pipeline["SURFACE"])
 stage = pipeline.get("STAGE", False)
 
 if not stage:
@@ -31,11 +31,9 @@ settings.enable_default_mouse_callbacks = False
 source = Mesh(surface).color("k5")
 # source.rotate_y(90).rotate_z(-60).rotate_x(40)
 
-# TODO: Change is for the folder with all the meshes!
-target = Mesh(dataurl + f"{reference_stage}.vtk").color("yellow5", 0.8)
+target = Mesh(dataurl + f"{270}.vtk").color("yellow5", 0.8)
 
-
-plt = MorphPlotter(source, target, size=(2490, 850), axes=14)
+plt = MorphPlotter(source, target, axes=14)
 plt.show()
 # print(plt.warped.transform)
 wrap_transform = plt.warped.transform
@@ -46,7 +44,5 @@ wrap_transform.write(tname)
 print(wrap_transform)
 
 pipeline["TRANSFORMATION"] = tname
-dic2file(pipeline, pipeline_file)
-
 pipeline["MORPHING"] = tname
 dic2file(pipeline, pipeline_file)

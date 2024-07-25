@@ -3,9 +3,10 @@ import sys
 
 from utils import dic2file, file2dic
 from vedo import Volume, printc, settings
+from vedo.applications import IsosurfaceBrowser
 from vedo.pyplot import histogram
 
-settings.default_font = "Calco"
+# settings.default_font = "Calco"
 
 if len(sys.argv) != 2:
     print("Usage: python script_name.py folder_name")
@@ -15,19 +16,26 @@ folder = sys.argv[1]
 # Get the paths
 pipeline_file = os.path.join(folder, "pipeline.log")
 pipeline = file2dic(pipeline_file)
+volume = pipeline.get("DAPI", False)
+path_surface = volume.replace(".vti", "_surface.vtk")
 
-volume = pipeline["DAPI"]
+if not Volume:
+    print("Make sure you have clean the DAPI channel volume!")
+    exit()
+
 volume = os.path.join(folder, volume)
 
-iso_value = pipeline.get("ISOVAL", 0)
+# Read the volume
+vol = Volume(volume)
 
-if os.path.exists(volume):
-    vol = Volume(volume)
-    vol.smooth_gaussian(sigma=(6, 6, 6))
-    vol.frequency_pass_filter(high_cutoff=0.05, order=1)
-else:
-    print("Make sure you clean up DAPI volume!")
-    exit()
+# IsosurfaceBrowser(Plotter) instance:
+plt = IsosurfaceBrowser(vol.color("green"), use_gpu=True, c="green", alpha=0.6)
+plt.show(axes=7, bg2="lb")
+
+# Get the isosurface value
+iso_value = plt.sliders[0][0].value
+plt.close()
+printc(f"The selected iso value is {iso_value:2f}.", c="orange")
 
 if not iso_value:
     printc(
@@ -46,14 +54,10 @@ surface = vol.isosurface(iso_value).extract_largest_region()
 # Decimating isosurface
 printc(
     f"-> Decimating isosurface... from n = {surface.npoints} please wait...")
-surface.decimate(0.1)
-
-path_surface = volume.replace(".vti", "_surface.vtk")
+surface.decimate(0.005)
 
 printc("-> Writing", path_surface)
-surface.write(path_surface)
-# show(surface, axes=14).close()
+# surface.write(os.path.join(folder, path_surface))
 
-# Store the path
-pipeline["SURFACE"] = path_surface
-dic2file(pipeline, pipeline_file)
+# TODO:
+# Close the surface

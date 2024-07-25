@@ -1,0 +1,7 @@
+site_name: My Docs
+theme:
+  palette:
+    scheme: default
+    primary: black
+    accent: orange
+
