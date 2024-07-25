@@ -69,7 +69,7 @@ def closest_value(input_list: list, target: int) -> int:
     return closest
 
 
-REFERENCE_LIMB_FOLDER = "/Users/lauavino/Documents/Code/limb-hcr-pipeline/data/limb"
+REFERENCE_LIMB_FOLDER = "/Users/lauavino/Documents/Code/limblab/data/limb"
 
 files = [
     file for file in os.listdir(REFERENCE_LIMB_FOLDER)

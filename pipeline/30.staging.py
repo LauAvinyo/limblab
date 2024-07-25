@@ -1,6 +1,7 @@
 import os
 import sys
 
+import requests
 from utils import dic2file, file2dic
 from vedo import (Axes, LinearTransform, Mesh, Points, Text2D, fit_plane, grep,
                   printc, settings, vector)
@@ -10,7 +11,7 @@ from vedo.applications import SplinePlotter
 
 if len(sys.argv) != 3:
     # print("Usage: python script_name.py folder_name limbstager_exe_path")
-    limbstager_exe = "/Users/lauavino/Documents/Code/limb-hcr-pipeline/limb-stagig/src/limbstager"
+    limbstager_exe = "/Users/lauavino/Documents/Code/limblab/limb-stagig/src/limbstager"
 else:
     limbstager_exe = sys.argv[2]
 
@@ -24,6 +25,10 @@ surface = pipeline["SURFACE"]
 # outfile = "/Users/lauavino/Documents/Code/limb-hcr-pipeline/limb-stagig/.tmp_out.txt"
 
 outfile = os.path.join(folder, "staging.txt")
+connect = requests.get("http://127.0.0.1:8000")
+
+if connect.status_code == 200:
+    SERVER = True
 
 
 def kfunc(event):
@@ -45,37 +50,55 @@ def kfunc(event):
             # stage the limb
             txt.text("Staging your limb, please wait...")
             plt.render()
-            if os.path.isfile(limbstager_exe):
-                # create an output file to feed the staging system executable
-                with open(outfile, "w") as f:
-                    f.write(
-                        f"gene_mapper {outfile}  u 1.0  0 0 0 0 {len(fitpoints.coordinates)}\n"
-                    )
-                    for p in vector(fitpoints.coordinates):
-                        f.write(f"MEASURED {p[0]} {p[1]}\n")
 
-                # now stage: a .tmp_out.txt file is created
-                errnr = os.system(
-                    f"{limbstager_exe} {outfile} > .tmp_out.txt 2> /dev/null")
-                if errnr:
-                    printc(
-                        f"limbstager executable {limbstager_exe} returned error:",
-                        errnr,
-                        c="r",
-                    )
-                    return
+            if SERVER:
+                data = {
+                    "header":
+                    f"gene_mapper tmp.txt  u 1.0  0 0 0 0 {len(fitpoints.coordinates)}\n",
+                    "points":
+                    list((p[0], p[1]) for p in vector(fitpoints.coordinates))
+                }
+
+                # response = requests.post("http://10.250.4.21:81/stage/", json=data)
+                response = requests.post("http://127.0.0.1:8000/stage/",
+                                         json=data)
+                print(response)
+                response_data = response.json()
+                print(response_data)
+                stage = response_data['stage']
             else:
-                printc("INFO: limbstager executable not found.", c="lg")
-                return
+                if os.path.isfile(limbstager_exe):
+                    # create an output file to feed the staging system executable
 
-            # print("Reasing the grep!")
-            result = grep(".tmp_out.txt", "RESULT")
-            if not len(result):
-                printc(
-                    "Error - Could not stage the limb, RESULT tag is missing",
-                    c="r")
-                return
-            stage = result[0][1]
+                    with open(outfile, "w") as f:
+                        f.write(
+                            f"gene_mapper {outfile}  u 1.0  0 0 0 0 {len(fitpoints.coordinates)}\n"
+                        )
+                        for p in vector(fitpoints.coordinates):
+                            f.write(f"MEASURED {p[0]} {p[1]}\n")
+
+                    # now stage: a .tmp_out.txt file is created
+                    errnr = os.system(
+                        f"{limbstager_exe} {outfile} > .tmp_out.txt 2> /dev/null"
+                    )
+                    if errnr:
+                        printc(
+                            f"limbstager executable {limbstager_exe} returned error:",
+                            errnr,
+                            c="r",
+                        )
+                        return
+                else:
+                    printc("INFO: limbstager executable not found.", c="lg")
+                    return
+
+                result = grep(".tmp_out.txt", "RESULT")
+                if not len(result):
+                    printc(
+                        "Error - Could not stage the limb, RESULT tag is missing",
+                        c="r")
+                    return
+                stage = result[0][1]
             txt.text(f"Limb staged as {stage}")
             plt.at(0).render()
             pipeline["STAGE"] = stage
