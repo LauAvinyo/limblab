@@ -1,6 +1,7 @@
 # pylint: disable=missing-module-docstring
 # pylint: disable=missing-class-docstring
 # pylint: disable=missing-function-docstring
+# pylint: disable=import-error
 
 from enum import Enum
 from pathlib import Path

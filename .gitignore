@@ -6,3 +6,4 @@ src/
 *.vtk
 miscellaneous/
 limb-staging/
+.vscode/

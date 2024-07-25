@@ -704,13 +704,13 @@ def one_channel_isosurface(folder, channel):
     plt.close()
 
 
-if __name__ == "__main__":
-    folder = "/Users/lauavino/Documents/Code/limblab/data/HCR20_BMP2_l1"
-    channel_0 = "SOX9"
-    channel_1 = "BMP2"
-    # two_chanel_isosurface(folder, channel_0, channel_1)
-    # raycast(folder, channel_1)
-    # slices(folder, channel_0)
-    # p1, p2 = (50, 300, 400), (1000, 300, 400)
-    # probe(folder, channel_0, p1, p2)
-    one_channel_isosurface(folder, channel_0)
+# if __name__ == "__main__":
+#     folder = "/Users/lauavino/Documents/Code/limblab/data/HCR20_BMP2_l1"
+#     channel_0 = "SOX9"
+#     channel_1 = "BMP2"
+#     # two_chanel_isosurface(folder, channel_0, channel_1)
+#     # raycast(folder, channel_1)
+#     # slices(folder, channel_0)
+#     # p1, p2 = (50, 300, 400), (1000, 300, 400)
+#     # probe(folder, channel_0, p1, p2)
+#     one_channel_isosurface(folder, channel_0)

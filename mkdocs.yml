@@ -22,8 +22,20 @@ extra:
 
 nav:
   - LimbLab: index.md
-  - GettingStarted: 
-    - Instalation: instalation.md
-    - Pipeline Overview: pipeline.md
   - User Guide: 
-    - Volume Cleaning: volume.md
+    - Volume Cleaning: userGuide/volume.md
+    - Extract the Limb Surface: userGuide/surface.md
+    - Limb Staging: userGuide/staging.md
+    - Aligment to reference: userGuide/align.md
+    - Visualitzation:
+      - Gene Pattern Isosurfaces: userGuide/vis/isosurfaces.md
+      - Dynamic Slab: userGuide/vis/slab.md
+    - Customization: userGuide/style.md
+  - Tutorials:
+    - Sox9 & BMP2: tutorials/sox9_bmp2.md
+    - Hoxa11: tutorials/hoxa11.md
+  - Help and Requests: help.md
+  - Roadmap: releases.md
+  - Contribute: contribute.md
+  - Alternatives: alternatives.md
+  - Changelog: releases.md
