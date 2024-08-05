@@ -13,6 +13,8 @@
 
 ---------
 
+## Introduction
+
 Welcome to the ultimate tool for visualizing and analyzing 3D limb data, designed specifically for the scientific community working with mouse limb models (for now). Whether you're a coder or a non-coder, our pipeline offers a range of features to make your research more efficient and effective.
 
 - **Accelerate Your Workflow**: Say goodbye to the time-consuming task of coding from scratch or reinventing the wheel. Our pipeline allows you to work faster and focus on your research instead of getting bogged down by technical details.
@@ -29,15 +31,9 @@ Join the growing community of scientists who are leveraging this powerful tool t
 
 ## Installation
 
-TBD: Add the pip isntall command here. 
-
-### Dependencies
-You need vedo!
-
-## Simple Example
-
-
-## Styling 
+```bash
+pip install limblab
+``` 
 
 
 ## Liscence

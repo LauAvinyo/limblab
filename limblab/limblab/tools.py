@@ -25,6 +25,8 @@ LIMBSTAGER_EXE = "/Users/lauavino/Documents/Code/limblab/limb-staging/src/limbst
 def _clean_volume(experiment_folder_path, raw_volume, channel, verbose=True):
     print(experiment_folder_path, raw_volume)
 
+    channel = channel.upper()
+
     volume = os.path.join(experiment_folder_path,
                           os.path.basename(raw_volume).replace(".tif", ".vti"))
 
@@ -228,13 +230,15 @@ def _stage_limb(experiment_folfer_path):
 
     outfile = os.path.join(experiment_folfer_path, "staging.txt")
 
-    try:
-        connect = requests.get("http://127.0.0.1:8000")
-        if connect.status_code == 200:
+    print("Trying to connect to the server...")
+    connect = requests.get("http://0.0.0.0:8000")
+    if connect.status_code == 200:
+        try:
+            print(connect.json())
             SERVER = True
-    except:
-        SERVER = False
-        print("Using local exe")
+        except:
+            SERVER = False
+            print("Using local exe")
 
     def kfunc(event):
         if event.keypress == "s":
@@ -266,7 +270,7 @@ def _stage_limb(experiment_folfer_path):
                     }
 
                     # response = requests.post("http://10.250.4.21:81/stage/", json=data)
-                    response = requests.post("http://127.0.0.1:8000/stage/",
+                    response = requests.post("http://0.0.0.0:8000/stage/",
                                              json=data,
                                              timeout=1000)
                     print(response)
@@ -286,7 +290,7 @@ def _stage_limb(experiment_folfer_path):
 
                         # now stage: a .tmp_out.txt file is created
                         errnr = os.system(
-                            f"{LIMBSTAGER_EXE} {outfile} > .tmp_out.txt 2> /dev/null"
+                            f"{LIMBSTAGER_EXE} {outfile} > {os.path.join(experiment_folfer_path, "staging_fit.txt")} 2> /dev/null"
                         )
                         if errnr:
                             printc(
@@ -300,7 +304,7 @@ def _stage_limb(experiment_folfer_path):
                                c="lg")
                         return
 
-                    result = grep(".tmp_out.txt", "RESULT")
+                    result = grep(os.path.join(experiment_folfer_path, "staging_fit.txt"), "RESULT")
                     if len(result) == 0:
                         printc(
                             "Error - Could not stage the limb, RESULT tag is missing",
@@ -378,7 +382,7 @@ def _rotate_limb(experiment_folfer_path):
 
     # Get the Surfaces
     source = Mesh(os.path.join(experiment_folfer_path, surface)).color(
-        (252, 171, 16)).mirror().scale(1.1)
+        (252, 171, 16)).scale(1.1)
     target = (
         Mesh(refence_limb).cut_with_plane(origin=(1, 0, 0))
         # .color("yellow5")
@@ -455,8 +459,7 @@ def _morph_limb(experiment_folfer_path):
     settings.default_font = "Calco"
     settings.enable_default_mouse_callbacks = False
 
-    source = Mesh(surface).color(
-        "k5").mirror()  # TODO! Check this mirror thing!
+    source = Mesh(surface).color("k5")
     # source.rotate_y(90).rotate_z(-60).rotate_x(40)
 
     # Get the target stage

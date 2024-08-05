@@ -159,7 +159,11 @@ def two_chanel_isosurface(folder, channel_0, channel_1):
             isosurfaces[f"{isovalue}_{channel}"] = surface.alpha(0.3).lighting(
                 "off").frontface_culling()
             if transformation:
-                T = LinearTransform(os.path.join(folder, transformation))
+                if "morphing" in transformation:
+                    T = NonLinearTransform(os.path.join(
+                        folder, transformation))
+                else:
+                    T = LinearTransform(os.path.join(folder, transformation))
                 isosurfaces[f"{isovalue}_{channel}"].apply_transform(T)
 
         return isosurfaces, isovalues
@@ -191,7 +195,10 @@ def two_chanel_isosurface(folder, channel_0, channel_1):
     limb.color(styles["limb"]["color"]).alpha(0.1)
     limb.extract_largest_region()
     if transformation:
-        T = LinearTransform(os.path.join(folder, transformation))
+        if "morphing" in transformation:
+            T = NonLinearTransform(os.path.join(folder, transformation))
+        else:
+            T = LinearTransform(os.path.join(folder, transformation))
         limb.apply_transform(T)
 
     number_isosurfaces = {0: 3, 1: 3}
@@ -836,7 +843,7 @@ def dynamic_slab(folder, channel):
         xmin=box_vmin,
         xmax=box_vmax,
         value=box_vmin,
-        c=styles["UI"]["primary"],
+        c=styles["ui"]["primary"],
         pos="bottom-left",  # type: ignore
         title="Slab Min Value",
     )
@@ -846,7 +853,7 @@ def dynamic_slab(folder, channel):
         xmin=box_vmin,
         xmax=box_vmax,
         value=box_vmax,
-        c=styles["UI"]["primary"],
+        c=styles["ui"]["primary"],
         pos="bottom-right",  # type: ignore
         title="Slab Max Value",
     )
