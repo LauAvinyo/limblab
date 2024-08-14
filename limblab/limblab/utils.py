@@ -21,6 +21,12 @@ styles = {
     "channel_0": {
         "color": "#B0DB43"
     },
+    "channel_1": {
+        "color": "#db43b0"
+    },
+    "channel_2": {
+        "color": "#43b0db"
+    },
     "limb": {
         "alpha": 0.1,
         "color": "#FF7F11"
@@ -78,7 +84,9 @@ def closest_value(input_list: list, target: int) -> int:
     return closest
 
 
-REFERENCE_LIMB_FOLDER = "/Users/lauavino/Documents/Code/limblab/data/limb"
+current_path = os.path.abspath(__file__)
+
+REFERENCE_LIMB_FOLDER = os.path.join(os.path.dirname(current_path), "limb")
 
 files = [
     file for file in os.listdir(REFERENCE_LIMB_FOLDER)

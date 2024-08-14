@@ -1,6 +1,7 @@
 import os
 import sys
 
+import numpy as np
 import requests
 import vedo
 from vedo import (Axes, LinearTransform, Mesh, Plotter, Points, Text2D, Volume,
@@ -18,12 +19,8 @@ from limblab.utils import (closest_value, dic2file, file2dic,
 vedo.settings.screenshot_transparent_background = True
 VERBOSE = True
 
-# TODO:
-LIMBSTAGER_EXE = "/Users/lauavino/Documents/Code/limblab/limb-staging/src/limbstager"
-
 
 def _clean_volume(experiment_folder_path, raw_volume, channel, verbose=True):
-    print(experiment_folder_path, raw_volume)
 
     channel = channel.upper()
 
@@ -124,6 +121,7 @@ def _clean_volume(experiment_folder_path, raw_volume, channel, verbose=True):
     printc("-> Apply smooth gaussian and low frequency filter...")
     vol.smooth_gaussian(sigma=SIGMA)
     vol.frequency_pass_filter(high_cutoff=CUTOFF)
+    printc("Smothing done! Check bac the plotter!")
 
     # # FIGURE fig:clean:
     # # The commented code was used to do figure
@@ -159,8 +157,6 @@ def _clean_volume(experiment_folder_path, raw_volume, channel, verbose=True):
 
 
 def _extract_surface(experiment_folder_path, isovalue, auto):
-
-    # Read the pipeline
 
     # Make sure the dapi volume exits
     # Get the paths
@@ -220,18 +216,22 @@ def _extract_surface(experiment_folder_path, isovalue, auto):
     dic2file(pipeline, pipeline_path)
 
 
-def _stage_limb(experiment_folfer_path):
+def _stage_limb(experiment_folfer_path, limb_stager=None):
     # Get the the data from the pipeline file
     pipeline_file = os.path.join(experiment_folfer_path, "pipeline.log")
     pipeline = file2dic(pipeline_file)
     surface = pipeline["SURFACE"]
 
-    # outfile = "/Users/lauavino/Documents/Code/limb-hcr-pipeline/limb-stagig/.tmp_out.txt"
+    if limb_stager is not None:
+        LIMBSTAGER_EXE = limb_stager
+    else:
+        LIMBSTAGER_EXE = None
 
     outfile = os.path.join(experiment_folfer_path, "staging.txt")
 
+    STAGING_URL = "http://127.0.0.1:8000"
     print("Trying to connect to the server...")
-    connect = requests.get("http://0.0.0.0:8000")
+    connect = requests.get(STAGING_URL)
     if connect.status_code == 200:
         try:
             print(connect.json())
@@ -270,7 +270,7 @@ def _stage_limb(experiment_folfer_path):
                     }
 
                     # response = requests.post("http://10.250.4.21:81/stage/", json=data)
-                    response = requests.post("http://0.0.0.0:8000/stage/",
+                    response = requests.post("http://127.0.0.1:8000/stage/",
                                              json=data,
                                              timeout=1000)
                     print(response)
@@ -290,7 +290,7 @@ def _stage_limb(experiment_folfer_path):
 
                         # now stage: a .tmp_out.txt file is created
                         errnr = os.system(
-                            f"{LIMBSTAGER_EXE} {outfile} > {os.path.join(experiment_folfer_path, "staging_fit.txt")} 2> /dev/null"
+                            f"{LIMBSTAGER_EXE} {outfile} > {os.path.join(experiment_folfer_path, 'staging_fit.txt')} 2> /dev/null"
                         )
                         if errnr:
                             printc(
@@ -304,7 +304,9 @@ def _stage_limb(experiment_folfer_path):
                                c="lg")
                         return
 
-                    result = grep(os.path.join(experiment_folfer_path, "staging_fit.txt"), "RESULT")
+                    result = grep(
+                        os.path.join(experiment_folfer_path,
+                                     'staging_fit.txt'), "RESULT")
                     if len(result) == 0:
                         printc(
                             "Error - Could not stage the limb, RESULT tag is missing",

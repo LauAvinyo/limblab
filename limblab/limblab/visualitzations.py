@@ -7,12 +7,49 @@ import sys
 import matplotlib.colors as mcolors
 import numpy as np
 from vedo import (Axes, Box, Line, LinearTransform, Mesh, NonLinearTransform,
-                  Plotter, Text2D, Volume, dataurl, np, progressbar, show)
+                  PlaneCutter, Plotter, Text2D, Volume, printc, progressbar,
+                  show)
 from vedo.applications import (IsosurfaceBrowser, RayCastPlotter,
                                Slicer3DPlotter)
 from vedo.pyplot import plot
 
-from limblab.utils import file2dic, pick_evenly_distributed_values, styles
+from limblab.utils import file2dic, pick_evenly_distributed_values  # styles
+
+styles = {
+    0: ("#9ce4f3", "#128099"),
+    1: ("#ec96f2", "#c90dd6"),
+    "postions": {
+        "number": ([0.1, 0.25], [0.2, 0.25]),
+        "values": ([0.1, 0.1], [0.2, 0.1])
+    },
+    "channel_0": {
+        "color": "#B0DB43"
+    },
+    "channel_1": {
+        "color": "#db43b0"
+    },
+    "channel_2": {
+        "color": "#43b0db"
+    },
+    "limb": {
+        "alpha": 0.1,
+        "color": "#FF7F11"
+    },
+    "reference": {
+        "alpha": 1,
+        "color": 1
+    },
+    "isosurfaces": {
+        "alpha": 0.3,
+        "alpha-unique": 0.8
+    },
+    "ui": {
+        "primary": "#0d1b2a",
+        "secondary": "#fb8f00"
+    }
+}
+
+# from vedo.utils import camera_from_dict
 
 
 def closest_value(input_list, target):
@@ -28,20 +65,24 @@ def closest_value(input_list, target):
     return closest
 
 
-# def load_mesh(file):
-#     with open(file, "r") as f:
-#         meshes_raw = json.load(f)["morphomovie"]
+def get_stage_to_angle_dict(start_x, end_x, start_y, end_y):
+    x_values = np.arange(start_x, end_x + 1)
+    y_values = np.linspace(start_y, end_y, num=len(x_values),
+                           dtype=int)  # Ensure integer y-values
+    return {x: y for x, y in zip(x_values, y_values)}
 
-#     mesh = {}
-#     for m in meshes_raw:
-#         mesh[round(m["t"])] = {
-#             "nodes":
-#             np.array(tuple((x, y) for _, x, y in m["nodes"])),
-#             "elements":
-#             np.array(
-#                 tuple((a - 1, b - 1, c - 1) for _, a, b, c in m["elements"])),
-#         }
-#     return mesh
+
+angle_d = get_stage_to_angle_dict(248, 320, 20, 40)
+
+# top_camera_dict = dict(
+#     pos=(727.761, -61.7969, 7909.93),
+#     focal_point=(727.761, -61.7969, 33.5966),
+#     viewup=(-2.46519e-32, 1.00000, 5.69320e-48),
+#     roll=-1.41245e-30,
+#     distance=7876.33,
+#     clipping_range=(5572.78, 10795.0),
+# )
+# top_camera_slab = camera_from_dict(top_camera_dict)
 
 # TODO:
 # This can be clean up. There are some functions no needed here.
@@ -444,11 +485,116 @@ def slices(folder, channel):
     plt.close()
 
 
-def probe(folder, channel, p1=None, p2=None):
+# import os
+
+# import numpy as np
+# from some_module import Volume, file2dic  # Replace with actual module import
+# from vedo import Line, plot, show
+
+
+def probe(folder, channels, points=None):
+    """Probe multiple Volumes with a line and plot the intensity values for each channel."""
+
+    global plt, fig
+
+    pipeline_file = os.path.join(folder, "pipeline.log")
+    pipeline = file2dic(pipeline_file)
+    volumes = []
+
+    # Load each volume corresponding to the channels
+    for channel in channels:
+        volume_file = os.path.join(folder, pipeline[channel.upper()])
+        volume = Volume(volume_file)
+        volume.add_scalarbar3d(channel, c="k")
+        volume.scalarbar = volume.scalarbar.clone2d("bottom-right", 0.2)
+        volumes.append(volume)
+
+    # Init the points
+    LINE = True
+    if points is None:
+        p0 = (50, 300, 400)
+        p1 = (100, 300, 400)
+
+    if LINE:
+        # Create a set of points in space
+        pts = Line(p0, p1, res=2).ps(4)
+
+    # Colors
+    colors = [styles[f"channel_{i}"]["color"] for i in range(len(channels))]
+
+    # Visualize the points and the first volume (just for visualization)
+    isosurfaces = [v.isosurface() for i, v in enumerate(volumes)]
+    isosurfaces = [i.color(c) for i, c in zip(isosurfaces, colors)]
+    plt = show(*isosurfaces, __doc__, interactive=False, axes=1)
+
+    def update_probe(vertices):
+        global plt
+
+        plt.remove("figure")
+
+        vertices = np.unique(vertices, axis=0)
+        p0, p1 = vertices
+        # Probe each volume with the line and plot the intensity values
+        # TODO: Make the y axis dinamyc
+        for i, volume in enumerate(volumes):
+            pl = Line(p0, p1, res=25)
+            pl.probe(volume)
+
+            # Get the probed values along the line
+            xvals = pl.vertices[:, 0]
+            yvals = pl.pointdata[0]
+
+            if i == 0:
+                _plot = plot(
+                    xvals,
+                    yvals,
+                    xtitle=" ",
+                    aspect=16 / 9,
+                    spline=True,
+                    lc=colors[i],  # line color
+                    marker="O",  # marker style
+                )
+                fig = _plot
+            else:
+                fig += plot(
+                    xvals,
+                    yvals,
+                    xtitle=" ",
+                    aspect=16 / 9,
+                    spline=True,
+                    lc=colors[i],  # line color
+                    marker="O",  # marker style
+                    like=_plot)
+
+        fig = fig.shift(0, 25, 0).clone2d()
+        fig.name = "figure"
+        plt += fig
+
+    # Add the spline tool using the same points and interact with it
+    sptool = plt.add_spline_tool(pts, closed=True)
+
+    # Add a callback to print the center of mass of the spline
+    sptool.add_observer(
+        "end of interaction",
+        lambda o, e: (update_probe(sptool.spline().vertices)),
+    )
+
+    # Stay in the loop until the user presses q
+    plt.interactive()
+
+    # Switch off the tool
+    sptool.off()
+
+    # Extract and visualize the resulting spline
+    sp = sptool.spline().lw(4)
+    sp.write(os.path.join(folder, "spline.vti"))
+    # show(sp, "My spline is ready!", interactive=True, resetcam=False).close()
+
+
+def _probe(folder, channel, points=None):
     """Probe a Volume with a line and plot the intensity values"""
 
-    # TODO - Make this dynamic
-    p1, p2 = (50, 300, 400), (1000, 300, 400)
+    global plt, fig
 
     pipeline_file = os.path.join(folder, "pipeline.log")
     pipeline = file2dic(pipeline_file)
@@ -457,29 +603,69 @@ def probe(folder, channel, p1=None, p2=None):
     volume.add_scalarbar3d(channel, c="k")
     volume.scalarbar = volume.scalarbar.clone2d("bottom-right", 0.2)
 
-    pl = Line(p1, p2, res=100).lw(4)
+    # Init the points
+    LINE = True
+    if points is None:
+        p0 = (50, 300, 400)
+        p1 = (100, 300, 400)
 
-    # Probe the Volume with the line
-    pl.probe(volume)
+    if LINE:
+        # Create a set of points in space
+        pts = Line(p0, p1).ps(4)
 
-    # Get the probed values along the line
-    xvals = pl.vertices[:, 0]
-    yvals = pl.pointdata[0]
+    # Visualize the points
+    plt = show(pts, volume.isosurface(), __doc__, interactive=False, axes=1)
 
-    # Plot the intensity values
-    fig = plot(
-        xvals,
-        yvals,
-        xtitle=" ",
-        ytitle="voxel intensity",
-        aspect=16 / 9,
-        spline=True,
-        lc="r",  # line color
-        marker="O",  # marker style
+    def update_probe(vertices):
+        global plt
+
+        plt.remove("figure")
+
+        vertices = np.unique(vertices, axis=0)
+        print(vertices)
+        p0, p1 = vertices
+        # Probe the Volume with the line
+        pl = Line(p0, p1, res=100)
+        pl.probe(volume)
+
+        # Get the probed values along the line
+        xvals = pl.vertices[:, 0]
+        yvals = pl.pointdata[0]
+
+        # Plot the intensity values
+        fig = plot(
+            xvals,
+            yvals,
+            xtitle=" ",
+            ytitle="voxel intensity",
+            aspect=16 / 9,
+            spline=True,
+            lc="r",  # line color
+            marker="O",  # marker style
+        )
+        fig = fig.shift(0, 25, 0).clone2d()
+        fig.name = "figure"
+        plt += fig
+
+    # Add the spline tool using the same points and interact with it
+    sptool = plt.add_spline_tool(pts, closed=True)
+
+    # Add a callback to print the center of mass of the spline
+    sptool.add_observer(
+        "end of interaction",
+        lambda o, e: (update_probe(sptool.spline().vertices)),
     )
-    fig = fig.shift(0, 25, 0).clone2d()
 
-    show(volume, pl, fig, __doc__, axes=14).close()
+    # Stay in the loop until the user presses q
+    plt.interactive()
+
+    # Switch off the tool
+    sptool.off()
+
+    # Extract and visualize the resulting spline
+    sp = sptool.spline().lw(4)
+    sp.write(os.path.join(folder, "spline.vti"))
+    show(sp, "My spline is ready!", interactive=True, resetcam=False).close()
 
 
 def one_channel_isosurface(folder, channel):
@@ -510,12 +696,6 @@ def one_channel_isosurface(folder, channel):
         v0 = low_iso_value
         v1 = high_iso_value
 
-        # print(
-        #     f"""    The lowest isovalue is: {v0}.
-        #         The highst isovalue is {v1}.
-        #         The resolution is 10% of the values"""
-        # )
-
         arr = np.arange(v0, v1)
         picked_values = pick_evenly_distributed_values(arr)
         print("Picked values:", picked_values)
@@ -524,7 +704,7 @@ def one_channel_isosurface(folder, channel):
             shutil.rmtree(isosurface_folder)
         os.makedirs(isosurface_folder)
 
-        print("Computing and writing the isosurfaces")
+        printc("Computing and writing the isosurfaces")
         for iso_val in picked_values:
             surf = volume.isosurface(iso_val)
             surf.write(os.path.join(isosurface_folder, f"{int(iso_val)}.vtk"))
@@ -584,7 +764,7 @@ def one_channel_isosurface(folder, channel):
             surface = Mesh(os.path.join(isosurface_folder, f"{isovalue}.vtk"))
             surface.name = str(isovalue)
             isosurfaces[isovalue] = surface.alpha(0.3).lighting(
-                "off").frontface_culling()
+                "off")  #.frontface_culling()
             if transformation:
                 T = LinearTransform(os.path.join(folder, transformation))
                 isosurfaces[isovalue].apply_transform(T)
@@ -740,7 +920,6 @@ def one_channel_isosurface(folder, channel):
 
 
 def dynamic_slab(folder, channel):
-    print(folder, channel)
 
     pipeline_file = os.path.join(folder, "pipeline.log")
     pipeline = file2dic(pipeline_file)
@@ -762,7 +941,7 @@ def dynamic_slab(folder, channel):
         print("No transformation found... exit")
         exit()
 
-    vol.apply_transform(T).rotate_y(-30)
+    vol.apply_transform(T).rotate_y(-angle_d[stage])
 
     # Load the limb surface
     surface = os.path.join(folder, pipeline.get("BLENDER",
@@ -772,7 +951,7 @@ def dynamic_slab(folder, channel):
     limb.color(styles["limb"]["color"]).alpha(0.1)
     limb.extract_largest_region()
     limb.apply_transform(T)
-    limb.rotate_y(-30)
+    limb.rotate_y(-angle_d[stage])
     vaxes = Axes(
         vol,
         xygrid=False,
@@ -792,7 +971,7 @@ def dynamic_slab(folder, channel):
     zslab = slab.zbounds()[0] + 1000
     slab.z(-zslab)  # move slab to the bottom  # move slab to the bottom
     slab_box = Box(bbox).wireframe().c("black")
-    slab.cmap(CMAP, vmin=50, vmax=400).add_scalarbar("slab")
+    slab.cmap(CMAP)  # .add_scalarbar("slab")
 
     def slider1(widget, event):
         global slab, slab_box, box_limits
@@ -805,7 +984,7 @@ def dynamic_slab(folder, channel):
         zslab = slab.zbounds()[0] + 1000
         slab.z(-zslab)  # move slab to the bottom
         slab_box = Box(bbox).wireframe().c("black")
-        slab.cmap(CMAP, vmin=50, vmax=400).add_scalarbar("slab")
+        slab.cmap(CMAP)  # .add_scalarbar("slab")
         plt.add(slab)
         plt.add(slab_box)
 
@@ -826,14 +1005,20 @@ def dynamic_slab(folder, channel):
         zslab = slab.zbounds()[0] + 1000
         slab.z(-zslab)  # move slab to the bottom
         slab_box = Box(bbox).wireframe().c("black")
-        slab.cmap(CMAP, vmin=50, vmax=400).add_scalarbar("slab")
+        slab.cmap(CMAP)  # .add_scalarbar("slab")
         plt.add(slab)
         plt.add(slab_box)
 
+    limb_clone = limb.clone()
+    limb_clone.project_on_plane()
+    # limb_clone.z(slab.z() - 360)
+
+    # exit()
     plt = Plotter()
 
-    plt += vol
+    plt += vol.isosurface()
     plt += limb
+    # plt += limb_clone.color("black").alpha(0.01)
     plt += slab
     plt += slab_box
     plt += vaxes
@@ -860,33 +1045,359 @@ def dynamic_slab(folder, channel):
 
     plt.show(axes=14, zoom=1.5).close()
 
-    print(slab)
+    l, u = slab.metadata["slab_range"]
+    slab_path = os.path.join(folder, f"{channel}_slab_{l}_{u}.py")
 
-    # l, u = slab.metadata["slab_range"]
-
-    # slab_path = os.path.join(folder, f"{channel}_slab_{l}_{u}.py")
-
-    # # One option is to get the screenshot of the slab.
-    # show(slab).screenshot(slab_path).close()
-
-    # # Another option is to map it onto the morphomovie and send the mesh to LimbNET
-    # mesh_2d = load_mesh("../data/fineFgfsNorm8.mm.mesh.ol.json")[int(stage) *
-    #                                                              60]
-    # msh = Mesh([mesh_2d["nodes"], mesh_2d["elements"]])
-    # msh.z(-zslab)
-
-    # msh.interpolate_data_from(slab, n=3).cmap("viridis")
-
-    # show(msh).close()
+    show(
+        slab,
+        #  limb_clone.silhouette(top_camera_slab, border_edges=False),
+        # camera=dict(
+        #     pos=(781.020, 70.1935, 2107.68),
+        #     focal_point=(781.020, 70.1935, 33.6000),
+        #     viewup=(-2.46519e-32, 1.00000, 0),
+        #     roll=-1.41245e-30,
+        #     distance=2074.08,
+        #     clipping_range=(2904.91, 3356.75),
+        # )
+    ).screenshot(slab_path).close()
 
 
-# if __name__ == "__main__":
-#     folder = "/Users/lauavino/Documents/Code/limblab/data/HCR20_BMP2_l1"
-#     channel_0 = "SOX9"
-#     channel_1 = "BMP2"
-#     # two_chanel_isosurface(folder, channel_0, channel_1)
-#     # raycast(folder, channel_1)
-#     # slices(folder, channel_0)
-#     # p1, p2 = (50, 300, 400), (1000, 300, 400)
-#     # probe(folder, channel_0, p1, p2)
-#     one_channel_isosurface(folder, channel_0)
+# import os
+# import shutil
+
+# import numpy as np
+# from some_module import (
+#     LinearTransform,  # Replace with actual module import
+#     NonLinearTransform,
+#     Volume,
+#     file2dic)
+# from vedo import Mesh, Plotter, Text2D, progressbar
+# from vedo.applications import IsosurfaceBrowser
+
+
+def multi_channel_isosurface(folder, channels):
+    """Compute and visualize isosurfaces for multiple channels."""
+
+    # Get the paths
+    pipeline_file = os.path.join(folder, "pipeline.log")
+    pipeline = file2dic(pipeline_file)
+    transformation = pipeline.get("TRANSFORMATION", False)
+
+    def compute_isosurfaces(logs, channel, isosurface_folder):
+        volume_file = os.path.join(folder, logs[channel])
+        volume = Volume(volume_file)
+
+        txt = Text2D(pos="top-center", bg="yellow5", s=1.5)
+        plt1 = IsosurfaceBrowser(volume, use_gpu=True, c='gold')
+        txt.text("Pick the lower intensity for the isovalues")
+        plt1.show(txt, axes=7, bg2='lb')
+        low_iso_value = int(plt1.sliders[0][0].value)
+
+        txt.text("Pick the higher intensity for the isovalues")
+        plt1.show(txt, axes=7, bg2='lb')
+        high_iso_value = int(plt1.sliders[0][0].value)
+        plt1.close()
+
+        v0 = low_iso_value
+        v1 = high_iso_value
+
+        arr = np.arange(v0, v1)
+        picked_values = pick_evenly_distributed_values(arr)
+
+        if os.path.exists(isosurface_folder):
+            shutil.rmtree(isosurface_folder)
+        os.makedirs(isosurface_folder)
+
+        print("Computing and writing the isosurfaces")
+        for iso_val in picked_values:
+            surf = volume.isosurface(iso_val)
+            surf.write(os.path.join(isosurface_folder, f"{int(iso_val)}.vtk"))
+
+    def interpolate_colors(color1, color2, num_values):
+        rgb1 = np.array(mcolors.to_rgb(color1))
+        rgb2 = np.array(mcolors.to_rgb(color2))
+
+        interpolated_colors = [
+            rgb1 + (rgb2 - rgb1) * i / (num_values - 1)
+            for i in range(num_values)
+        ]
+
+        interpolated_colors_hex = [
+            mcolors.to_hex(color) for color in interpolated_colors
+        ]
+
+        return interpolated_colors_hex
+
+    def pick_values(arr, min_val, max_val, num_values):
+        arr = np.sort(arr)
+        min_idx = (np.abs(arr - min_val)).argmin()
+        max_idx = (np.abs(arr - max_val)).argmin()
+
+        if min_idx > max_idx:
+            min_idx, max_idx = max_idx, min_idx
+
+        indices = np.linspace(min_idx, max_idx, num=num_values, dtype=int)
+        picked_values = arr[indices]
+
+        return picked_values
+
+    def load_isosurfaces(isosurface_folder, transformation, channel):
+        all_files = os.listdir(isosurface_folder)
+        file_names = [
+            f for f in all_files
+            if os.path.isfile(os.path.join(isosurface_folder, f))
+        ]
+        isovalues = np.sort(
+            np.array([int(os.path.splitext(f)[0]) for f in file_names]))
+
+        isosurfaces = {}
+        for isovalue in progressbar(isovalues, title="Loading surfaces..."):
+            surface = Mesh(os.path.join(isosurface_folder, f"{isovalue}.vtk"))
+            surface.name = f"{isovalue}_{channel}"
+            isosurfaces[f"{isovalue}_{channel}"] = surface.alpha(0.3).lighting(
+                "off").frontface_culling()
+            if transformation:
+                if "morphing" in transformation:
+                    T = NonLinearTransform(os.path.join(
+                        folder, transformation))
+                else:
+                    T = LinearTransform(os.path.join(folder, transformation))
+                isosurfaces[f"{isovalue}_{channel}"].apply_transform(T)
+
+        return isosurfaces, isovalues
+
+    # Store isosurface data for each channel
+    isosurfaces = {}
+    isovalues = {}
+    number_isosurfaces = {}
+    static_limit_values = {}
+    dynamic_limit_values = {}
+
+    # Check if the surfaces are computed and load them
+    for i, channel in enumerate(channels):
+        isosurface_folder = os.path.join(folder, f"isosurfaces_{channel}")
+        if not os.path.exists(isosurface_folder):
+            compute_isosurfaces(pipeline, channel, isosurface_folder)
+
+        loaded_isosurfaces, loaded_isovalues = load_isosurfaces(
+            isosurface_folder, transformation, i)
+        isosurfaces[i] = loaded_isosurfaces
+        isovalues[i] = loaded_isovalues
+
+        number_isosurfaces[
+            i] = 3  # Initialize with 3 isosurfaces for each channel
+        static_limit_values[i] = (loaded_isovalues.min(),
+                                  loaded_isovalues.max())
+        dynamic_limit_values[i] = [
+            loaded_isovalues.min(),
+            loaded_isovalues.max()
+        ]
+
+    # Load the limb surface
+    surface = os.path.join(folder, pipeline.get("BLENDER",
+                                                pipeline["SURFACE"]))
+
+    limb = Mesh(surface)
+    limb.color(styles["limb"]["color"]).alpha(0.1)
+    limb.extract_largest_region()
+    if transformation:
+        if "morphing" in transformation:
+            T = NonLinearTransform(os.path.join(folder, transformation))
+        else:
+            T = LinearTransform(os.path.join(folder, transformation))
+        limb.apply_transform(T)
+
+    # Create the plotter and add initial isosurfaces
+    plt = Plotter(bg="white", shape=(1, len(channels) + 1), sharecam=True)
+    limb.frontface_culling()
+    plt += __doc__
+    limb.color(styles["limb"]["alpha"]).alpha(styles["limb"]["alpha"])
+
+    for i in range(len(channels)):
+        plt.at(i).add(limb)
+
+    plt.at(len(channels)).add(limb)
+
+    def limb_toggle_fun(obj, ename):
+        if limb.alpha():
+            limb.alpha(0)
+        else:
+            limb.alpha(styles["limb"]["alpha"])
+        bu.switch()
+
+    bu = plt.at(len(channels)).add_button(
+        limb_toggle_fun,
+        pos=(0.5, 0.1),
+        states=["click to hide limb", "click to show limb"],
+        c=["w", "w"],
+        bc=[styles["ui"]["secondary"], styles["ui"]["primary"]],
+        font="courier",
+        size=30,
+        bold=True,
+        italic=False,
+    )
+
+    current_isovalues = {i: [] for i in range(len(channels))}
+
+    def init_isosurfaces(render):
+        current_isovalues[render] = pick_values(isovalues[render],
+                                                *dynamic_limit_values[render],
+                                                number_isosurfaces[render])
+        colors = interpolate_colors(*styles[render],
+                                    number_isosurfaces[render])
+        for i, _isovalue in enumerate(current_isovalues[render]):
+            plt.at(render).add(
+                isosurfaces[render][f"{_isovalue}_{render}"].color(colors[i]))
+            plt.at(len(channels)).add(
+                isosurfaces[render][f"{_isovalue}_{render}"].color(colors[i]))
+
+    for i in range(len(channels)):
+        init_isosurfaces(i)
+
+    def clean_plotter(render):
+        for _isovalue in current_isovalues[render]:
+            plt.at(render).remove(f"{_isovalue}_{render}")
+            plt.at(len(channels)).remove(f"{_isovalue}_{render}")
+
+    def add_isosurfaces(render):
+        selected_isovalues = pick_values(isovalues[render],
+                                         *dynamic_limit_values[render],
+                                         number_isosurfaces[render])
+        if number_isosurfaces[render] == 1:
+            _isosurface = isosurfaces[render][
+                f"{selected_isovalues[0]}_{render}"].color(
+                    styles[render][0]).alpha(
+                        styles["isosurfaces"]["alpha-unique"])
+            plt.at(render).add(_isosurface)
+            plt.at(len(channels)).add(_isosurface)
+        else:
+            _colors = interpolate_colors(*styles[render],
+                                         number_isosurfaces[render])
+            for c, _isovalue in enumerate(selected_isovalues):
+                _isosurface = isosurfaces[render][
+                    f"{_isovalue}_{render}"].color(_colors[c]).alpha(
+                        styles["isosurfaces"]["alpha"])
+                plt.at(render).add(_isosurface)
+                plt.at(len(channels)).add(_isosurface)
+        current_isovalues[render] = selected_isovalues
+
+    def n_surfaces_slider_factory(render):
+
+        def n_surfaces_slider(widget, event):
+            number_isosurfaces[render] = np.round(widget.value).astype(int)
+            clean_plotter(render)
+            add_isosurfaces(render)
+
+        return n_surfaces_slider
+
+    for i in range(len(channels)):
+        n_surfaces_slider = n_surfaces_slider_factory(i)
+        plt.at(i).add_slider(n_surfaces_slider,
+                             xmin=1,
+                             xmax=10,
+                             value=number_isosurfaces[i],
+                             pos=styles["postions"]["number"],
+                             title="number of isosurfaces")
+
+    def low_threshold_slider_factory(render):
+
+        def low_threshold_slider(widget, event):
+            dynamic_limit_values[render][0] = widget.value
+            clean_plotter(render)
+            add_isosurfaces(render)
+
+        return low_threshold_slider
+
+    for i in range(len(channels)):
+        low_threshold_slider = low_threshold_slider_factory(i)
+        plt.at(i).add_slider(
+            low_threshold_slider,
+            xmin=static_limit_values[i][0],
+            xmax=static_limit_values[i][1],
+            value=dynamic_limit_values[i][0],
+            pos=styles["postions"]["values"],
+            title="low threshold",
+        )
+
+    def high_threshold_slider_factory(render):
+
+        def high_threshold_slider(widget, event):
+            dynamic_limit_values[render][1] = widget.value
+            clean_plotter(render)
+            add_isosurfaces(render)
+
+        return high_threshold_slider
+
+    for i in range(len(channels)):
+        high_threshold_slider = high_threshold_slider_factory(i)
+        plt.at(i).add_slider(
+            high_threshold_slider,
+            xmin=static_limit_values[i][0],
+            xmax=static_limit_values[i][1],
+            value=dynamic_limit_values[i][1],
+            pos=styles["postions"]["values"],
+            title="high threshold",
+        )
+
+    plt.show(interactive=True).close()
+
+
+# from vedo import *
+
+
+def arbitary_slice(folder, channels):
+
+    normal = [0, 0, 1]
+
+    pipeline_file = os.path.join(folder, "pipeline.log")
+    pipeline = file2dic(pipeline_file)
+    volume_file0 = os.path.join(folder, pipeline[channels[0].upper()])
+    volume_file1 = os.path.join(folder, pipeline[channels[1].upper()])
+
+    vol0 = Volume(volume_file0)
+    vol1 = Volume(volume_file1)
+
+    def func(w, _):
+        c, n = pcutter.origin, pcutter.normal
+        vslice0 = vol0.slice_plane(c, n,
+                                   autocrop=True).cmap("Blues").alpha(0.5)
+        vslice0.name = "Slice0"
+        vslice1 = vol1.slice_plane(c, n,
+                                   autocrop=True).cmap("Oranges").alpha(0.5)
+        vslice1.name = "Slice1"
+        plt.at(1).remove("Slice0").add(vslice0)
+        plt.at(1).remove("Slice1").add(vslice1)
+
+    center = vol0.center()
+    vslice0 = vol0.slice_plane(center, normal).cmap("Blues").alpha(0.5)
+    vslice0.name = "Slice0"
+
+    vslice1 = vol1.slice_plane(center, normal).cmap("Oranges").alpha(0.5)
+    vslice1.name = "Slice1"
+
+    # Create the ploter
+    plt = Plotter(axes=0, N=2, bg="k", bg2="bb", interactive=False)
+    plt.at(0).show(vol0, vol1, __doc__, zoom=1.5)
+    plt.at(1).add(vslice1)
+
+    pcutter = PlaneCutter(
+        vslice0,
+        normal=normal,
+        alpha=0,
+        c="white",
+        padding=0,
+        can_translate=False,
+        can_scale=False,
+    )
+    pcutter.add_observer("interaction", func)
+    plt.at(1).add(pcutter)
+
+    plt.interactive()
+    plt.close()
+
+
+if __name__ == "__main__":
+    folder, channel = "/Users/lauavino/Documents/Code/limblab/data/HCR20_BMP2_l1", (
+        "bmp2", )
+
+    multi_channel_isosurface(folder, channel)

@@ -106,7 +106,7 @@ def vis(algorithm: VisAlgorithm, experiment_folder_path: Path,
         slices(experiment_folder_path, channels[0])
 
     if algorithm == VisAlgorithm.probe:
-        probe(experiment_folder_path, channels[0])
+        probe(experiment_folder_path, channels)
 
     if algorithm == VisAlgorithm.slab:
         dynamic_slab(experiment_folder_path, channels[0])
