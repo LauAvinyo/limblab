@@ -1,6 +1,6 @@
 <!-- ![Alt text](assets/logo.png "LimbLab") -->
 <p align="center">
-  <img src="docs/assets/header.png" alt="Alt text">
+  <img src="docs/assets/header-white.png" alt="Alt text">
 </p>
 <p align="center"><strong>Work fast, code less.</strong> Analyze your 3D limb data with ease. Aesthetic out of the box.</p>
 
