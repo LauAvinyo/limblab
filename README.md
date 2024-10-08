@@ -1,8 +1,8 @@
 <!-- ![Alt text](assets/logo.png "LimbLab") -->
-<div style="text-align: center;">
-  <img src="docs/assets/header.png" alt="Alt text" height="400">
-    <p><strong>Work fast, code less.</strong> Analyze your 3D limb data with ease. Aesthetic out of the box.</p>
-</div>
+<p align="center">
+  <img src="docs/assets/header.png" alt="Alt text">
+</p>
+<p align="center"><strong>Work fast, code less.</strong> Analyze your 3D limb data with ease. Aesthetic out of the box.</p>
 
 
 
@@ -35,5 +35,15 @@ Join the growing community of scientists who are leveraging this powerful tool t
 pip install limblab
 ``` 
 
-
+Note. In Windows (1) it will not work in WSL since vedo / VTK does not work there. (2) Make sure the windows scripts are on PATH. 
+In case you need to add to PATH in windows: 
+1. Locate the directory to add. It should be the _Python installation you are using + \Scripts_. If it is not in path, the pip command will tell you and give you the path you need.
+2. Add the directory:
+  1. Press Windows Key + S and type "Environment Variables". Click "Edit the system environment variables".
+  2. In the System Properties window, click on the Environment Variables button at the bottom.
+  2. Under User variables, find the Path variable and select it, then click Edit.
+  4. In the Edit Environment Variable window, click New and paste the directory path from Step 1.
+  5. Click OK to close all windows.
+3. Restart the terminals.
+   
 ## Liscence
