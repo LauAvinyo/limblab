@@ -9,10 +9,13 @@ readme = "README.md"
 limb = "limblab.main:app"
 
 [tool.poetry.dependencies]
-python = "^3.12"
+python = ">=3.10,<4.0"
 typer = {extras = ["all"], version = "^0.12.3"}
-
+requests = "^2.32.3"
+vedo = "^2024.5.2"
+scipy = "^1.14.1"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+ 

@@ -83,9 +83,8 @@ def closest_value(input_list: list, target: int) -> int:
 
     return closest
 
-
 current_path = os.path.abspath(__file__)
-
+print(current_path)
 REFERENCE_LIMB_FOLDER = os.path.join(os.path.dirname(current_path), "limb")
 
 files = [
