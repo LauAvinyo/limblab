@@ -229,7 +229,7 @@ def _stage_limb(experiment_folfer_path, limb_stager=None):
 
     outfile = os.path.join(experiment_folfer_path, "staging.txt")
 
-    STAGING_URL = "http://127.0.0.1:8000"
+    STAGING_URL = "https://limbstaging.embl.es/api"
     print("Trying to connect to the server...")
     connect = requests.get(STAGING_URL)
     if connect.status_code == 200:
@@ -269,8 +269,7 @@ def _stage_limb(experiment_folfer_path, limb_stager=None):
                              for p in vector(fitpoints.coordinates))
                     }
 
-                    # response = requests.post("http://10.250.4.21:81/stage/", json=data)
-                    response = requests.post("http://127.0.0.1:8000/stage/",
+                    response = requests.post(f"{STAGING_URL}/stage/",
                                              json=data,
                                              timeout=1000)
                     print(response)
@@ -352,12 +351,6 @@ def _stage_limb(experiment_folfer_path, limb_stager=None):
     plt.close()
 
     dic2file(pipeline, pipeline_file)
-
-    def _rotate_limb():
-        return
-
-    def _morph_limb():
-        return
 
 
 def _rotate_limb(experiment_folfer_path):

@@ -3,7 +3,6 @@ data/
 .DS_Store
 src/
 .tmp/
-*.vtk
 miscellaneous/
 limb-staging/
 .vscode
@@ -11,3 +10,4 @@ archive
 figures
 example_data
 case_studies
+__pycache__/
