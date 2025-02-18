@@ -230,15 +230,15 @@ def _stage_limb(experiment_folfer_path, limb_stager=None):
     outfile = os.path.join(experiment_folfer_path, "staging.txt")
 
     STAGING_URL = "https://limbstaging.embl.es/api"
-    print("Trying to connect to the server...")
     connect = requests.get(STAGING_URL)
     if connect.status_code == 200:
         try:
-            print(connect.json())
+            response = connect.json()
+            print(response)
             SERVER = True
         except:
             SERVER = False
-            print("Using local exe")
+            print("We could not connect to the staging system. Please try again, use local exe or contact us.")
 
     def kfunc(event):
         if event.keypress == "s":
