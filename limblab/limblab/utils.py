@@ -10,7 +10,7 @@ def load_pipeline(folder):
     return file2dic(pipeline_file)
 
 
-# TODO: What to do with this?
+# TODO: Extract this
 styles = {
     0: ("#9ce4f3", "#128099"),
     1: ("#ec96f2", "#c90dd6"),
