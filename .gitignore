@@ -1,4 +1,5 @@
 .venv/
+site/
 data/
 .DS_Store
 src/
