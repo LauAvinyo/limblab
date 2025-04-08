@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "LimbLab"
+authors:
+  - family-names: "Avinyo"
+    given-names: "Laura"
+    orcid: "https://orcid.org/0000-0003-3847-8598" 
+  - family-names: "Musy"
+    given-names: "Marco"
+    orcid: "https://orcid.org/0000-0002-3364-8909" 
+  - family-names: "Dalmasso"
+    given-names: "Giovanni"
+    orcid: "https://orcid.org/0000-0002-8586-6027" 
+date-released: 2025-04-24
+version: "0.2.0"
+doi: "10.5281/zenodo.15173190" 
+repository-code: "https://github.com/LauAvinyo/limblab"
+license: "MIT"
