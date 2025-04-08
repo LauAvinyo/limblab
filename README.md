@@ -7,7 +7,7 @@
 
 
 ---------
-**Documentation:** https://--
+**Documentation:** https://limblab.embl.es/docs
 
 **Source Code:** https://github.com/lauavinyo/limblab
 

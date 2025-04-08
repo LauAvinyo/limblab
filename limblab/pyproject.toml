@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "limblab"
-version = "0.1.1"
+version = "0.1.8"
 description = ""
 authors = ["LauAvinyo <avinyo.laura@gmail.com>"]
 readme = "README.md"
@@ -14,6 +14,7 @@ typer = {extras = ["all"], version = "^0.12.3"}
 requests = "^2.32.3"
 vedo = "^2024.5.2"
 scipy = "^1.14.1"
+pip-system-certs = ">=4.0"
 
 [build-system]
 requires = ["poetry-core"]
