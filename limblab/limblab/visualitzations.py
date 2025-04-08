@@ -66,10 +66,10 @@ def closest_value(input_list, target):
 
 
 def get_stage_to_angle_dict(start_x, end_x, start_y, end_y):
-    x_values = np.arange(start_x, end_x + 1)
+    x_values = np.arange(start_x, end_x + 1).astype(int)
     y_values = np.linspace(start_y, end_y, num=len(x_values),
                            dtype=int)  # Ensure integer y-values
-    return {x: y for x, y in zip(x_values, y_values)}
+    return {int(x): int(y) for x, y in zip(x_values, y_values)}
 
 
 angle_d = get_stage_to_angle_dict(248, 320, 20, 40)
@@ -674,7 +674,7 @@ def one_channel_isosurface(folder, channel):
     pipeline_file = os.path.join(folder, "pipeline.log")
     pipeline = file2dic(pipeline_file)
     isosurface_folder = os.path.join(folder, f"isosurfaces_{channel}")
-    transformation = pipeline.get("TRANSFORMATION", False)
+    transformation = pipeline.get("ROTATION", False)
 
     def compute_isosurfaces(logs, channel, folder, isosurface_folder):
         # .replace(".vti", "_smooth.vti"))
@@ -920,7 +920,7 @@ def one_channel_isosurface(folder, channel):
 
 
 def dynamic_slab(folder, channel):
-
+    print("Debug dynamic slab")
     pipeline_file = os.path.join(folder, "pipeline.log")
     pipeline = file2dic(pipeline_file)
     surface = pipeline["SURFACE"]
@@ -928,20 +928,32 @@ def dynamic_slab(folder, channel):
     volume = os.path.join(folder, pipeline[channel.upper()])
 
     CMAP = "Greys"
-
+    print(volume)
     vol = Volume(volume)  # .resize([100, 100, 100])
+    print("Volume loaded")
 
-    # Apply non linear tranformation
-    tname = os.path.join(folder, pipeline["TRANSFORMATION"])
-    if "rotation" in pipeline["TRANSFORMATION"]:
-        T = LinearTransform(tname)
-    elif "morphing" in pipeline["TRANSFORMATION"]:
-        T = NonLinearTransform(tname)
-    else:
-        print("No transformation found... exit")
-        exit()
+    # TODO: Uncomment this
+    # # Apply non linear tranformation
+    # tname = os.path.join(folder, pipeline["TRANSFORMATION"])
+    # if "rotation" in pipeline["TRANSFORMATION"]:
+    #     T = LinearTransform(tname)
+    # elif "morphing" in pipeline["TRANSFORMATION"]:
+    #     T = NonLinearTransform(tname)
+    # else:
+    #     print("No transformation found... exit")
+    #     exit()
 
-    vol.apply_transform(T).rotate_y(-angle_d[stage])
+    tname = os.path.join(folder, pipeline["ROTATION"])
+    T = LinearTransform(tname)
+    print("Rotation loaded")
+
+    
+    vol.apply_transform(T)
+    vol.rotate_y(-angle_d[int(stage)])
+    print("Rotation applied!")
+    
+    
+    
 
     # Load the limb surface
     surface = os.path.join(folder, pipeline.get("BLENDER",
@@ -951,12 +963,12 @@ def dynamic_slab(folder, channel):
     limb.color(styles["limb"]["color"]).alpha(0.1)
     limb.extract_largest_region()
     limb.apply_transform(T)
-    limb.rotate_y(-angle_d[stage])
+    limb.rotate_y(-angle_d[int(stage)])
     vaxes = Axes(
         vol,
         xygrid=False,
     )  # htitle=volume.replace("_", "-")
-
+    print("Surface Loaded")
     # Box
     global slab, slab_box, box_limits
 
@@ -991,7 +1003,6 @@ def dynamic_slab(folder, channel):
     def slider2(widget, event):
         global slab, slab_box, box_limits
 
-        print(slab, box_limits)
         new_value = int(widget.value)
 
         # if new_value <= box_limits[0]:
@@ -1012,7 +1023,7 @@ def dynamic_slab(folder, channel):
     limb_clone = limb.clone()
     limb_clone.project_on_plane()
     # limb_clone.z(slab.z() - 360)
-
+    print("Ready to show!")
     # exit()
     plt = Plotter()
 
@@ -1060,19 +1071,6 @@ def dynamic_slab(folder, channel):
         #     clipping_range=(2904.91, 3356.75),
         # )
     ).screenshot(slab_path).close()
-
-
-# import os
-# import shutil
-
-# import numpy as np
-# from some_module import (
-#     LinearTransform,  # Replace with actual module import
-#     NonLinearTransform,
-#     Volume,
-#     file2dic)
-# from vedo import Mesh, Plotter, Text2D, progressbar
-# from vedo.applications import IsosurfaceBrowser
 
 
 def multi_channel_isosurface(folder, channels):
@@ -1345,14 +1343,13 @@ def multi_channel_isosurface(folder, channels):
 # from vedo import *
 
 
-def arbitary_slice(folder, channels):
-
+def arbitary_slice(folder, channel0, channel1):
     normal = [0, 0, 1]
 
     pipeline_file = os.path.join(folder, "pipeline.log")
     pipeline = file2dic(pipeline_file)
-    volume_file0 = os.path.join(folder, pipeline[channels[0].upper()])
-    volume_file1 = os.path.join(folder, pipeline[channels[1].upper()])
+    volume_file0 = os.path.join(folder, pipeline[channel0.upper()])
+    volume_file1 = os.path.join(folder, pipeline[channel1.upper()])
 
     vol0 = Volume(volume_file0)
     vol1 = Volume(volume_file1)
@@ -1394,10 +1391,3 @@ def arbitary_slice(folder, channels):
 
     plt.interactive()
     plt.close()
-
-
-if __name__ == "__main__":
-    folder, channel = "/Users/lauavino/Documents/Code/limblab/data/HCR20_BMP2_l1", (
-        "bmp2", )
-
-    multi_channel_isosurface(folder, channel)

@@ -17,7 +17,7 @@ from limblab.tools import (_clean_volume, _extract_surface, _morph_limb,
                            _rotate_limb, _stage_limb)
 from limblab.visualitzations import (dynamic_slab, one_channel_isosurface,
                                      probe, raycast, slices,
-                                     two_chanel_isosurface)
+                                     two_chanel_isosurface, arbitary_slice)
 
 app = typer.Typer()
 
@@ -102,6 +102,16 @@ def vis(algorithm: VisAlgorithm, experiment_folder_path: Path,
                 f"WARNING: Raycast only uses one channel. Using {channels[0]}")
         raycast(experiment_folder_path, channels[0])
 
+
+
+    if algorithm == VisAlgorithm.slices:
+        if len(channels) == 2:
+            arbitary_slice(experiment_folder_path, *channels)
+        elif len(channels) == 1:
+            slices(experiment_folder_path, channels[0])
+        else:
+            raise NotImplementedError
+        
     if algorithm == VisAlgorithm.slices:
         slices(experiment_folder_path, channels[0])
 
