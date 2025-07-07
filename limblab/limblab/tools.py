@@ -20,7 +20,35 @@ vedo.settings.screenshot_transparent_background = True
 VERBOSE = True
 
 
-def _clean_volume(experiment_folder_path, raw_volume, channel, verbose=True):
+
+
+
+def _clean_volume(experiment_folder_path, raw_volume, channel, verbose=True, 
+                 gaussian_sigma=None, frequency_cutoff=None, low_res_size=None):
+    """
+    Clean and preprocess volume data for limb analysis.
+    
+    This function performs volume cleaning including thresholding, smoothing,
+    and filtering operations. It processes the raw volume and saves the cleaned
+    version to the experiment folder.
+    
+    Args:
+        experiment_folder_path: Path to the experiment folder containing pipeline.log
+        raw_volume: Path to the raw volume file (.tif format)
+        channel: Channel name (e.g., 'DAPI', 'GFP', 'RFP') - will be converted to uppercase
+        verbose: Whether to print processing information (default: True)
+        gaussian_sigma: Tuple of (x, y, z) for gaussian smoothing. Default: (6, 6, 6)
+        frequency_cutoff: Frequency cutoff for low-pass filtering. Default: 0.05
+        low_res_size: Tuple of (x, y, z) for output volume size. Default: (512, 512, 296)
+    
+    Returns:
+        None. Saves cleaned volume to experiment folder and updates pipeline.log
+    
+    Example:
+        >>> _clean_volume("./experiment", "raw_data.tif", "DAPI")
+        >>> _clean_volume("./experiment", "raw_data.tif", "GFP", 
+        ...              gaussian_sigma=(8, 8, 8), frequency_cutoff=0.03)
+    """
 
     channel = channel.upper()
 
@@ -47,9 +75,10 @@ def _clean_volume(experiment_folder_path, raw_volume, channel, verbose=True):
     SPACING = list(float(i) for i in pipeline["SPACING"].split())
     print(SPACING)
 
-    SIGMA = (6, 6, 6)
-    CUTOFF = 0.05
-    SIZE = (512, 512, 296)  # low res
+    # Use provided parameters or defaults
+    SIGMA = gaussian_sigma if gaussian_sigma is not None else (6, 6, 6)
+    CUTOFF = frequency_cutoff if frequency_cutoff is not None else 0.05
+    SIZE = low_res_size if low_res_size is not None else (512, 512, 296)  # low res
     # SIZE = (1024, 1024, 296)  # high res
 
     # Read the Volume
@@ -157,6 +186,28 @@ def _clean_volume(experiment_folder_path, raw_volume, channel, verbose=True):
 
 
 def _extract_surface(experiment_folder_path, isovalue, auto):
+    """
+    Extract surface mesh from volume data using isosurface extraction.
+    
+    This function creates a 3D surface mesh from the DAPI volume using isosurface
+    extraction. The surface is then decimated for optimization and saved as a VTK file.
+    
+    Args:
+        experiment_folder_path: Path to the experiment folder containing pipeline.log
+        isovalue: Specific isovalue to use for surface extraction. If None, will be determined interactively or automatically
+        auto: If True, automatically determine isovalue from volume histogram. If False, use interactive selection
+    
+    Returns:
+        None. Saves surface mesh to experiment folder and updates pipeline.log
+    
+    Note:
+        Requires a cleaned DAPI volume to exist in the experiment folder.
+        The surface will be decimated to 0.5% of original points for performance.
+    
+    Example:
+        >>> _extract_surface("./experiment", isovalue=200, auto=False)
+        >>> _extract_surface("./experiment", isovalue=None, auto=True)
+    """
 
     # Make sure the dapi volume exits
     # Get the paths
@@ -216,9 +267,39 @@ def _extract_surface(experiment_folder_path, isovalue, auto):
     dic2file(pipeline, pipeline_path)
 
 
-def _stage_limb(experiment_folfer_path, limb_stager=None):
+def _stage_limb(experiment_folder_path, limb_stager=None):
+    """
+    Stage the limb using 3D spline fitting and automated staging.
+    
+    This function opens an interactive 3D viewer where you can place points along
+    the limb to create a spline. The spline is then used to determine the limb stage
+    either via online API or local executable.
+    
+    Args:
+        experiment_folder_path: Path to the experiment folder containing the surface mesh
+        limb_stager: Path to local limbstager executable. If None, uses online API
+    
+    Returns:
+        None. Updates pipeline.log with the determined stage
+    
+    Interactive Controls:
+        - Click to add points along the limb
+        - Right-click to remove points
+        - Press 'c' to clear all points
+        - Press 's' to stage the limb
+        - Press 'r' to reset camera
+        - Press 'q' to quit
+    
+    Note:
+        Requires a surface mesh to exist in the experiment folder.
+        The staging uses a spline fit to the placed points to determine limb stage.
+    
+    Example:
+        >>> _stage_limb("./experiment")
+        >>> _stage_limb("./experiment", limb_stager="/path/to/limbstager")
+    """
     # Get the the data from the pipeline file
-    pipeline_file = os.path.join(experiment_folfer_path, "pipeline.log")
+    pipeline_file = os.path.join(experiment_folder_path, "pipeline.log")
     pipeline = file2dic(pipeline_file)
     surface = pipeline["SURFACE"]
 
@@ -227,7 +308,7 @@ def _stage_limb(experiment_folfer_path, limb_stager=None):
     else:
         LIMBSTAGER_EXE = None
 
-    outfile = os.path.join(experiment_folfer_path, "staging.txt")
+    outfile = os.path.join(experiment_folder_path, "staging.txt")
 
     STAGING_URL = "https://limbstaging.embl.es/api"
     connect = requests.get(STAGING_URL)
@@ -289,7 +370,7 @@ def _stage_limb(experiment_folfer_path, limb_stager=None):
 
                         # now stage: a .tmp_out.txt file is created
                         errnr = os.system(
-                            f"{LIMBSTAGER_EXE} {outfile} > {os.path.join(experiment_folfer_path, 'staging_fit.txt')} 2> /dev/null"
+                            f"{LIMBSTAGER_EXE} {outfile} > {os.path.join(experiment_folder_path, 'staging_fit.txt')} 2> /dev/null"
                         )
                         if errnr:
                             printc(
@@ -304,7 +385,7 @@ def _stage_limb(experiment_folfer_path, limb_stager=None):
                         return
 
                     result = grep(
-                        os.path.join(experiment_folfer_path,
+                        os.path.join(experiment_folder_path,
                                      'staging_fit.txt'), "RESULT")
                     if len(result) == 0:
                         printc(
@@ -353,7 +434,32 @@ def _stage_limb(experiment_folfer_path, limb_stager=None):
     dic2file(pipeline, pipeline_file)
 
 
-def _rotate_limb(experiment_folfer_path):
+def _rotate_limb(experiment_folder_path):
+    """
+    Rotate and align the limb using interactive 3D transformation.
+    
+    This function opens an interactive 3D viewer where you can manually align
+    the limb with a reference limb of the same stage. The transformation is
+    saved and can be applied to other data.
+    
+    Args:
+        experiment_folder_path: Path to the experiment folder containing the surface mesh
+    
+    Returns:
+        None. Saves transformation matrix to experiment folder and updates pipeline.log
+    
+    Interactive Controls:
+        - Use mouse to rotate, pan, and zoom
+        - Toggle 'a' to apply transformation
+        - The transformation is automatically saved when you close the viewer
+    
+    Note:
+        Requires a surface mesh and stage information to exist in the experiment folder.
+        The reference limb is automatically selected based on the determined stage.
+    
+    Example:
+        >>> _rotate_limb("./experiment")
+    """
     pipeline_file = os.path.join(experiment_folfer_path, "pipeline.log")
     pipeline = file2dic(pipeline_file)
     surface = pipeline.get("BLENDER", pipeline["SURFACE"])
@@ -441,7 +547,28 @@ def _rotate_limb(experiment_folfer_path):
     dic2file(pipeline, pipeline_file)
 
 
-def _morph_limb(experiment_folfer_path):
+def _morph_limb(experiment_folder_path):
+    """
+    Morph the limb to match a reference template using non-linear registration.
+    
+    This function performs non-linear morphing of the limb surface to align
+    it with a reference template of the same stage. The morphing transformation
+    is saved and can be applied to other data.
+    
+    Args:
+        experiment_folder_path: Path to the experiment folder containing the surface mesh
+    
+    Returns:
+        None. Saves morphed surface and transformation to experiment folder
+    
+    Note:
+        Requires a surface mesh, stage information, and rotation transformation
+        to exist in the experiment folder. The reference template is automatically
+        selected based on the determined stage.
+    
+    Example:
+        >>> _morph_limb("./experiment")
+    """
     pipeline_file = os.path.join(experiment_folfer_path, "pipeline.log")
     pipeline = file2dic(pipeline_file)
     surface = os.path.join(experiment_folfer_path, pipeline["SURFACE"])

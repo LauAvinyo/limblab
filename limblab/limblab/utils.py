@@ -6,6 +6,7 @@ import numpy as np
 
 
 def load_pipeline(folder):
+    """Load pipeline configuration from experiment folder."""
     pipeline_file = os.path.join(folder, "pipeline.log")
     return file2dic(pipeline_file)
 
@@ -47,7 +48,8 @@ styles = {
 
 
 def file2dic(file):
-    with open(file, "r") as f:
+    """Read a key-value file and return as dictionary."""
+    with open(file, "r", encoding="utf-8") as f:
         pipeline = {}
         # Read each line in the file
         for line in f:
@@ -65,7 +67,7 @@ def dic2file(data_dict, filename):
     key2 value2
     ...
     """
-    with open(filename, "w") as file:
+    with open(filename, "w", encoding="utf-8") as file:
         for key, value in data_dict.items():
             file.write(f"{key} {value}\n")
 
@@ -96,7 +98,7 @@ reference_stages = [int(file.split(".")[0].split("_")[1]) for file in files]
 
 
 def get_reference_limb(stage: int) -> str:
-    """From the stage, get the refernce limb path"""
+    """From the stage, get the reference limb path"""
     file = os.path.join(REFERENCE_LIMB_FOLDER,
                         "Limb-rec_" + str(stage) + ".vtk")
     if os.path.isfile(file):
@@ -108,7 +110,8 @@ def get_reference_limb(stage: int) -> str:
 PATTERN = r'\b(RF|LF|RH|LH)\b'
 
 
-def get_side_postion(file):
+def get_side_position(file):
+    """Extract side and position from filename."""
     matches = re.findall(PATTERN, file.replace("_", " "))
 
     if len(matches) == 1:
