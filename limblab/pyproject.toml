@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "limblab"
-version = "0.2.0"
+version = "0.3.0"
 description = ""
 authors = ["LauAvinyo <avinyo.laura@gmail.com>"]
 readme = "README.md"
@@ -10,7 +10,8 @@ limb = "limblab.main:app"
 
 [tool.poetry.dependencies]
 python = ">=3.10,<4.0"
-typer = {extras = ["all"], version = "^0.12.3"}
+typer = {extras = ["all"], version = "^0.16.0"}
+click = "^8.2.0"
 requests = "^2.32.3"
 vedo = "^2024.5.2"
 scipy = "^1.14.1"

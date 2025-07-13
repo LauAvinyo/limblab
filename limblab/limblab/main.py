@@ -12,7 +12,7 @@ The CLI supports the complete pipeline from raw data to visualization:
 5. Align with reference templates
 6. Visualize results
 
-For detailed usage examples, see the README or run: limblab --help
+For detailed usage examples, see the README or run: limb --help
 """
 
 # pylint: disable=missing-class-docstring
@@ -51,9 +51,9 @@ class VisAlgorithm(str, Enum):
 
 @app.command()
 def create_experiment(
-        experiment_name: str,
-        experiment_folder_path: Annotated[Optional[str],
-                                          typer.Argument()] = None):
+    experiment_name: str,
+    experiment_folder_path: Optional[str] = None
+):
     """
     Create a new experiment folder with initial pipeline structure.
     
@@ -66,8 +66,8 @@ def create_experiment(
         experiment_folder_path: Parent directory where to create the experiment (default: current directory)
     
     Example:
-        >>> limblab create-experiment my_experiment
-        >>> limblab create-experiment my_experiment /path/to/experiments/
+        >>> limb create-experiment my_experiment
+        >>> limb create-experiment my_experiment /path/to/experiments/
     """
     if experiment_folder_path is None:
         experiment_folder_path = "./"
@@ -78,11 +78,14 @@ def create_experiment(
 
 
 @app.command()
-def clean_volume(experiment_folder_path: Path, volume_path: Path,
-                 channel_name: str,
-                 gaussian_sigma: Optional[str] = typer.Option(None, "--sigma", help="Gaussian smoothing parameters as 'x,y,z' (default: '6,6,6')"),
-                 frequency_cutoff: Optional[float] = typer.Option(None, "--cutoff", help="Frequency cutoff for low-pass filtering (default: 0.05)"),
-                 low_res_size: Optional[str] = typer.Option(None, "--size", help="Output volume size as 'x,y,z' (default: '512,512,296')")):
+def clean_volume(
+    experiment_folder_path: Path, 
+    volume_path: Path,
+    channel_name: str,
+    gaussian_sigma: Optional[str] = typer.Option(None, "--sigma", help="Gaussian smoothing parameters as 'x,y,z' (default: '6,6,6')"),
+    frequency_cutoff: Optional[float] = typer.Option(None, "--cutoff", help="Frequency cutoff for low-pass filtering (default: 0.05)"),
+    low_res_size: Optional[str] = typer.Option(None, "--size", help="Output volume size as 'x,y,z' (default: '512,512,296')")
+):
     """
     Clean and preprocess volume data for analysis.
     
@@ -98,8 +101,8 @@ def clean_volume(experiment_folder_path: Path, volume_path: Path,
         low_res_size: Output volume size as 'x,y,z' (default: '512,512,296')
     
     Example:
-        >>> limblab clean-volume ./experiment raw_data.tif DAPI
-        >>> limblab clean-volume ./experiment raw_data.tif GFP --sigma 8,8,8 --cutoff 0.03
+        >>> limb clean-volume ./experiment raw_data.tif DAPI
+        >>> limb clean-volume ./experiment raw_data.tif GFP --sigma 8,8,8 --cutoff 0.03
     """
     
     # Parse tuple parameters
@@ -125,13 +128,10 @@ def clean_volume(experiment_folder_path: Path, volume_path: Path,
 
 @app.command()
 def extract_surface(
-    experiment_folder_path: Annotated[
-        Path, typer.Argument(help="Path to the experiment folder")],
-    isovalue: Annotated[Optional[int], typer.Argument(help="Specific isovalue for surface extraction")] = None,
-    auto: Annotated[
-        bool,
-        typer.Option(
-            help="Automatically determine isovalue from volume histogram")] = False):
+    experiment_folder_path: Path = typer.Argument(help="Path to the experiment folder"),
+    isovalue: Optional[int] = None,
+    auto: bool = typer.Option(False, help="Automatically determine isovalue from volume histogram")
+):
     """
     Extract 3D surface mesh from volume data.
     
@@ -144,17 +144,15 @@ def extract_surface(
         auto: Automatically determine isovalue from volume histogram
     
     Example:
-        >>> limblab extract-surface ./experiment
-        >>> limblab extract-surface ./experiment 200
-        >>> limblab extract-surface ./experiment --auto
+        >>> limb extract-surface ./experiment
+        >>> limb extract-surface ./experiment 200
+        >>> limb extract-surface ./experiment --auto
     """
     _extract_surface(experiment_folder_path, isovalue, auto)
 
 
 @app.command()
-def stage(experiment_folder_path: Annotated[Path,
-                                            typer.Argument(
-                                                help=EXPERIMENT_FOLDER_HELP)]):
+def stage(experiment_folder_path: Path = typer.Argument(help=EXPERIMENT_FOLDER_HELP)):
     """
     Stage the limb using interactive 3D spline fitting.
     
@@ -174,19 +172,16 @@ def stage(experiment_folder_path: Annotated[Path,
         - Press 'q' to quit
     
     Example:
-        >>> limblab stage ./experiment
+        >>> limb stage ./experiment
     """
     _stage_limb(experiment_folder_path)
 
 
 @app.command()
 def align(
-    experiment_folder_path: Annotated[
-        str, typer.Argument(help="Path to the experiment folder")],
-    morph: Annotated[
-        bool,
-        typer.Option(
-            help="Perform non-linear morphing instead of rotation")] = False):
+    experiment_folder_path: str = typer.Argument(help="Path to the experiment folder"),
+    morph: bool = typer.Option(False, help="Perform non-linear morphing instead of rotation")
+):
     """
     Align the limb with reference template.
     
@@ -199,8 +194,8 @@ def align(
         morph: Perform non-linear morphing instead of rotation
     
     Example:
-        >>> limblab align ./experiment
-        >>> limblab align ./experiment --morph
+        >>> limb align ./experiment
+        >>> limb align ./experiment --morph
     """
     if morph:
         _morph_limb(experiment_folder_path)
@@ -228,10 +223,10 @@ def vis(algorithm: VisAlgorithm, experiment_folder_path: Path,
         channels: List of channel names to visualize (e.g., ['DAPI', 'GFP'])
     
     Example:
-        >>> limblab vis isosurfaces ./experiment DAPI
-        >>> limblab vis isosurfaces ./experiment DAPI GFP
-        >>> limblab vis raycast ./experiment DAPI
-        >>> limblab vis slices ./experiment DAPI GFP
+        >>> limb vis isosurfaces ./experiment DAPI
+        >>> limb vis isosurfaces ./experiment DAPI GFP
+        >>> limb vis raycast ./experiment DAPI
+        >>> limb vis slices ./experiment DAPI GFP
     """
     print(algorithm, channels)
     if algorithm == VisAlgorithm.isosurfces:

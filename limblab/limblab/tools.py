@@ -547,7 +547,7 @@ def _rotate_limb(experiment_folder_path):
     dic2file(pipeline, pipeline_file)
 
 
-def _morph_limb(experiment_folder_path):
+def _morph_limb(experiment_folfer_path):
     """
     Morph the limb to match a reference template using non-linear registration.
     
