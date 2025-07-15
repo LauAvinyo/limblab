@@ -4,7 +4,7 @@ This document tracks all releases of LimbLab, including new features, bug fixes,
 
 ## 🚀 Latest Release
 
-### Version 0.2.0 (2024-01-15)
+### Version 0.3.0 (2024-01-15)
 
 **🎉 Major Release - Enhanced CLI and Documentation**
 
@@ -111,11 +111,11 @@ No breaking changes in this release. All existing workflows should continue to w
 **New Features to Try:**
 ```bash
 # Use custom volume processing parameters
-limblab clean-volume experiment data.tif DAPI --sigma 8,8,8 --cutoff 0.03
+limb clean-volume experiment data.tif DAPI --sigma 8,8,8 --cutoff 0.03
 
 # Check enhanced help
-limblab --help
-limblab clean-volume --help
+limb --help
+limb clean-volume --help
 ```
 
 **Updated Documentation:**
@@ -139,7 +139,7 @@ limblab clean-volume --help
 
 ## 🐛 Known Issues
 
-### Version 0.2.0
+### Version 0.3.0
 
 #### Minor Issues
 - **Memory Usage:** Large volumes (>2GB) may require significant RAM
@@ -151,12 +151,6 @@ limblab clean-volume --help
 - Consider manual surface cleaning with external tools for challenging data
 - Test workflows on target platform before production use
 
-### Version 0.1.0
-
-#### Resolved Issues
-- ~~Import path problems in visualization modules~~ ✅ Fixed in 0.2.0
-- ~~CLI parameter parsing errors~~ ✅ Fixed in 0.2.0
-- ~~Memory leaks in volume processing~~ ✅ Fixed in 0.2.0
 
 ---
 
@@ -178,14 +172,13 @@ limblab clean-volume --help
 - [ ] Cloud processing infrastructure
 - [ ] Machine learning integration
 - [ ] Collaborative features
-- [ ] Plugin system architecture
 
 ---
 
 ## 🤝 Contributing to Releases
 
 ### Reporting Issues
-- **GitHub Issues:** [https://github.com/lauavinyo/limblab/issues](https://github.com/lauavinyo/limblab/issues)
+- **GitHub Issues:** [https://github.com/lauavinyo/limb/issues](https://github.com/lauavinyo/limb/issues)
 - **Bug Reports:** Include version, operating system, and reproducible steps
 - **Feature Requests:** Describe use case and expected behavior
 
@@ -218,4 +211,4 @@ limblab clean-volume --help
 
 ---
 
-*For detailed information about each release, check the [GitHub releases page](https://github.com/lauavinyo/limblab/releases).*
+*For detailed information about each release, check the [GitHub releases page](https://github.com/lauavinyo/limb/releases).*

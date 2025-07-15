@@ -35,7 +35,7 @@ Steps to reproduce:
 Environment:
 - OS: macOS 14.0
 - Python: 3.9.7
-- LimbLab: 0.2.0
+- LimbLab: 0.3.0
 - File: 2.5GB TIFF, 2048x2048x512 pixels
 
 Error:

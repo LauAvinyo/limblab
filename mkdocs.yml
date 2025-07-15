@@ -44,13 +44,13 @@ markdown_extensions:
 nav:
   - LimbLab: index.md
   - CLI: cli.md
-  - User Guide: 
-    - Volume Cleaning: userGuide/volume.md
-    - Extract the Limb Surface: userGuide/surface.md
-    - Limb Staging: userGuide/staging.md
-    - Aligment to reference: userGuide/align.md
-    - Visualitzation: userGuide/vis/vis.md
-    - Customization: userGuide/style.md
+  # - User Guide: 
+  #   - Volume Cleaning: userGuide/volume.md
+  #   - Extract the Limb Surface: userGuide/surface.md
+  #   - Limb Staging: userGuide/staging.md
+  #   - Aligment to reference: userGuide/align.md
+  #   - Visualitzation: userGuide/vis/vis.md
+  #   - Customization: userGuide/style.md
   - Tutorials:
     - Hoxa11: tutorials/hoxa11.md
     - Sox9 & BMP2: tutorials/sox9_bmp2.md

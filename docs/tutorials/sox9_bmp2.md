@@ -27,6 +27,16 @@ The goal of this tutorial is to analyze the spatial relationship between Sox9 an
 - `HCR20_BMP2_l1_sox9_594_LF.tif` - Sox9 channel
 - `HCR20_BMP2_l1_bmp2_647_LF.tif` - BMP2 channel
 
+### Download the data
+
+```bash
+mkdir example_data
+mkdir example_data/sox9_bmp2_raw_data
+```
+Then, you go to: XX 
+From here you can download the needed files and locate them to the folder `example_data/sox9_bmp2_raw_data/` 
+
+
 ## 🚀 Step-by-Step Pipeline
 
 ### Step 1: Create Experiment Structure
@@ -34,7 +44,7 @@ The goal of this tutorial is to analyze the spatial relationship between Sox9 an
 Set up a new experiment for the dual-channel analysis.
 
 ```bash
-limblab create-experiment case_studies/sox9_bmp2_pipeline
+limb create-experiment case_studies/sox9_bmp2_pipeline
 ```
 
 **Interactive prompts:**
@@ -63,7 +73,7 @@ SPACING 0.65 0.65 2.0
 Process the structural reference channel first.
 
 ```bash
-limblab clean-volume case_studies/sox9_bmp2_pipeline example_data/sox9_bmp2_raw_data/HCR20_BMP2_l1_dapi_405_LF.tif dapi
+limb clean-volume case_studies/sox9_bmp2_pipeline example_data/sox9_bmp2_raw_data/HCR20_BMP2_l1_dapi_405_LF.tif dapi
 ```
 
 **Processing details:**
@@ -86,7 +96,7 @@ limblab clean-volume case_studies/sox9_bmp2_pipeline example_data/sox9_bmp2_raw_
 Process the Sox9 cartilage marker channel.
 
 ```bash
-limblab clean-volume case_studies/sox9_bmp2_pipeline example_data/sox9_bmp2_raw_data/HCR20_BMP2_l1_sox9_594_LF.tif sox9
+limb clean-volume case_studies/sox9_bmp2_pipeline example_data/sox9_bmp2_raw_data/HCR20_BMP2_l1_sox9_594_LF.tif sox9
 ```
 
 **Key considerations for Sox9:**
@@ -108,7 +118,7 @@ limblab clean-volume case_studies/sox9_bmp2_pipeline example_data/sox9_bmp2_raw_
 Process the BMP2 bone morphogenetic protein channel.
 
 ```bash
-limblab clean-volume case_studies/sox9_bmp2_pipeline example_data/sox9_bmp2_raw_data/HCR20_BMP2_l1_bmp2_647_LF.tif bmp2
+limb clean-volume case_studies/sox9_bmp2_pipeline example_data/sox9_bmp2_raw_data/HCR20_BMP2_l1_bmp2_647_LF.tif bmp2
 ```
 
 **Key considerations for BMP2:**
@@ -130,11 +140,14 @@ limblab clean-volume case_studies/sox9_bmp2_pipeline example_data/sox9_bmp2_raw_
 Create a surface mesh from the DAPI volume for analysis.
 
 ```bash
-limblab extract-surface case_studies/sox9_bmp2_pipeline/
+limb extract-surface case_studies/sox9_bmp2_pipeline/
 ```
 
 **Surface quality note:** 
-Real experimental data may produce imperfect surfaces. For this tutorial, we'll use a pre-cleaned surface created with Blender.
+Real experimental data may produce imperfect surfaces. 
+
+OPTIONALLY, you can clean the surface created with Blender. Then, LimbLab will use it by default.
+Note use vtk in blender you just need 
 
 **Manual surface replacement:**
 ```bash
@@ -142,7 +155,7 @@ Real experimental data may produce imperfect surfaces. For this tutorial, we'll 
 echo 'BLENDER HCR20_BMP2_l1_dapi_405_LF_surface_blender.vtk' >> case_studies/sox9_bmp2_pipeline/pipeline.log
 
 # Copy the pre-cleaned surface
-cp example_data/sox9_bmp2_raw_data/HCR20_BMP2_l1_dapi_405_LF_surface_blender.vtk case_studies/sox9_bmp2_pipeline/
+cp ${your_path}/HCR20_BMP2_l1_dapi_405_LF_surface_blender.vtk case_studies/sox9_bmp2_pipeline/
 ```
 
 **Expected result:**
@@ -159,7 +172,7 @@ cp example_data/sox9_bmp2_raw_data/HCR20_BMP2_l1_dapi_405_LF_surface_blender.vtk
 Determine the developmental stage for proper reference alignment.
 
 ```bash
-limblab stage case_studies/sox9_bmp2_pipeline/
+limb stage case_studies/sox9_bmp2_pipeline/
 ```
 
 **Staging process:**
@@ -182,7 +195,7 @@ limblab stage case_studies/sox9_bmp2_pipeline/
 Use non-linear morphing for precise alignment with the reference template.
 
 ```bash
-limblab align case_studies/sox9_bmp2_pipeline/ --morph
+limb align case_studies/sox9_bmp2_pipeline/ --morph
 ```
 
 **Why morphing for dual-channel analysis:**
@@ -212,7 +225,7 @@ Create comprehensive visualizations of both gene expression patterns.
 #### 8.1 Dual-Channel Isosurface Visualization
 
 ```bash
-limblab vis isosurfaces case_studies/sox9_bmp2_pipeline SOX9 BMP2
+limb vis isosurfaces case_studies/sox9_bmp2_pipeline SOX9 BMP2
 ```
 
 **What happens:**
@@ -239,7 +252,7 @@ limblab vis isosurfaces case_studies/sox9_bmp2_pipeline SOX9 BMP2
 #### 8.2 Dual-Channel Slice Visualization
 
 ```bash
-limblab vis slices case_studies/sox9_bmp2_pipeline SOX9 BMP2
+limb vis slices case_studies/sox9_bmp2_pipeline SOX9 BMP2
 ```
 
 **What happens:**
@@ -257,7 +270,7 @@ limblab vis slices case_studies/sox9_bmp2_pipeline SOX9 BMP2
 #### 8.3 Probe Visualization
 
 ```bash
-limblab vis probe case_studies/sox9_bmp2_pipeline SOX9 BMP2
+limb vis probe case_studies/sox9_bmp2_pipeline SOX9 BMP2
 ```
 
 **What happens:**
@@ -309,97 +322,8 @@ case_studies/sox9_bmp2_pipeline/
 ├── HCR20_BMP2_l1_dapi_405_LF_surface_blender.vtk  # 3D surface
 ├── staging.txt                                     # Staging results
 ├── morphing_transformation.txt                     # Morphing data
-└── visualizations/                                 # Generated images
-    ├── dual_isosurface.png
-    ├── dual_slice.png
-    └── probe_data.csv
 ```
 
-### Scientific Interpretation
-
-#### Sox9 Expression Pattern
-- **Primary regions:** Cartilage-forming areas
-- **Spatial distribution:** Concentrated in digit-forming regions
-- **Developmental role:** Chondrocyte differentiation
-
-#### BMP2 Expression Pattern
-- **Primary regions:** Bone-forming areas
-- **Spatial distribution:** Complementary to Sox9
-- **Developmental role:** Osteoblast differentiation
-
-#### Co-expression Analysis
-- **Overlap regions:** 15% of total volume
-- **Spatial relationship:** Sox9 proximal, BMP2 distal
-- **Developmental significance:** Cartilage-to-bone transition
-
-### Troubleshooting
-
-**Common issues and solutions:**
-
-1. **Poor surface quality:**
-   - Use Blender for manual surface cleaning
-   - Adjust isovalues during extraction
-   - Consider alternative surface generation methods
-
-2. **Channel alignment issues:**
-   - Ensure all channels use same coordinate system
-   - Check for registration artifacts
-   - Verify transformation application
-
-3. **Expression overlap problems:**
-   - Adjust threshold values for each channel
-   - Use different color schemes
-   - Consider transparency settings
-
-4. **Morphing failures:**
-   - Ensure good surface quality
-   - Check reference template availability
-   - Try different morphing parameters
-
-## 🔬 Scientific Context
-
-### Sox9 in Limb Development
-
-Sox9 is a transcription factor essential for:
-- **Chondrocyte differentiation** and maintenance
-- **Cartilage matrix synthesis**
-- **Joint formation** and maintenance
-- **Digit patterning** and growth
-
-### BMP2 in Limb Development
-
-BMP2 is a signaling molecule involved in:
-- **Osteoblast differentiation** and bone formation
-- **Apoptosis regulation** in digit formation
-- **Joint development** and maintenance
-- **Growth plate regulation**
-
-### Dual-Channel Analysis Benefits
-
-Compared to single-channel analysis:
-- **Spatial relationships:** Direct visualization of gene interactions
-- **Developmental context:** Understanding tissue transitions
-- **Quantitative overlap:** Precise co-expression measurements
-- **Functional insights:** Linking expression to development
-
-## 📚 Next Steps
-
-After completing this tutorial, you can:
-
-1. **Time series analysis:** Compare different developmental stages
-2. **Multi-gene studies:** Add more channels (e.g., Runx2, Col2a1)
-3. **Quantitative analysis:** Export data for statistical analysis
-4. **Comparative studies:** Analyze different genetic backgrounds
-5. **Publication figures:** Create custom visualizations
-
-## 🆘 Getting Help
-
-- **Documentation:** Check the user guide for detailed explanations
-- **Issues:** Report problems on our GitHub repository
-- **Community:** Join our discussion forum
-- **Email:** Contact the development team
-
----
 
 *This tutorial demonstrates the power of LimbLab for dual-channel gene expression analysis. The same approach can be applied to any combination of genes or markers in limb development research.*
 

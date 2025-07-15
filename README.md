@@ -62,6 +62,7 @@ limblab.align("./experiments/my_experiment")
 # Visualize data
 limblab.one_channel_isosurface("./experiments/my_experiment", "DAPI")
 ```
+```
 
 ## Custom Parameters
 
@@ -116,33 +117,33 @@ The LimbLab CLI provides the same functionality as the Python API:
 
 ```bash
 # Create experiment structure
-limblab create-experiment my_experiment ./experiments/
+limb create-experiment my_experiment ./experiments/
 
 # Clean and preprocess volume data
-limblab clean-volume ./experiment ./volume.tif DAPI
+limb clean-volume ./experiment ./volume.tif DAPI
 
 # Clean with custom parameters
-limblab clean-volume ./experiment ./volume.tif DAPI --sigma 8,8,8 --cutoff 0.03 --size 1024,1024,296
+limb clean-volume ./experiment ./volume.tif DAPI --sigma 8,8,8 --cutoff 0.03 --size 1024,1024,296
 
 # Extract 3D surface mesh
-limblab extract-surface ./experiment --auto
+limb extract-surface ./experiment --auto
 
 # Interactive limb staging
-limblab stage ./experiment
+limb stage ./experiment
 
 # Align with reference template
-limblab align ./experiment
+limb align ./experiment
 
 # Non-linear morphing alignment
-limblab align ./experiment --morph
+limb align ./experiment --morph
 
 # Visualize data
-limblab vis isosurfaces ./experiment DAPI
-limblab vis isosurfaces ./experiment DAPI GFP
-limblab vis raycast ./experiment DAPI
-limblab vis slices ./experiment DAPI GFP
-limblab vis slab ./experiment DAPI
-limblab vis probe ./experiment DAPI GFP RFP
+limb vis isosurfaces ./experiment DAPI
+limb vis isosurfaces ./experiment DAPI GFP
+limb vis raycast ./experiment DAPI
+limb vis slices ./experiment DAPI GFP
+limb vis slab ./experiment DAPI
+limb vis probe ./experiment DAPI GFP RFP
 ```
 
 ### CLI Options
@@ -153,7 +154,7 @@ limblab vis probe ./experiment DAPI GFP RFP
 - `--auto`: Automatically determine parameters (for surface extraction)
 - `--morph`: Perform non-linear morphing instead of rotation (for alignment)
 
-For detailed help on any command: `limblab <command> --help` 
+For detailed help on any command: `limb <command> --help` 
 
 Note. In Windows (1) it will not work in WSL since vedo / VTK does not work there. (2) Make sure the windows scripts are on PATH. 
 In case you need to add to PATH in windows: 

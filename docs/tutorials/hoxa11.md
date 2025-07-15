@@ -26,6 +26,18 @@ The goal of this tutorial is to analyze Hoxa11 gene expression in mouse limb dev
 - `HCR11_HOXA11_l1_dapi_488_LH.tif` - DAPI channel
 - `HCR11_HOXA11_l1_hoxa11_647_LH.tif` - Hoxa11 channel
 
+### Download the data
+
+On your terminal (MacOS, WSL or Linux), create a new folder.
+
+```bash
+mkdir example_data
+mkdir example_data/hoxa11_raw_data
+```
+Then, you go to: XX 
+From here you can download the needed files and locate them to the folder `example_data/hoxa11_raw_data/` 
+
+
 ## 🚀 Step-by-Step Pipeline
 
 ### Step 1: Create Experiment Structure
@@ -33,7 +45,8 @@ The goal of this tutorial is to analyze Hoxa11 gene expression in mouse limb dev
 First, we need to create a new experiment folder to keep our raw data safe and organized.
 
 ```bash
-limblab create-experiment case_studies/hoxa11_pipeline
+mkdir case_studies
+limb create-experiment case_studies/hoxa11_pipeline
 ```
 
 **What happens:** LimbLab creates a new directory structure and initializes a `pipeline.log` file to track all processing steps.
@@ -64,7 +77,7 @@ SPACING 0.65 0.65 2.0
 The DAPI channel provides the structural reference for the limb. We need to clean it to remove noise and artifacts.
 
 ```bash
-limblab clean-volume case_studies/hoxa11_pipeline example_data/hoxa11_raw_data/HCR11_HOXA11_l1_dapi_488_LH.tif dapi
+limb clean-volume case_studies/hoxa11_pipeline example_data/hoxa11_raw_data/HCR11_HOXA11_l1_dapi_488_LH.tif dapi
 ```
 
 **What happens:** 
@@ -99,7 +112,7 @@ limblab clean-volume case_studies/hoxa11_pipeline example_data/hoxa11_raw_data/H
 Now we process the Hoxa11 gene expression channel using the same cleaning pipeline.
 
 ```bash
-limblab clean-volume case_studies/hoxa11_pipeline example_data/hoxa11_raw_data/HCR11_HOXA11_l1_hoxa11_647_LH.tif hoxa11
+limb clean-volume case_studies/hoxa11_pipeline example_data/hoxa11_raw_data/HCR11_HOXA11_l1_hoxa11_647_LH.tif hoxa11
 ```
 
 **What happens:** Same cleaning process as DAPI, but optimized for gene expression data.
@@ -123,7 +136,7 @@ limblab clean-volume case_studies/hoxa11_pipeline example_data/hoxa11_raw_data/H
 We create a 3D surface mesh from the DAPI volume for further analysis and visualization.
 
 ```bash
-limblab extract-surface case_studies/hoxa11_pipeline/
+limb extract-surface case_studies/hoxa11_pipeline/
 ```
 
 **What happens:**
@@ -157,7 +170,7 @@ limblab extract-surface case_studies/hoxa11_pipeline/
 Determine the developmental stage of the limb using our automated staging algorithm.
 
 ```bash
-limblab stage case_studies/hoxa11_pipeline/
+limb stage case_studies/hoxa11_pipeline/
 ```
 
 **What happens:**
@@ -180,13 +193,6 @@ limblab stage case_studies/hoxa11_pipeline/
 3. Click 's' to calculate stage
 4. Review the staging result
 
-**Expected result:**
-```
-🎯 Limb stage determined: 25.3
-📊 Confidence: 94.2%
-📝 Results saved to: case_studies/hoxa11_pipeline/staging.txt
-```
-
 ---
 
 ### Step 6: Align with Reference
@@ -194,7 +200,7 @@ limblab stage case_studies/hoxa11_pipeline/
 Align the limb with a reference template of the same stage for comparative analysis.
 
 ```bash
-limblab align case_studies/hoxa11_pipeline/
+limb align case_studies/hoxa11_pipeline/
 ```
 
 **What happens:**
@@ -230,7 +236,7 @@ Create publication-ready visualizations of the Hoxa11 gene expression.
 #### 7.1 3D Isosurface Visualization
 
 ```bash
-limblab vis isosurfaces case_studies/hoxa11_pipeline HOXA11
+limb vis isosurfaces case_studies/hoxa11_pipeline HOXA11
 ```
 
 **What happens:**
@@ -254,7 +260,7 @@ limblab vis isosurfaces case_studies/hoxa11_pipeline HOXA11
 #### 7.2 2D Slab Visualization
 
 ```bash
-limblab vis slab case_studies/hoxa11_pipeline HOXA11
+limb vis slab case_studies/hoxa11_pipeline HOXA11
 ```
 
 **What happens:**
@@ -320,7 +326,7 @@ case_studies/hoxa11_pipeline/
    - Try different threshold values
 
 3. **Staging fails:**
-   - Ensure points are placed along the limb axis
+   - Ensure points are placed along the limb AER
    - Use more points for better accuracy
 
 4. **Alignment issues:**
@@ -344,22 +350,7 @@ Compared to 2D sections, 3D analysis provides:
 - **Better understanding** of expression gradients
 - **More accurate** comparative analysis
 
-## 📚 Next Steps
 
-After completing this tutorial, you can:
-
-1. **Compare multiple samples** using the same pipeline
-2. **Analyze other genes** in the same limb
-3. **Create time series** studies
-4. **Export data** for statistical analysis
-5. **Generate publication figures** with custom styling
-
-## 🆘 Getting Help
-
-- **Documentation:** Check the user guide for detailed explanations
-- **Issues:** Report problems on our GitHub repository
-- **Community:** Join our discussion forum
-- **Email:** Contact the development team
 
 ---
 
