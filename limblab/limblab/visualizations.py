@@ -789,7 +789,7 @@ def one_channel_isosurface(folder, channel):
         limb.apply_transform(T)
 
     plt = Plotter(bg="white")
-    limb.frontface_culling()
+    # limb.frontface_culling()
     plt += limb.color("#FF7F11").alpha(0.1)
 
     #
