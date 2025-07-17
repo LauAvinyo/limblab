@@ -408,7 +408,7 @@ def _stage_limb(experiment_folder_path, limb_stager=None):
     settings.default_font = "Dalim"
 
     # load a 3D mesh of the limb to stage
-    surface = os.path.join(experiment_folfer_path, surface)
+    surface = os.path.join(experiment_folder_path, surface)
     msh = Mesh(surface).c("blue8", 0.8)
     txt = Text2D(pos="top-center", bg="yellow5", s=1.5)
 
@@ -460,7 +460,7 @@ def _rotate_limb(experiment_folder_path):
     Example:
         >>> _rotate_limb("./experiment")
     """
-    pipeline_file = os.path.join(experiment_folfer_path, "pipeline.log")
+    pipeline_file = os.path.join(experiment_folder_path, "pipeline.log")
     pipeline = file2dic(pipeline_file)
     surface = pipeline.get("BLENDER", pipeline["SURFACE"])
     stage = pipeline.get("STAGE", False)
@@ -482,7 +482,7 @@ def _rotate_limb(experiment_folder_path):
     print(f"The reference limb is in file {refence_limb}.")
 
     # Get the Surfaces
-    source = Mesh(os.path.join(experiment_folfer_path, surface)).color(
+    source = Mesh(os.path.join(experiment_folder_path, surface)).color(
         (252, 171, 16)).scale(1.1)
     target = (
         Mesh(refence_limb).cut_with_plane(origin=(1, 0, 0))
@@ -500,11 +500,11 @@ def _rotate_limb(experiment_folder_path):
     #                       c="y")
     #     if answer == "y":
     #         # T.filename = tname
-    #         T.write(os.path.join(experiment_folfer_path, tname))
+    #         T.write(os.path.join(experiment_folder_path, tname))
     #         print(T)
     # else:
     #     print("Saving!")
-    #     T.write(os.path.join(experiment_folfer_path, tname))
+    #     T.write(os.path.join(experiment_folder_path, tname))
     #     print(T)
 
     plt = Plotter(shape="1|2", sharecam=False)
@@ -540,14 +540,14 @@ def _rotate_limb(experiment_folder_path):
     # print(plt.warped.transform)
     T = source.transform
     print(T)
-    T.write(os.path.join(experiment_folfer_path, tname))
+    T.write(os.path.join(experiment_folder_path, tname))
 
     pipeline["TRANSFORMATION"] = os.path.basename(tname)
     pipeline["ROTATION"] = os.path.basename(tname)
     dic2file(pipeline, pipeline_file)
 
 
-def _morph_limb(experiment_folfer_path):
+def _morph_limb(experiment_folder_path):
     """
     Morph the limb to match a reference template using non-linear registration.
     
@@ -569,9 +569,9 @@ def _morph_limb(experiment_folfer_path):
     Example:
         >>> _morph_limb("./experiment")
     """
-    pipeline_file = os.path.join(experiment_folfer_path, "pipeline.log")
+    pipeline_file = os.path.join(experiment_folder_path, "pipeline.log")
     pipeline = file2dic(pipeline_file)
-    surface = os.path.join(experiment_folfer_path, pipeline["SURFACE"])
+    surface = os.path.join(experiment_folder_path, pipeline["SURFACE"])
     stage = pipeline.get("STAGE", False)
 
     if not stage:
@@ -603,6 +603,6 @@ def _morph_limb(experiment_folfer_path):
     wrap_transform.write(tname)
     print(wrap_transform)
 
-    pipeline["TRANSFORMATION"] = tname
-    pipeline["MORPHING"] = tname
+    pipeline["TRANSFORMATION"] = os.path.basename(tname)
+    pipeline["MORPHING"] = os.path.basename(tname)
     dic2file(pipeline, pipeline_file)

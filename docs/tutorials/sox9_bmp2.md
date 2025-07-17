@@ -1,8 +1,8 @@
 # Sox9 and BMP2 Dual-Channel Analysis Tutorial
 
-Welcome to the comprehensive guide for analyzing Sox9 and BMP2 gene expression using LimbLab! This tutorial focuses on dual-channel analysis, which is crucial for understanding gene interactions and spatial relationships in limb development.
+Welcome to the comprehensive guide for analyzing Sox9 and BMP2 gene expression using LimbLab! This tutorial focuses on dual-channel analysis, which is crucial for understanding gene interactions and spatial relationships in limb development. For more details on basic analysis look the tutorial on Hoxa11!
 
-## 🎯 Objective
+## Objective
 
 The goal of this tutorial is to analyze the spatial relationship between Sox9 and BMP2 gene expression in mouse limb development. Sox9 is essential for cartilage formation, while BMP2 regulates bone development. Understanding their 3D co-expression patterns provides insights into the molecular mechanisms of limb development.
 
@@ -13,7 +13,7 @@ The goal of this tutorial is to analyze the spatial relationship between Sox9 an
 - Multi-channel visualization techniques
 - Advanced alignment and morphing
 
-## 📁 Data Overview
+## Data Overview
 
 **Dataset:** Sox9 and BMP2 HCR expression data  
 **Location:** `example_data/sox9_bmp2_raw_data/`  
@@ -29,15 +29,28 @@ The goal of this tutorial is to analyze the spatial relationship between Sox9 an
 
 ### Download the data
 
+On your terminal (MacOS, WSL or Linux), create a new folder.
+
 ```bash
 mkdir example_data
 mkdir example_data/sox9_bmp2_raw_data
 ```
-Then, you go to: XX 
+Then, you go to: [data bioimage archive](https://www.ebi.ac.uk/biostudies/BioImages/studies/S-BIAD1925?query=HCR20%20) 
 From here you can download the needed files and locate them to the folder `example_data/sox9_bmp2_raw_data/` 
 
+You should be able to do 
+```
+ls example_data\sox9_bmp2_raw_data
+```
 
-## 🚀 Step-by-Step Pipeline
+And see, or something (very) similar
+```
+HCR20_BMP2_l1_dapi_405_LF.tif
+HCR20_BMP2_l1_sox9_594_LF.tif
+HCR20_BMP2_l1_bmp2_647_LF.tif
+```
+
+## Step-by-Step Pipeline
 
 ### Step 1: Create Experiment Structure
 
@@ -48,17 +61,13 @@ limb create-experiment case_studies/sox9_bmp2_pipeline
 ```
 
 **Interactive prompts:**
+
 - **Limb side:** Select `L` (Left)
 - **Limb position:** Select `F` (Forelimb)
 - **Microscope spacing:** Use default `0.65 0.65 2.0`
 
-**Expected output:**
-```
-✅ Experiment created: case_studies/sox9_bmp2_pipeline
-📝 Pipeline log initialized
-```
-
 **Your `pipeline.log` should contain:**
+(`cat case_studies/sox9_bmp2_pipeline/pipeline.log`)
 ```txt
 BASE ./case_studies/sox9_bmp2_pipeline
 SIDE L
@@ -77,16 +86,12 @@ limb clean-volume case_studies/sox9_bmp2_pipeline example_data/sox9_bmp2_raw_dat
 ```
 
 **Processing details:**
+
 - **Threshold selection:** Focus on nuclear staining
 - **Smoothing:** (6, 6, 6) Gaussian filter
 - **Output size:** (512, 512, 296)
 
-**Expected result:**
-```
-✅ DAPI volume cleaned and saved
-📊 Volume size: 180MB (from 720MB)
-📝 Pipeline log updated
-```
+<img src="../../assets/image112.png" alt="Clean Dapi Channel 1" width="500"/>
 
 ---
 
@@ -95,20 +100,15 @@ limb clean-volume case_studies/sox9_bmp2_pipeline example_data/sox9_bmp2_raw_dat
 Process the Sox9 cartilage marker channel.
 
 ```bash
-limb clean-volume case_studies/sox9_bmp2_pipeline example_data/sox9_bmp2_raw_data/HCR20_BMP2_l1_sox9_594_LF.tif sox9
+limb clean-volume case_studies/sox9_bmp2_pipeline example_data/sox9_bmp2_raw_data/HCR20_BMP2_l1_sox9_594_LF.tif SOX9
 ```
 
 **Key considerations for Sox9:**
+
 - **Expression pattern:** Cartilage-forming regions
-- **Threshold values:** Typically higher than DAPI
 - **Spatial distribution:** Concentrated in digit-forming areas
 
-**Expected result:**
-```
-✅ Sox9 volume cleaned and saved
-📊 Expression preserved in cartilage regions
-📝 Pipeline log updated
-```
+<img src="../../assets/image113.png" alt="Clean Sox9 Channel 1" width="500"/>
 
 ---
 
@@ -117,20 +117,16 @@ limb clean-volume case_studies/sox9_bmp2_pipeline example_data/sox9_bmp2_raw_dat
 Process the BMP2 bone morphogenetic protein channel.
 
 ```bash
-limb clean-volume case_studies/sox9_bmp2_pipeline example_data/sox9_bmp2_raw_data/HCR20_BMP2_l1_bmp2_647_LF.tif bmp2
+limb clean-volume case_studies/sox9_bmp2_pipeline example_data/sox9_bmp2_raw_data/HCR20_BMP2_l1_bmp2_647_LF.tif BMP2
 ```
 
 **Key considerations for BMP2:**
+
 - **Expression pattern:** Bone-forming regions
 - **Relationship to Sox9:** Often complementary expression
-- **Threshold selection:** Balance signal and background
 
-**Expected result:**
-```
-✅ BMP2 volume cleaned and saved
-📊 Expression preserved in bone-forming regions
-📝 Pipeline log updated
-```
+<img src="../../assets/image114.png" alt="Clean BMP2 Channel 1" width="500"/>
+
 
 ---
 
@@ -142,13 +138,18 @@ Create a surface mesh from the DAPI volume for analysis.
 limb extract-surface case_studies/sox9_bmp2_pipeline/
 ```
 
+<img src="../../assets/image115.png" alt="Clean BMP2 Channel 1" width="500"/>
+
+
 **Surface quality note:** 
+
 Real experimental data may produce imperfect surfaces. 
 
-OPTIONALLY, you can clean the surface created with Blender. Then, LimbLab will use it by default.
+*OPTIONALLY*, you can clean the surface created with Blender. Then, LimbLab will use it by default.
 Note use vtk in blender you just need 
 
 **Manual surface replacement:**
+
 ```bash
 # Add the pre-cleaned surface to pipeline.log
 echo 'BLENDER HCR20_BMP2_l1_dapi_405_LF_surface_blender.vtk' >> case_studies/sox9_bmp2_pipeline/pipeline.log
@@ -157,12 +158,7 @@ echo 'BLENDER HCR20_BMP2_l1_dapi_405_LF_surface_blender.vtk' >> case_studies/sox
 cp ${your_path}/HCR20_BMP2_l1_dapi_405_LF_surface_blender.vtk case_studies/sox9_bmp2_pipeline/
 ```
 
-**Expected result:**
-```
-✅ Surface mesh loaded
-📊 Mesh: 12,845 vertices, 25,690 faces
-💾 Using pre-cleaned Blender surface
-```
+<img src="../../assets/image117.png" alt="Alignment" width="800"/>
 
 ---
 
@@ -174,18 +170,24 @@ Determine the developmental stage for proper reference alignment.
 limb stage case_studies/sox9_bmp2_pipeline/
 ```
 
-**Staging process:**
-1. Place points along the proximal-distal axis
-2. Focus on digit-forming regions
-3. Ensure good point distribution
-4. Calculate stage automatically
+**What happens:**
 
-**Expected result:**
-```
-🎯 Limb stage determined: 24.7
-📊 Confidence: 91.8%
-📝 Results saved to: case_studies/sox9_bmp2_pipeline/staging.txt
-```
+1. Interactive 3D viewer opens with the limb surface
+2. You place points along the limb's long axis
+3. A spline is fitted through the points
+4. The algorithm calculates the developmental stage
+5. Review the staging result
+
+**Interactive controls:**
+
+- **Left click:** Add point
+- **Right click:** Remove point  
+- **'c':** Clear all points
+- **'s':** Stage the limb
+- **'r':** Reset camera
+- **'q':** Quit
+
+<img src="../../assets/image116.png" alt="Staging" width="800"/>
 
 ---
 
@@ -198,22 +200,19 @@ limb align case_studies/sox9_bmp2_pipeline/ --morph
 ```
 
 **Why morphing for dual-channel analysis:**
+
 - **Better alignment:** Non-linear transformation captures complex morphology
 - **Preserves relationships:** Maintains spatial relationships between channels
 - **Higher accuracy:** Essential for comparative analysis
 
 **Morphing process:**
+
 1. Reference template of stage 24.7 is loaded
 2. Non-linear registration is performed
 3. Transformation is applied to all channels
 4. Results are saved for visualization
 
-**Expected result:**
-```
-✅ Non-linear morphing completed
-📊 Transformation applied to all channels
-📝 Pipeline log updated
-```
+<img src="../../assets/image118.png" alt="Alignment" width="800"/>
 
 ---
 
@@ -223,63 +222,90 @@ Create comprehensive visualizations of both gene expression patterns.
 
 #### 8.1 Dual-Channel Isosurface Visualization
 
+
+
 ```bash
 limb vis isosurfaces case_studies/sox9_bmp2_pipeline SOX9 BMP2
 ```
 
-**What happens:**
-1. Interactive isovalue selection for both channels
-2. Dual-channel 3D surface rendering
-3. Color-coded expression mapping
+<img src="../../assets/image119.png" alt="Dual Isosurface" width="800"/>
 
 
-#### 8.2 Dual-Channel Slice Visualization
 
 ```bash
 limb vis slices case_studies/sox9_bmp2_pipeline SOX9 BMP2
 ```
 
 **What happens:**
+
 1. Interactive 2D slicing through 3D volume
-2. Dual-channel overlay visualization
-3. Real-time expression comparison
 
-**Interactive features:**
-- **Mouse wheel:** Adjust slice position
-- **Mouse drag:** Move through volume
 
-#### 8.3 Probe Visualization
+#### 8.2 Probe Visualization
 
 ```bash
-limb vis probe case_studies/sox9_bmp2_pipeline SOX9 BMP2
+limb vis probe case_studies/sox9_bmp2_pipeline  BMP2 SOX9
 ```
 
 **What happens:**
+
 1. Interactive probe placement
 2. Real-time expression measurement
 3. Multi-channel data extraction
-4. Statistical analysis
+
 
 **Probe features:**
-- **Point probes:** Single-point measurements
+
 - **Line probes:** Linear expression profiles
 - **Volume probes:** Regional analysis
-- **Export data:** CSV format for further analysis
+
+
+<img src="../../assets/image120.png" alt="Dual Isosurface" width="500"/>
 
 ---
 
-### Data Files Generated
+## Results and Analysis
 
-```
-case_studies/sox9_bmp2_pipeline/
-├── pipeline.log                                    # Processing log
-├── HCR20_BMP2_l1_dapi_405_LF_cleaned.tif          # Cleaned DAPI
-├── HCR20_BMP2_l1_sox9_594_LF_cleaned.tif          # Cleaned Sox9
-├── HCR20_BMP2_l1_bmp2_647_LF_cleaned.tif          # Cleaned BMP2
-├── HCR20_BMP2_l1_dapi_405_LF_surface_blender.vtk  # 3D surface
-├── staging.txt                                     # Staging results
-```
+### Expected Outcomes
 
+After completing this tutorial, you should have:
 
+1.  **Processed data:**
+    -   Cleaned DAPI, Sox9, and BMP2 volumes
+    -   3D surface mesh
+    -   Staging results
+    -   Non-linear transformation
+
+2.  **Visualizations:**
+    -   Dual-channel 3D isosurfaces
+    -   2D slice overlays
+    -   Interactive probe data
+    -   Publication-ready images
+
+3.  **Analysis insights:**
+    -   Spatial relationship between Sox9 and BMP2
+    -   Co-expression patterns
+    -   Developmental stage context
+
+### Troubleshooting
+
+**Common issues and solutions:**
+
+1.  **Volume too large to load:**
+    -   Use the `--size` parameter to reduce output size
+    -   Example: `--size 256,256,148`
+
+2.  **Poor surface quality:**
+    -   Adjust isovalues during surface extraction
+    -   Try different threshold values
+
+3.  **Staging fails:**
+    -   Ensure points are placed along the limb AER
+    -   Use more points for better accuracy
+
+4.  **Alignment issues:**
+    -   The non-linear morphing is a powerful but complex algorithm. Results may vary depending on data quality.
+
+---
 *This tutorial demonstrates the power of LimbLab for dual-channel gene expression analysis. The same approach can be applied to any combination of genes or markers in limb development research.*
 
