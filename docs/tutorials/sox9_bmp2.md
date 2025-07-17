@@ -80,7 +80,6 @@ limb clean-volume case_studies/sox9_bmp2_pipeline example_data/sox9_bmp2_raw_dat
 - **Threshold selection:** Focus on nuclear staining
 - **Smoothing:** (6, 6, 6) Gaussian filter
 - **Output size:** (512, 512, 296)
-- **Expected reduction:** ~75% file size
 
 **Expected result:**
 ```
@@ -232,22 +231,7 @@ limb vis isosurfaces case_studies/sox9_bmp2_pipeline SOX9 BMP2
 1. Interactive isovalue selection for both channels
 2. Dual-channel 3D surface rendering
 3. Color-coded expression mapping
-4. Overlap analysis
 
-**Visualization features:**
-- **Sox9 (Red):** Cartilage-forming regions
-- **BMP2 (Green):** Bone-forming regions
-- **Overlap (Yellow):** Co-expression regions
-- **Transparency:** Adjustable for depth perception
-
-**Expected output:**
-```
-🎨 Dual-channel isosurface rendered
-📊 Sox9 expression range: 0.3 - 0.9
-📊 BMP2 expression range: 0.2 - 0.8
-📊 Overlap regions: 15% of total volume
-💾 Image saved: case_studies/sox9_bmp2_pipeline/dual_isosurface.png
-```
 
 #### 8.2 Dual-Channel Slice Visualization
 
@@ -259,13 +243,10 @@ limb vis slices case_studies/sox9_bmp2_pipeline SOX9 BMP2
 1. Interactive 2D slicing through 3D volume
 2. Dual-channel overlay visualization
 3. Real-time expression comparison
-4. Quantitative analysis tools
 
 **Interactive features:**
 - **Mouse wheel:** Adjust slice position
 - **Mouse drag:** Move through volume
-- **Color channels:** Toggle individual channels
-- **Intensity scaling:** Adjust expression ranges
 
 #### 8.3 Probe Visualization
 
@@ -287,30 +268,6 @@ limb vis probe case_studies/sox9_bmp2_pipeline SOX9 BMP2
 
 ---
 
-## 📊 Results and Analysis
-
-### Expected Outcomes
-
-After completing this tutorial, you should have:
-
-1. **Processed data:**
-   - Cleaned DAPI, Sox9, and BMP2 volumes
-   - 3D surface mesh
-   - Staging results
-   - Non-linear transformation
-
-2. **Visualizations:**
-   - Dual-channel 3D isosurfaces
-   - 2D slice overlays
-   - Interactive probe data
-   - Publication-ready images
-
-3. **Analysis insights:**
-   - Spatial relationship between Sox9 and BMP2
-   - Co-expression patterns
-   - Developmental stage context
-   - Quantitative expression data
-
 ### Data Files Generated
 
 ```
@@ -321,7 +278,6 @@ case_studies/sox9_bmp2_pipeline/
 ├── HCR20_BMP2_l1_bmp2_647_LF_cleaned.tif          # Cleaned BMP2
 ├── HCR20_BMP2_l1_dapi_405_LF_surface_blender.vtk  # 3D surface
 ├── staging.txt                                     # Staging results
-├── morphing_transformation.txt                     # Morphing data
 ```
 
 
