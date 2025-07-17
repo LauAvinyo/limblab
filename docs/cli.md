@@ -1,36 +1,40 @@
-# LimbLab Command Line Interface
+# Command-Line Interface (CLI) Reference
 
-The LimbLab CLI provides a powerful command-line interface for processing and analyzing 3D limb development data. This guide covers all available commands with detailed explanations, examples, and best practices.
+This document provides a comprehensive reference for the LimbLab Command-Line Interface (CLI). The CLI is designed for processing, analyzing, and visualizing 3D limb development data through a series of modular commands.
 
 ## Quick Start
 
+The following is a typical workflow for processing a single experiment.
+
 ```bash
 # Install LimbLab
-pip install limb
+pip install limblab
 
-# Create your first experiment
+# 1. Initialize the experiment directory
 limb create-experiment my_experiment
 
-# Process your data
-limb clean-volume my_experiment raw_data.tif DAPI
-limb extract-surface my_experiment --auto
-limb stage my_experiment
-limb align my_experiment
+# 2. Process the raw data
+limb clean-volume my_experiment/ raw_data.tif DAPI
+limb extract-surface my_experiment/ --auto
 
-# Visualize results
-limb vis isosurfaces my_experiment DAPI
+# 3. Perform analysis
+limb stage my_experiment/
+limb align my_experiment/
+
+# 4. Visualize the results
+limb vis isosurfaces my_experiment/ DAPI
 ```
 
 ## Command Overview
 
-| Command | Description | Usage |
-|---------|-------------|-------|
-| `create-experiment` | Initialize new experiment | `limb create-experiment NAME [PATH]` |
-| `clean-volume` | Process raw volume data | `limb clean-volume PATH VOLUME CHANNEL [OPTIONS]` |
-| `extract-surface` | Create 3D surface mesh | `limb extract-surface PATH [ISOVALUE] [OPTIONS]` |
-| `stage` | Determine limb stage | `limb stage PATH` |
-| `align` | Align with reference | `limb align PATH [OPTIONS]` |
-| `vis` | Visualize data | `limb vis ALGORITHM PATH CHANNELS...` |
+| Command           | Description                                       |
+|-------------------|---------------------------------------------------|
+| `create-experiment` | Initializes a new experiment directory and structure. |
+| `clean-volume`      | Applies filters to process raw volumetric data.      |
+| `extract-surface`   | Generates a 3D surface mesh from a volume.        |
+| `stage`             | Determines the developmental stage of a limb.      |
+| `align`             | Aligns a sample to a reference template.          |
+| `vis`               | Accesses various visualization algorithms.        |
 
 ---
 
@@ -38,409 +42,228 @@ limb vis isosurfaces my_experiment DAPI
 
 ### `create-experiment`
 
-Creates a new experiment directory with initial pipeline structure.
+Initializes a new experiment directory with a `pipeline.log` file for tracking processing steps and metadata.
 
-**Usage:**
+**Usage**
 ```bash
-limb create-experiment EXPERIMENT_NAME [EXPERIMENT_FOLDER_PATH]
+limb create-experiment EXPERIMENT_NAME [PARENT_PATH]
 ```
 
-**Arguments:**
-- `EXPERIMENT_NAME` (required): Name of the experiment
-- `EXPERIMENT_FOLDER_PATH` (optional): Parent directory (default: current directory)
+**Arguments**
 
-**Interactive prompts:**
-- **Limb side:** L (Left) or R (Right)
-- **Limb position:** F (Forelimb) or H (Hindlimb)
-- **Microscope spacing:** X Y Z values in micrometers
+- `EXPERIMENT_NAME` (required): The name for the new experiment directory.
+- `PARENT_PATH` (optional): The filesystem path where the experiment directory will be created. Defaults to the current working directory.
 
-**Examples:**
-```bash
-# Create in current directory
-limb create-experiment hoxa11_analysis
+**Initial Configuration**
 
-# Create in specific directory
-limb create-experiment sox9_study ./experiments/
+Upon execution, the command will prompt for essential metadata to be stored in `pipeline.log`:
 
-# Create with full path
-limb create-experiment bmp2_analysis /path/to/experiments/
-```
-
-```
-hoxa11_analysis/
-├── pipeline.log          # Experiment configuration
-└── README.md            # Experiment notes
-```
+- **Limb side:** `L` (Left) or `R` (Right).
+- **Limb position:** `F` (Forelimb) or `H` (Hindlimb).
+- **Microscope spacing:** Voxel size in micrometers, formatted as `X Y Z`.
 
 ---
 
 ### `clean-volume`
 
-Processes raw volume data by applying filtering, smoothing, and thresholding.
+Processes a raw volume file by applying a standard image processing pipeline.
 
-**Usage:**
+**Usage**
+
 ```bash
-limb clean-volume EXPERIMENT_FOLDER_PATH VOLUME_PATH CHANNEL_NAME [OPTIONS]
+limb clean-volume EXPERIMENT_PATH VOLUME_PATH CHANNEL_NAME [OPTIONS]
 ```
 
-**Arguments:**
-- `EXPERIMENT_FOLDER_PATH` (required): Path to experiment directory
-- `VOLUME_PATH` (required): Path to raw volume file (.tif format)
-- `CHANNEL_NAME` (required): Channel name (e.g., DAPI, GFP, RFP)
+**Arguments**
 
-**Options:**
-- `--sigma TEXT`: Gaussian smoothing parameters as 'x,y,z' (default: '6,6,6')
-- `--cutoff FLOAT`: Frequency cutoff for low-pass filtering (default: 0.05)
-- `--size TEXT`: Output volume size as 'x,y,z' (default: '512,512,296')
+- `EXPERIMENT_PATH` (required): Path to the target experiment directory.
+- `VOLUME_PATH` (required): Path to the raw input volume file (e.g., `.tif`).
+- `CHANNEL_NAME` (required): A name for the data channel being processed (e.g., `DAPI`, `SOX9`).
 
-**Processing steps:**
-1. **Load raw volume** and apply voxel spacing
-2. **Interactive thresholding** (select bottom and top isovalues)
-3. **Volume clipping** based on selected thresholds
-4. **Gaussian smoothing** to reduce noise
-5. **Frequency filtering** to remove artifacts
-6. **Volume resizing** for optimization
-7. **Mirroring** (if left side limb)
-8. **Save cleaned volume** and update pipeline
+**Options**
 
-**Examples:**
-```bash
-# Basic volume cleaning
-limb clean-volume ./experiment raw_data.tif DAPI
+- `--sigma TEXT`: Sigma for Gaussian smoothing, formatted as `'x,y,z'`. Default: `'6,6,6'`.
+- `--cutoff FLOAT`: Frequency cutoff for the low-pass filter. Default: `0.05`.
+- `--size TEXT`: Output volume dimensions, formatted as `'x,y,z'`. Default: `'512,512,296'`.
 
-# Custom parameters
-limb clean-volume ./experiment raw_data.tif GFP \
-  --sigma 8,8,8 \
-  --cutoff 0.03 \
-  --size 1024,1024,296
+**Methodology**
 
-# High-resolution processing
-limb clean-volume ./experiment raw_data.tif RFP \
-  --size 2048,2048,592
-```
+The command executes the following pipeline:
 
+1.  Loads the raw volume and applies the voxel spacing defined in `pipeline.log`.
+2.  Prompts for interactive thresholding to segment the primary signal from background noise.
+3.  Clips the volume based on the selected intensity thresholds.
+4.  Applies a Gaussian filter to reduce high-frequency noise.
+5.  Applies a low-pass Fast Fourier Transform (FFT) filter to remove high-frequency artifacts.
+6.  Resizes the volume to the specified output dimensions.
+7.  Mirrors the volume along the appropriate axis if it is a left limb to standardize orientation.
+8.  Saves the processed volume to the experiment directory and updates `pipeline.log`.
 
 ---
 
 ### `extract-surface`
 
-Creates a 3D surface mesh from the cleaned DAPI volume.
+Generates a 3D polygonal surface mesh from a processed DAPI volume.
 
-**Usage:**
+**Usage**
+
 ```bash
-limb extract-surface EXPERIMENT_FOLDER_PATH [ISOVALUE] [OPTIONS]
+limb extract-surface EXPERIMENT_PATH [ISOVALUE] [OPTIONS]
 ```
 
-**Arguments:**
-- `EXPERIMENT_FOLDER_PATH` (required): Path to experiment directory
-- `ISOVALUE` (optional): Specific isovalue for surface extraction
+**Arguments**
 
-**Options:**
-- `--auto / --no-auto`: Automatically determine isovalue (default: no-auto)
+- `EXPERIMENT_PATH` (required): Path to the experiment directory.
+- `ISOVALUE` (optional): A specific isovalue to use for surface generation. If omitted, an interactive prompt will be shown.
 
-**Surface extraction process:**
-1. **Load cleaned DAPI volume**
-2. **Isovalue selection** (interactive or automatic)
-3. **Marching cubes algorithm** for surface generation
-4. **Mesh decimation** for performance optimization
-5. **Save VTK surface file**
+**Options**
 
-**Examples:**
-```bash
-# Interactive isovalue selection
-limb extract-surface ./experiment
+- `--auto / --no-auto`: If specified, automatically determines the optimal isovalue. Default is `--no-auto`.
 
-# Automatic isovalue determination
-limb extract-surface ./experiment --auto
+**Methodology**
 
-# Specific isovalue
-limb extract-surface ./experiment 200
-```
-
-**Interactive controls:**
-- **Mouse:** Adjust isovalue slider
-- **Preview:** Real-time surface visualization
-- **Accept:** Confirm surface quality
-
+1.  Loads the cleaned DAPI volume from the experiment directory.
+2.  Determines the intensity threshold (isovalue) for the surface, either automatically, from user input, or via an interactive slider.
+3.  Generates a polygonal mesh of the isosurface using the marching cubes algorithm.
+4.  Applies mesh decimation to reduce the polygon count for performance optimization.
+5.  Saves the output mesh as a `.vtk` file in the experiment directory.
 
 ---
 
 ### `stage`
 
-Determines the developmental stage of the limb using interactive 3D spline fitting.
+Determines the developmental stage of the limb by comparing its morphology to a reference database.
 
-**Usage:**
+**Usage**
 ```bash
-limb stage EXPERIMENT_FOLDER_PATH
+limb stage EXPERIMENT_PATH
 ```
 
-**Arguments:**
-- `EXPERIMENT_FOLDER_PATH` (required): Path to experiment directory
+**Arguments**
 
-**Staging process:**
-1. **Load 3D surface mesh**
-2. **Interactive point placement** along limb axis
-3. **Spline fitting** through placed points
-4. **Stage calculation** using reference database
-5. **Save staging results**
+- `EXPERIMENT_PATH` (required): Path to the experiment directory.
 
-**Interactive controls:**
-- **Left click:** Add point
-- **Right click:** Remove point
-- **'c':** Clear all points
-- **'s':** Stage the limb
-- **'r':** Reset camera
-- **'q':** Quit
+**Methodology**
 
-**Staging guidelines:**
-- **Point placement:** Along proximal-distal axis
-- **Focus area:** Digit-forming regions
-- **Number of points:** 10 points recommended
-- **Distribution:** Even spacing along limb
+1.  Loads the 3D surface mesh.
+2.  Opens an interactive 3D viewer where the user places points along the limb's proximal-distal axis.
+3.  Fits a B-spline to the user-defined points to model the limb's central axis.
+4.  Calculates the developmental stage by comparing morphological features derived from the spline against an internal reference database.
+5.  Saves the staging results to `staging.txt` in the experiment directory.
 
-**Examples:**
-```bash
-# Basic staging
-limb stage ./experiment
-```
+**Interactive Controls**
+
+- **Left-click:** Add a point.
+- **Right-click:** Remove the last added point.
+- **'c':** Clear all points.
+- **'s':** Calculate the stage.
+- **'r':** Reset the camera view.
+- **'q':** Quit the interactive window.
 
 ---
 
 ### `align`
 
-Aligns the limb with a reference template for comparative analysis.
+Aligns the limb surface with a reference template of the corresponding stage.
 
-**Usage:**
+**Usage**
 ```bash
-limb align EXPERIMENT_FOLDER_PATH [OPTIONS]
+limb align EXPERIMENT_PATH [OPTIONS]
 ```
 
-**Arguments:**
-- `EXPERIMENT_FOLDER_PATH` (required): Path to experiment directory
+**Arguments**
 
-**Options:**
-- `--morph / --no-morph`: Perform non-linear morphing (default: no-morph)
+- `EXPERIMENT_PATH` (required): Path to the experiment directory.
 
-**Alignment methods:**
+**Options**
 
-#### Linear Transformation (Default)
-- **Rotation:** Manual 3D rotation
-- **Scaling:** Uniform scaling
-- **Translation:** Position adjustment
-- **Use case:** Basic alignment, rigid transformations
+- `--morph / --no-morph`: If specified, performs a non-linear morphing registration. Default is `--no-morph` (linear transformation).
 
-#### Non-Linear Morphing (--morph)
-- **Deformation:** Complex shape matching
-- **Higher accuracy:** Better for detailed analysis
-- **Computational cost:** More intensive
-- **Use case:** Precise alignment, comparative studies
+**Alignment Methods**
 
-**Interactive controls:**
-- **Mouse:** Rotate, pan, zoom
-- **'a':** Apply transformation
-- **'r':** Reset alignment
-- **Close window:** Save transformation
+-   **Linear Transformation (Default):** Performs a rigid transformation (rotation, translation, and uniform scaling) to align the principal axes of the sample with the reference template. This is suitable for gross alignment.
+-   **Non-Linear Morphing (`--morph`):** Performs a non-rigid, deformable registration to precisely match the sample's surface morphology to the reference template. This method is computationally more intensive but provides higher accuracy for detailed comparative analyses.
 
-**Examples:**
-```bash
-# Linear transformation
-limb align ./experiment
-
-# Non-linear morphing
-limb align ./experiment --morph
-```
-
+---
 
 ### `vis`
 
-Creates various types of visualizations from processed data.
+Provides access to multiple visualization algorithms for data inspection and analysis.
 
-**Usage:**
+**Usage**
 ```bash
-limb vis ALGORITHM EXPERIMENT_FOLDER_PATH CHANNELS... [OPTIONS]
+limb vis ALGORITHM EXPERIMENT_PATH CHANNELS... [OPTIONS]
 ```
 
-**Arguments:**
-- `ALGORITHM` (required): Visualization algorithm
-- `EXPERIMENT_FOLDER_PATH` (required): Path to experiment directory
-- `CHANNELS...` (required): Channel names to visualize
+**Arguments**
 
-**Available algorithms:**
+- `ALGORITHM` (required): The visualization algorithm to use (e.g., `isosurfaces`, `raycast`).
+- `EXPERIMENT_PATH` (required): Path to the experiment directory.
+- `CHANNELS...` (required): One or more channel names to visualize.
+
+**Available Algorithms**
 
 #### `isosurfaces`
-Creates 3D surface renderings of gene expression.
+Generates one or more 3D isosurfaces at specified intensity thresholds from volumetric data. Suitable for visualizing gene expression domains.
 
-**Usage:**
-```bash
-limb vis isosurfaces EXPERIMENT_FOLDER_PATH CHANNEL [CHANNEL2] [OPTIONS]
-```
-
-**Features:**
-- **Single channel:** Grayscale or color mapping
-- **Dual channel:** Red-Green overlay
-- **Multi-channel:** Multiple color channels
-- **Interactive:** Real-time parameter adjustment
-
-**Examples:**
-```bash
-# Single channel
-limb vis isosurfaces ./experiment GENE
-
-# Dual channel
-limb vis isosurfaces ./experiment SOX9 BMP2
-```
+**Usage**
+`limb vis isosurfaces EXPERIMENT_PATH CHANNEL_1 [CHANNEL_2] ...`
 
 #### `raycast`
-Creates volume renderings using raycasting.
+Performs direct volume rendering using a raycasting algorithm. This allows for visualization of the entire data volume with user-defined transfer functions for color and opacity.
 
-**Usage:**
-```bash
-limb vis raycast EXPERIMENT_FOLDER_PATH CHANNEL [OPTIONS]
-```
-
-**Features:**
-- **Volume rendering:** Full 3D volume visualization
-- **Transfer functions:** Custom opacity mapping
-- **Advanced lighting:** Realistic illumination
-- **Depth cues:** Enhanced depth perception
-
-**Examples:**
-```bash
-# Basic raycasting
-limb vis raycast ./experiment GENE
-```
+**Usage**
+`limb vis raycast EXPERIMENT_PATH CHANNEL`
 
 #### `slab`
-Creates dynamic slab visualizations.
+Generates a 3D view of a thick, movable slice ("slab") through the volume data, allowing for inspection of internal structures.
 
-**Usage:**
-```bash
-limb vis slab EXPERIMENT_FOLDER_PATH CHANNEL [OPTIONS]
-```
-
-**Features:**
-- **Dynamic slicing:** Adjustable slab thickness
-- **Position control:** Move through volume
-- **Real-time:** Interactive parameter adjustment
-- **Export:** Save current view
-
-**Examples:**
-```bash
-# Dynamic slab
-limb vis slab ./experiment GENE
-```
+**Usage**
+`limb vis slab EXPERIMENT_PATH CHANNEL`
 
 #### `slices`
-Creates 2D slice visualizations.
+Displays orthogonal 2D slices (sagittal, coronal, transverse) of one or more channels.
 
-**Usage:**
-```bash
-limb vis slices EXPERIMENT_FOLDER_PATH CHANNEL [CHANNEL2] [OPTIONS]
-```
-
-**Features:**
-- **Multiple views:** Sagittal, coronal, transverse
-- **Dual channel:** Overlay visualization
-- **Interactive:** Real-time slice positioning
-- **Quantitative:** Expression measurement tools
-
-**Examples:**
-```bash
-# Single channel slice
-limb vis slices ./experiment GENE
-
-# Dual channel slice
-limb vis slices ./experiment SOX9 BMP2
-```
+**Usage**
+`limb vis slices EXPERIMENT_PATH CHANNEL_1 [CHANNEL_2] ...`
 
 #### `probe`
-Creates interactive probe visualizations.
+Opens an interactive 3D view where a probe can be moved through the volume to measure and plot intensity values from multiple channels at specific points.
 
-**Usage:**
-```bash
-limb vis probe EXPERIMENT_FOLDER_PATH CHANNELS... [OPTIONS]
-```
+**Usage**
+`limb vis probe EXPERIMENT_PATH CHANNEL_1 [CHANNEL_2] ...`
 
-**Features:**
-
-**Examples:**
-```bash
-# Multi-channel probe
-limb vis probe ./experiment SOX9 BMP2
-```
 ---
 
-## 🔧 Advanced Usage
+## Scripting and Automation
 
 ### Batch Processing
-
-Process multiple experiments efficiently:
+For simple batch operations, standard shell commands can be used to iterate over multiple experiment directories.
 
 ```bash
-# Stage multiple experiments
-for exp in experiments/*/; do
+# Example: Stage all experiments in a directory
+for exp in /path/to/experiments/*/; do
     limb stage "$exp"
 done
 ```
 
-### Integration with Scripts
-
-Integrate LimbLab commands into Python scripts:
+### Python Scripting
+For more complex workflows, LimbLab's CLI commands can be orchestrated from Python scripts using the `subprocess` module. This allows for programmatic control over the pipeline execution. For more granular control, consider using the underlying Python API.
 
 ```python
 import subprocess
+from pathlib import Path
 
-def process_experiment(exp_path, volume_path, channel):
-    # Create experiment
-    subprocess.run(['limb', 'create-experiment', exp_path])
-    
-    # Clean volume
-    subprocess.run(['limb', 'clean-volume', exp_path, volume_path, channel])
-    
-    # Extract surface
-    subprocess.run(['limb', 'extract-surface', exp_path, '--auto'])
-    
-    # Stage limb
-    subprocess.run(['limb', 'stage', exp_path])
-```
+def run_pipeline(exp_dir: Path, volume_file: Path, channel_name: str):
+    """
+    Example script to run a basic processing pipeline.
+    """
+    if not exp_dir.exists():
+        subprocess.run(['limb', 'create-experiment', exp_dir.name, exp_dir.parent])
 
----
-
-## 📊 Output and Results
-
-### File Structure
-
-After running the pipeline, your experiment directory will contain:
+    # Clean volume, extract surface, and stage
+    subprocess.run(['limb', 'clean-volume', str(exp_dir), str(volume_file), channel_name])
+    subprocess.run(['limb', 'extract-surface', str(exp_dir), '--auto'])
+    subprocess.run(['limb', 'stage', str(exp_dir)])
 
 ```
-experiment/
-├── pipeline.log                    # Processing log
-├── *_cleaned.tif                   # Cleaned volumes
-├── *_surface.vtk                   # 3D surface mesh
-├── staging.txt                     # Staging results
-├── transformation_matrix.txt       # Alignment data
-├── visualizations/                 # Generated images
-│   ├── isosurface.png
-│   ├── slice.png
-│   └── probe_data.csv
-└── README.md                       # Experiment notes
-```
-
-### Pipeline Log
-
-The `pipeline.log` file tracks all processing steps:
-
-```txt
-BASE ./experiment
-SIDE L
-POSITION H
-SPACING 0.65 0.65 2.0
-DAPI ./dapi_cleaned.tif
-SURFACE ./dapi_surface.vtk
-STAGE 25.3
-TRANSFORMATION ./transformation_matrix.txt
-```
-
----
-
-*The LimbLab CLI provides a powerful and flexible interface for 3D limb data analysis. With practice and experimentation, you'll develop efficient workflows tailored to your specific research needs.*

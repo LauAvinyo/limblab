@@ -1383,8 +1383,6 @@ def arbitary_slice(folder, channel0, channel1):
         alpha=0,
         c="white",
         padding=0,
-        can_translate=False,
-        can_scale=False,
     )
     pcutter.add_observer("interaction", func)
     plt.at(1).add(pcutter)
