@@ -101,7 +101,7 @@ def _clean_volume(experiment_folder_path, raw_volume, channel, verbose=True,
     # _plt.close()
     # ########
 
-    # Add the specing to the volume
+    # Add the spacing to the volume
     vol.spacing(SPACING)
 
     # # FIGURE fig:clean:
@@ -121,17 +121,17 @@ def _clean_volume(experiment_folder_path, raw_volume, channel, verbose=True,
     # _plt.close()
     # ########
 
-    #  Promp the user to pick up the low and high value for the clipping
+    #  Prompt the user to pick the low and high values for clipping
     plt = IsosurfaceBrowser(vol, use_gpu=True, bg="white")
     txt = Text2D(pos="top-center", bg="yellow5", s=1.5)
     plt += txt
-    txt.text("Pick the bottom isovalues. Press q to continue.")
+    txt.text("Select the lower isovalue (press 'q' to confirm)")
     plt.show()
     v0 = int(plt.sliders[0][0].value)
-    txt.text("Now, select the top isovalue, please!")
+    txt.text("Select the higher isovalue (press 'q' to confirm)")
     plt.show()
     v1 = int(plt.sliders[0][0].value)
-    printc(f"The isovalues are {v0}, and {v1}")
+    printc(f"Selected isovalues: {v0}, {v1}")
 
     if v0 == v1:
         v1 += 1
@@ -147,10 +147,10 @@ def _clean_volume(experiment_folder_path, raw_volume, channel, verbose=True,
         vol.mirror()
 
     # Smooth the limb
-    printc("-> Apply smooth gaussian and low frequency filter...")
+    printc("-> Applying Gaussian smoothing and low-frequency filter...")
     vol.smooth_gaussian(sigma=SIGMA)
     vol.frequency_pass_filter(high_cutoff=CUTOFF)
-    printc("Smothing done! Check bac the plotter!")
+    printc("Smoothing complete. Inspect the results in the plotter.")
 
     # # FIGURE fig:clean:
     # # The commented code was used to do figure
@@ -216,7 +216,7 @@ def _extract_surface(experiment_folder_path, isovalue, auto):
     volume = pipeline.get("DAPI", False)
 
     if not Volume:
-        print("Make sure you have clean the DAPI channel volume!")
+        print("Make sure you have cleaned and produced the DAPI channel volume!")
         return
     volume = os.path.join(experiment_folder_path, volume)
     vol = Volume(volume)
@@ -227,14 +227,15 @@ def _extract_surface(experiment_folder_path, isovalue, auto):
     # If it want it to be automatic
     elif auto:
         printc(
-            "We are using automatic isovalue! You can manually pic one by using 20.get_isovalue.py script!"
+            "Using automatic isovalue.",
+            c="y",
         )
         h = histogram(vol, bins=75, logscale=1, max_entries=1e5)
         iso_value = h.mean
 
         iso_value = float(iso_value)
 
-    # Otherwise, allow the user to picl
+    # Otherwise, allow the user to pick interactively
     else:
         # IsosurfaceBrowser(Plotter) instance:
         plt = IsosurfaceBrowser(vol.color((255, 127, 17, 0)),
@@ -319,7 +320,7 @@ def _stage_limb(experiment_folder_path, limb_stager=None):
             SERVER = True
         except:
             SERVER = False
-            print("We could not connect to the staging system. Please try again, use local exe or contact us.")
+            print("Could not connect to the staging system. Try again, use the local executable, or contact support.")
 
     def kfunc(event):
         if event.keypress == "s":
@@ -338,7 +339,7 @@ def _stage_limb(experiment_folder_path, limb_stager=None):
                                             axes).reset_camera()
                 #
                 # stage the limb
-                txt.text("Staging your limb, please wait...")
+                txt.text("Staging limb - please wait...")
                 plt.render()
 
                 if SERVER:
@@ -380,8 +381,7 @@ def _stage_limb(experiment_folder_path, limb_stager=None):
                             )
                             return
                     else:
-                        printc("INFO: limbstager executable not found.",
-                               c="lg")
+                        printc("INFO: limbstager executable not found.", c="lg")
                         return
 
                     result = grep(
@@ -389,8 +389,9 @@ def _stage_limb(experiment_folder_path, limb_stager=None):
                                      'staging_fit.txt'), "RESULT")
                     if len(result) == 0:
                         printc(
-                            "Error - Could not stage the limb, RESULT tag is missing",
-                            c="r")
+                            "Error: could not stage the limb, RESULT tag missing in output",
+                            c="r",
+                        )
                         return
                     stage = result[0][1]
                 txt.text(f"Limb staged as {stage}")
@@ -534,7 +535,12 @@ def _rotate_limb(experiment_folder_path):
     plt.at(0).add(source.alpha(0.4), target.alpha(0.6))
 
     # plt.at(2).freeze()
-
+    plt.instructions.text(
+        "Toggle 'a' to apply transformation\n"
+        "Use mouse to rotate\n"
+        "+ctrl to fix rotation acces\n"
+        "+shift to translate\n"        
+    )
     plt.show(axes=14).interactive()
     plt.close()
     # print(plt.warped.transform)

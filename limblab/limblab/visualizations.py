@@ -1,4 +1,4 @@
-"""Limb Isolines"""
+"""LimbLab Plotter"""
 import json
 import os
 import shutil
@@ -18,7 +18,7 @@ from limblab.utils import file2dic, pick_evenly_distributed_values  # styles
 styles = {
     0: ("#9ce4f3", "#128099"),
     1: ("#ec96f2", "#c90dd6"),
-    "postions": {
+    "positions": {
         "number": ([0.1, 0.25], [0.2, 0.25]),
         "values": ([0.1, 0.1], [0.2, 0.1])
     },
@@ -109,15 +109,14 @@ def two_chanel_isosurface(folder, channel_0, channel_1):
         # .replace(".vti", "_smooth.vti"))
         volume_file = os.path.join(folder, logs[channel])
         volume = Volume(volume_file)
-
         txt = Text2D(pos="top-center", bg="yellow5", s=1.5)
         plt1 = IsosurfaceBrowser(volume, use_gpu=True, c='gold')
-        txt.text("Pick the lower intensity for the isovalues")
+        txt.text("Select the lower isovalue (press 'q' to confirm)")
         plt1.show(txt, axes=7, bg2='lb')
         low_iso_value = int(plt1.sliders[0][0].value)
 
         # plt2 = IsosurfaceBrowser(volume, use_gpu=True, c='gold')
-        txt.text("Pick the higher intensity for the isovalues")
+        txt.text("Select the higher isovalue (press 'q' to confirm)")
         plt1.show(txt, axes=7, bg2='lb')
         high_iso_value = int(plt1.sliders[0][0].value)
         plt1.close()
@@ -138,7 +137,7 @@ def two_chanel_isosurface(folder, channel_0, channel_1):
             shutil.rmtree(isosurface_folder)
         os.makedirs(isosurface_folder)
 
-        print("Computing and writing the isosurfaces")
+        print("Computing isosurfaces and saving files to the isosurface folder...")
         for iso_val in picked_values:
             surf = volume.isosurface(iso_val)
             surf.write(os.path.join(isosurface_folder, f"{int(iso_val)}.vtk"))
@@ -273,8 +272,7 @@ def two_chanel_isosurface(folder, channel_0, channel_1):
     bu = plt.at(2).add_button(
         limb_toggle_fun,
         pos=(0.5, 0.1),  # x,y fraction from bottom left corner
-        states=["click to hide limb",
-                "click to show limb"],  # text for each state
+        states=["Hide limb", "Show limb"],  # text for each state
         c=["w", "w"],  # font color for each state
         bc=[styles["ui"]["secondary"],
             styles["ui"]["primary"]],  # background color for each state
@@ -347,16 +345,16 @@ def two_chanel_isosurface(folder, channel_0, channel_1):
                          xmax=10,
                          value=number_isosurfaces[0],
                          c=styles["ui"]["primary"],
-                         pos=styles["postions"]["number"],
-                         title="Number isolines",
+                         pos=styles["positions"]["number"],
+                         title="Number of isosurfaces",
                          delayed=True)
     plt.at(1).add_slider(n_surfaces_slider_1,
                          xmin=1,
                          xmax=10,
                          value=number_isosurfaces[1],
                          c=styles["ui"]["primary"],
-                         pos=styles["postions"]["number"],
-                         title="Number isolines",
+                         pos=styles["positions"]["number"],
+                         title="Number of isosurfaces",
                          delayed=True)
 
     # Min - max sliders
@@ -397,7 +395,7 @@ def two_chanel_isosurface(folder, channel_0, channel_1):
         xmax=static_limit_values[0][1],
         value=dynamic_limit_values[1][0],
         c=styles["ui"]["primary"],
-        pos=styles["postions"]["values"],
+        pos=styles["positions"]["values"],
         delayed=True,
         tube_width=0.0015,
         slider_length=0.01,
@@ -409,7 +407,7 @@ def two_chanel_isosurface(folder, channel_0, channel_1):
         xmax=static_limit_values[1][1],
         value=dynamic_limit_values[1][1],
         c=styles["ui"]["primary"],
-        pos=styles["postions"]["values"],
+        pos=styles["positions"]["values"],
         title="Min - Max isovalues",
         delayed=True,
         tube_width=0.0015,
@@ -425,7 +423,7 @@ def two_chanel_isosurface(folder, channel_0, channel_1):
         xmax=static_limit_values[1][1],
         value=dynamic_limit_values[1][0],
         c=styles["ui"]["primary"],
-        pos=styles["postions"]["values"],
+        pos=styles["positions"]["values"],
         delayed=True,
         tube_width=0.0015,
         slider_length=0.01,
@@ -437,7 +435,7 @@ def two_chanel_isosurface(folder, channel_0, channel_1):
         xmax=static_limit_values[1][1],
         value=dynamic_limit_values[1][1],
         c=styles["ui"]["primary"],
-        pos=styles["postions"]["values"],
+        pos=styles["positions"]["values"],
         delayed=True,
         tube_width=0.0015,
         slider_length=0.02,
@@ -535,7 +533,7 @@ def probe(folder, channels, points=None):
         vertices = np.unique(vertices, axis=0)
         p0, p1 = vertices
         # Probe each volume with the line and plot the intensity values
-        # TODO: Make the y axis dinamyc
+        # TODO: Make the y axis dynamic
         for i, volume in enumerate(volumes):
             pl = Line(p0, p1, res=25)
             pl.probe(volume)
@@ -588,7 +586,7 @@ def probe(folder, channels, points=None):
     # Extract and visualize the resulting spline
     sp = sptool.spline().lw(4)
     sp.write(os.path.join(folder, "spline.vti"))
-    # show(sp, "My spline is ready!", interactive=True, resetcam=False).close()
+    # show(sp, "Spline saved and ready", interactive=True, resetcam=False).close()
 
 
 def _probe(folder, channel, points=None):
@@ -665,7 +663,7 @@ def _probe(folder, channel, points=None):
     # Extract and visualize the resulting spline
     sp = sptool.spline().lw(4)
     sp.write(os.path.join(folder, "spline.vti"))
-    show(sp, "My spline is ready!", interactive=True, resetcam=False).close()
+    show(sp, "Spline saved and ready", interactive=True, resetcam=False).close()
 
 
 def one_channel_isosurface(folder, channel):
@@ -683,12 +681,12 @@ def one_channel_isosurface(folder, channel):
 
         txt = Text2D(pos="top-center", bg="yellow5", s=1.5)
         plt1 = IsosurfaceBrowser(volume, use_gpu=True, c='gold')
-        txt.text("Pick the lower intensity for the isovalues")
+        txt.text("Select the lower isovalue (press 'q' to confirm)")
         plt1.show(txt, axes=7, bg2='lb')
         low_iso_value = int(plt1.sliders[0][0].value)
 
         # plt2 = IsosurfaceBrowser(volume, use_gpu=True, c='gold')
-        txt.text("Pick the higher intensity for the isovalues")
+        txt.text("Select the higher isovalue (press 'q' to confirm)")
         plt1.show(txt, axes=7, bg2='lb')
         high_iso_value = int(plt1.sliders[0][0].value)
         plt1.close()
@@ -698,13 +696,13 @@ def one_channel_isosurface(folder, channel):
 
         arr = np.arange(v0, v1)
         picked_values = pick_evenly_distributed_values(arr)
-        print("Picked values:", picked_values)
+        print("Picked isovalues:", picked_values)
 
         if os.path.exists(isosurface_folder):
             shutil.rmtree(isosurface_folder)
         os.makedirs(isosurface_folder)
 
-        printc("Computing and writing the isosurfaces")
+        printc("Computing isosurfaces and saving files...")
         for iso_val in picked_values:
             surf = volume.isosurface(iso_val)
             surf.write(os.path.join(isosurface_folder, f"{int(iso_val)}.vtk"))
@@ -820,7 +818,7 @@ def one_channel_isosurface(folder, channel):
                                          _number_isosurfaces)
         colors = interpolate_colors(color1, color2, _number_isosurfaces)
         if not (selected_isovalues.shape[0]):
-            print("Oh no! There is no isosurfaces found!")
+            print("No isosurfaces found in the selected range.")
         for i, isovalue in enumerate(selected_isovalues):
             plt.add(isosurfaces[isovalue].color(colors[i]))
         _current_isovalues = selected_isovalues
@@ -876,7 +874,7 @@ def one_channel_isosurface(folder, channel):
         value=_dynamic_max_value,
         c=secondary,
         pos=([0.1, 0.1], [0.4, 0.1]),
-        title="Min - Max isovalues (resolution dependen!)",
+        title="Min - Max isovalues (depends on resolution)",
         delayed=True,
         tube_width=0.0015,
         slider_length=0.02,
@@ -890,10 +888,10 @@ def one_channel_isosurface(folder, channel):
         value=_number_isosurfaces,
         c=secondary,
         pos="bottom-right-vertical",  # type: ignore
-        title="Number isolines",
+        title="Number of isosurfaces",
         delayed=True)
 
-    # Toggle the limb funciton
+    # Toggle the limb function
     def limb_toggle_fun(obj, ename):
         if limb.alpha():
             limb.alpha(0)
@@ -904,8 +902,7 @@ def one_channel_isosurface(folder, channel):
     bu = plt.add_button(
         limb_toggle_fun,
         pos=(0.5, 0.9),  # x,y fraction from bottom left corner
-        states=["click to hide limb",
-                "click to show limb"],  # text for each state
+        states=["Hide limb", "Show limb"],  # text for each state
         c=["w", "w"],  # font color for each state
         bc=[styles["ui"]["secondary"],
             styles["ui"]["primary"]],  # background color for each state
@@ -920,7 +917,7 @@ def one_channel_isosurface(folder, channel):
 
 
 def dynamic_slab(folder, channel):
-    print("Debug dynamic slab")
+    print("Starting dynamic slab viewer...")
     pipeline_file = os.path.join(folder, "pipeline.log")
     pipeline = file2dic(pipeline_file)
     surface = pipeline["SURFACE"]
@@ -928,9 +925,9 @@ def dynamic_slab(folder, channel):
     volume = os.path.join(folder, pipeline[channel.upper()])
 
     CMAP = "Greys"
-    print(volume)
+    print(f"Loading volume: {volume}")
     vol = Volume(volume)  # .resize([100, 100, 100])
-    print("Volume loaded")
+    print("Volume loaded successfully")
 
     # TODO: Uncomment this
     # # Apply non linear tranformation
@@ -950,7 +947,7 @@ def dynamic_slab(folder, channel):
     
     vol.apply_transform(T)
     vol.rotate_y(-angle_d[int(stage)])
-    print("Rotation applied!")
+    print("Rotation applied to volume and limb meshes")
     
     
     
@@ -968,11 +965,11 @@ def dynamic_slab(folder, channel):
         vol,
         xygrid=False,
     )  # htitle=volume.replace("_", "-")
-    print("Surface Loaded")
+    print("Limb surface loaded and transformed")
     # Box
     global slab, slab_box, box_limits
 
-    # TODO: Get a bettern min max
+    # TODO: Get a better min/max for slab range
     box_vmin = 0
     box_vmax = 1000
     box_min = box_vmin
@@ -1023,7 +1020,7 @@ def dynamic_slab(folder, channel):
     limb_clone = limb.clone()
     limb_clone.project_on_plane()
     # limb_clone.z(slab.z() - 360)
-    print("Ready to show!")
+    print("Ready to display the scene")
     # exit()
     plt = Plotter()
 
@@ -1073,7 +1070,7 @@ def dynamic_slab(folder, channel):
     ).screenshot(slab_path).close()
 
 
-def multi_channel_isosurface(folder, channels):
+def multi_channel_isosurface(folder, channels): 
     """Compute and visualize isosurfaces for multiple channels."""
 
     # Get the paths
@@ -1084,14 +1081,13 @@ def multi_channel_isosurface(folder, channels):
     def compute_isosurfaces(logs, channel, isosurface_folder):
         volume_file = os.path.join(folder, logs[channel])
         volume = Volume(volume_file)
-
         txt = Text2D(pos="top-center", bg="yellow5", s=1.5)
         plt1 = IsosurfaceBrowser(volume, use_gpu=True, c='gold')
-        txt.text("Pick the lower intensity for the isovalues")
+        txt.text("Select the lower isovalue (press 'q' to confirm)")
         plt1.show(txt, axes=7, bg2='lb')
         low_iso_value = int(plt1.sliders[0][0].value)
 
-        txt.text("Pick the higher intensity for the isovalues")
+        txt.text("Select the higher isovalue (press 'q' to confirm)")
         plt1.show(txt, axes=7, bg2='lb')
         high_iso_value = int(plt1.sliders[0][0].value)
         plt1.close()
@@ -1106,7 +1102,7 @@ def multi_channel_isosurface(folder, channels):
             shutil.rmtree(isosurface_folder)
         os.makedirs(isosurface_folder)
 
-        print("Computing and writing the isosurfaces")
+        print("Computing isosurfaces and saving files...")
         for iso_val in picked_values:
             surf = volume.isosurface(iso_val)
             surf.write(os.path.join(isosurface_folder, f"{int(iso_val)}.vtk"))
@@ -1226,7 +1222,7 @@ def multi_channel_isosurface(folder, channels):
     bu = plt.at(len(channels)).add_button(
         limb_toggle_fun,
         pos=(0.5, 0.1),
-        states=["click to hide limb", "click to show limb"],
+        states=["Hide limb", "Show limb"],
         c=["w", "w"],
         bc=[styles["ui"]["secondary"], styles["ui"]["primary"]],
         font="courier",
@@ -1294,7 +1290,7 @@ def multi_channel_isosurface(folder, channels):
                              xmin=1,
                              xmax=10,
                              value=number_isosurfaces[i],
-                             pos=styles["postions"]["number"],
+                             pos=styles["positions"]["number"],
                              title="number of isosurfaces")
 
     def low_threshold_slider_factory(render):
@@ -1313,7 +1309,7 @@ def multi_channel_isosurface(folder, channels):
             xmin=static_limit_values[i][0],
             xmax=static_limit_values[i][1],
             value=dynamic_limit_values[i][0],
-            pos=styles["postions"]["values"],
+            pos=styles["positions"]["values"],
             title="low threshold",
         )
 
@@ -1333,7 +1329,7 @@ def multi_channel_isosurface(folder, channels):
             xmin=static_limit_values[i][0],
             xmax=static_limit_values[i][1],
             value=dynamic_limit_values[i][1],
-            pos=styles["postions"]["values"],
+            pos=styles["positions"]["values"],
             title="high threshold",
         )
 

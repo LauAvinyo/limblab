@@ -37,22 +37,25 @@ On your terminal (MacOS, WSL or Linux), create a new folder.
 mkdir example_data
 mkdir example_data/hoxa11_raw_data
 ```
+
 Then, you go to: [data bioimage archive](https://www.ebi.ac.uk/biostudies/BioImages/studies/S-BIAD1926?query=HCR11%20)
 
 From here you can download the needed files and locate them to the folder `example_data/hoxa11_raw_data/` 
 
 You should be able to do 
-```
+
+```bash
 ls example_data\hoxa11_raw_data
 ```
 
 And see, or something (very) similar
-```
+
+```bash
 HCR11_HOXA11_l1_cntl_488_LH.tif
 HCR11_HOXA11_l1_hoxa11_647_LH.tif
 HCR11_HOXA11_l1_hoxa13_546_LH.tif
 HCR11_HOXA11_l1_sox9_594_LH.tif
-````
+```
 
 ## Step-by-Step Pipeline
 
@@ -75,6 +78,7 @@ limb create-experiment case_studies/hoxa11_pipeline
 
 **Your `pipeline.log` should contain:**
 (`cat case_studies/hoxa11_pipeline/pipeline.log`)
+
 ```txt
 BASE ./case_studies/hoxa11_pipeline
 SIDE L
