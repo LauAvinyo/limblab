@@ -73,7 +73,7 @@ def _clean_volume(experiment_folder_path, raw_volume, channel, verbose=True,
 
     SIDE = pipeline["SIDE"]
     SPACING = list(float(i) for i in pipeline["SPACING"].split())
-    print(SPACING)
+    printc(f"Voxel spacing: {SPACING}", c="lg")
 
     # Use provided parameters or defaults
     SIGMA = gaussian_sigma if gaussian_sigma is not None else (6, 6, 6)
@@ -81,8 +81,10 @@ def _clean_volume(experiment_folder_path, raw_volume, channel, verbose=True,
     SIZE = low_res_size if low_res_size is not None else (512, 512, 296)  # low res
     # SIZE = (1024, 1024, 296)  # high res
 
-    # Read the Volume
-    vol = Volume(str(raw_volume))
+    # Interactive loop: allow the user to re-pick isosurfaces if not satisfied
+    while True:
+        # Read the Volume fresh every iteration
+        vol = Volume(str(raw_volume))
 
     # # FIGURE fig:clean Panels 1-3
     # # The commented code was used to do figure
@@ -101,8 +103,8 @@ def _clean_volume(experiment_folder_path, raw_volume, channel, verbose=True,
     # _plt.close()
     # ########
 
-    # Add the spacing to the volume
-    vol.spacing(SPACING)
+        # Add the spacing to the volume
+        vol.spacing(SPACING)
 
     # # FIGURE fig:clean:
     # # The commented code was used to do figure
@@ -121,36 +123,36 @@ def _clean_volume(experiment_folder_path, raw_volume, channel, verbose=True,
     # _plt.close()
     # ########
 
-    #  Prompt the user to pick the low and high values for clipping
-    plt = IsosurfaceBrowser(vol, use_gpu=True, bg="white")
-    txt = Text2D(pos="top-center", bg="yellow5", s=1.5)
-    plt += txt
-    txt.text("Select the lower isovalue (press 'q' to confirm)")
-    plt.show()
-    v0 = int(plt.sliders[0][0].value)
-    txt.text("Select the higher isovalue (press 'q' to confirm)")
-    plt.show()
-    v1 = int(plt.sliders[0][0].value)
-    printc(f"Selected isovalues: {v0}, {v1}")
+        #  Prompt the user to pick the low and high values for clipping
+        plt = IsosurfaceBrowser(vol, use_gpu=True, bg="white")
+        txt = Text2D(pos="top-center", bg="yellow5", s=1.5)
+        plt += txt
+        txt.text("Select the lower isovalue, then press 'q' to confirm")
+        plt.show()
+        v0 = int(plt.sliders[0][0].value)
+        txt.text("Select the upper isovalue, then press 'q' to confirm")
+        plt.show()
+        v1 = int(plt.sliders[0][0].value)
+        printc(f"Selected isovalues: {v0}, {v1}", c="cyan")
 
-    if v0 == v1:
-        v1 += 1
+        if v0 == v1:
+            v1 += 1
 
-    # Apply the clip and resize
-    printc("-> Thresholding... within", (v0, v1))
-    vol = vol.cmap("Purples", vmin=v0, vmax=v1)
-    vol.threshold(below=v0, replace=0).threshold(above=v1, replace=v1)
-    vol.resize(SIZE)
+        # Apply the clip and resize
+        printc(f"-> Applying threshold in range [{v0}, {v1}]...", c="y")
+        vol = vol.cmap("Purples", vmin=v0, vmax=v1)
+        vol.threshold(below=v0, replace=0).threshold(above=v1, replace=v1)
+        vol.resize(SIZE)
 
-    # Mirror if the left so we can compare with Right reference
-    if SIDE == "L":
-        vol.mirror()
+        # Mirror if the left so we can compare with Right reference
+        if SIDE == "L":
+            vol.mirror()
 
-    # Smooth the limb
-    printc("-> Applying Gaussian smoothing and low-frequency filter...")
-    vol.smooth_gaussian(sigma=SIGMA)
-    vol.frequency_pass_filter(high_cutoff=CUTOFF)
-    printc("Smoothing complete. Inspect the results in the plotter.")
+        # Smooth the limb
+        printc("-> Applying Gaussian smoothing and low-frequency filter...", c="y")
+        vol.smooth_gaussian(sigma=SIGMA)
+        vol.frequency_pass_filter(high_cutoff=CUTOFF)
+        printc("Preview updated. Inspect the result in the window.", c="lg")
 
     # # FIGURE fig:clean:
     # # The commented code was used to do figure
@@ -169,20 +171,31 @@ def _clean_volume(experiment_folder_path, raw_volume, channel, verbose=True,
     # _plt.close()
     # ########
 
-    # Inspection
-    txt.text("Check everything is good...")
-    plt.show()
-    plt.close()
+        # Inspection
+        txt.text("Review the result. Close this window to answer in the terminal.")
+        plt.show()
+        plt.close()
 
-    printc("-> Writing the volume", volume)
+        # Ask user for confirmation in terminal
+        while True:
+            try:
+                answer = input("Keep these isovalues and save the cleaned volume? [y/n]: ").strip().lower()
+            except EOFError:
+                answer = "n"
+            if answer in ("y", "yes"):
+                printc("-> Writing the volume", volume, c="g")
+                vol.write(volume)
 
-    vol.write(volume)
-
-    printc("-> Saving metadata")
-    pipeline[channel] = os.path.basename(volume)
-    pipeline[f"{channel}_v0"] = v0
-    pipeline[f"{channel}_v1"] = v1
-    dic2file(pipeline, os.path.join(experiment_folder_path, "pipeline.log"))
+                printc("-> Saving metadata", c="g")
+                pipeline[channel] = os.path.basename(volume)
+                pipeline[f"{channel}_v0"] = v0
+                pipeline[f"{channel}_v1"] = v1
+                dic2file(pipeline, os.path.join(experiment_folder_path, "pipeline.log"))
+                return
+            if answer in ("n", "no"):
+                printc("Discarding preview. Reopening the isovalue pickers...", c="y")
+                break
+            printc("Please answer 'y' or 'n'.", c="r")
 
 
 def _extract_surface(experiment_folder_path, isovalue, auto):
@@ -215,8 +228,8 @@ def _extract_surface(experiment_folder_path, isovalue, auto):
     pipeline = load_pipeline(experiment_folder_path)
     volume = pipeline.get("DAPI", False)
 
-    if not Volume:
-        print("Make sure you have cleaned and produced the DAPI channel volume!")
+    if not volume:
+        printc("Error: DAPI volume not found. Please run volume cleaning first!", c="r")
         return
     volume = os.path.join(experiment_folder_path, volume)
     vol = Volume(volume)
@@ -226,10 +239,7 @@ def _extract_surface(experiment_folder_path, isovalue, auto):
         iso_value = isovalue
     # If it want it to be automatic
     elif auto:
-        printc(
-            "Using automatic isovalue.",
-            c="y",
-        )
+        printc("Using automatic isovalue detection...", c="y")
         h = histogram(vol, bins=75, logscale=1, max_entries=1e5)
         iso_value = h.mean
 
@@ -247,21 +257,19 @@ def _extract_surface(experiment_folder_path, isovalue, auto):
         # Get the isosurface value
         iso_value = plt.sliders[0][0].value
         plt.close()
-    printc(f"The selected iso value is {iso_value:2f}.", c="orange")
+    printc(f"Selected isovalue: {iso_value:.2f}", c="cyan")
 
     # Computing isosurface
-    printc(f"-> Computing isosurface... iso_value = {iso_value}", c="orange")
+    printc(f"-> Computing isosurface with value {iso_value:.2f}...", c="y")
     surface = vol.isosurface(iso_value).extract_largest_region()
 
     # Decimating isosurface
-    printc(
-        f"-> Decimating isosurface... from n = {surface.npoints} please wait..."
-    )
+    printc(f"-> Decimating surface from {surface.npoints} to 0.5% of points...", c="y")
     surface.decimate(0.005)
 
     path_surface = volume.replace(".vti", "_surface.vtk")
     surface.write(path_surface)
-    printc("-> Writing", path_surface)
+    printc("-> Writing surface mesh", path_surface, c="g")
 
     # Store the path
     pipeline["SURFACE"] = os.path.basename(path_surface)
@@ -320,7 +328,7 @@ def _stage_limb(experiment_folder_path, limb_stager=None):
             SERVER = True
         except:
             SERVER = False
-            print("Could not connect to the staging system. Try again, use the local executable, or contact support.")
+            printc("Could not connect to the staging system. Try again, use the local executable, or contact support.", c="r")
 
     def kfunc(event):
         if event.keypress == "s":
@@ -374,24 +382,17 @@ def _stage_limb(experiment_folder_path, limb_stager=None):
                             f"{LIMBSTAGER_EXE} {outfile} > {os.path.join(experiment_folder_path, 'staging_fit.txt')} 2> /dev/null"
                         )
                         if errnr:
-                            printc(
-                                f"limbstager executable {LIMBSTAGER_EXE} returned error:",
-                                errnr,
-                                c="r",
-                            )
-                            return
+                                                    printc(f"Error: limbstager executable {LIMBSTAGER_EXE} failed with code {errnr}", c="r")
+                        return
                     else:
-                        printc("INFO: limbstager executable not found.", c="lg")
+                        printc("Error: limbstager executable not found.", c="r")
                         return
 
                     result = grep(
                         os.path.join(experiment_folder_path,
                                      'staging_fit.txt'), "RESULT")
                     if len(result) == 0:
-                        printc(
-                            "Error: could not stage the limb, RESULT tag missing in output",
-                            c="r",
-                        )
+                        printc("Error: Could not stage the limb. RESULT tag missing in output.", c="r")
                         return
                     stage = result[0][1]
                 txt.text(f"Limb staged as {stage}")
@@ -422,10 +423,10 @@ def _stage_limb(experiment_folder_path, limb_stager=None):
     plt.verbose = False
     plt.instructions.text(("Click to add a point\n"
                            "Right-click to remove it\n"
-                           "Press c to clear points\n"
-                           "Press s to stage the limb\n"
-                           "Press r to reset camera\n"
-                           "Press q to quit"))
+                           "Press 'c' to clear all points\n"
+                           "Press 's' to stage the limb\n"
+                           "Press 'r' to reset camera\n"
+                           "Press 'q' to quit"))
     plt.add_callback("on keypress", kfunc)
     plt.at(0).add(Axes(msh, c="k", xygrid=False, ztitle=" "))
     plt.at(1).add(txt)
@@ -476,11 +477,9 @@ def _rotate_limb(experiment_folder_path):
 
     # Get the target stage
     reference_stage = closest_value(reference_stages, int(stage))
-    print(
-        f"The stage of the limb is {stage} and we are using as reference {reference_stage}."
-    )
+    printc(f"Limb stage: {stage}, using reference stage: {reference_stage}", c="lg")
     refence_limb = get_reference_limb(reference_stage)
-    print(f"The reference limb is in file {refence_limb}.")
+    printc(f"Reference limb file: {refence_limb}", c="lg")
 
     # Get the Surfaces
     source = Mesh(os.path.join(experiment_folder_path, surface)).color(
@@ -490,7 +489,7 @@ def _rotate_limb(experiment_folder_path):
         # .color("yellow5")
         .alpha(0.5).color((43, 158, 179)))
 
-    printc("Manually align mesh by toggling 'a'", invert=True)
+    printc("Manually align the mesh by toggling 'a'", c="y")
     # show(, axes=14).close()
 
     # Store the Transformation
@@ -535,22 +534,34 @@ def _rotate_limb(experiment_folder_path):
     plt.at(0).add(source.alpha(0.4), target.alpha(0.6))
 
     # plt.at(2).freeze()
-    plt.instructions.text(
-        "Toggle 'a' to apply transformation\n"
+    plt.verbose = False
+    
+    # Add instructions as Text2D instead of using plt.instructions.text()
+    instructions = Text2D(
+        "Toggle 'a' for transformation mode\n"
         "Use mouse to rotate\n"
-        "+ctrl to fix rotation acces\n"
-        "+shift to translate\n"        
+        "+ctrl to fix rotation axis\n"
+        "+shift to translate\n"
+        "right click to scale",
+        pos="top-center",
+        bg="green5",
+        s=1.2
     )
+    
+    # Add instructions to the main plotter
+    plt += instructions
+    
     plt.show(axes=14).interactive()
     plt.close()
     # print(plt.warped.transform)
     T = source.transform
-    print(T)
+    printc("-> Writing rotation transformation", tname, c="g")
     T.write(os.path.join(experiment_folder_path, tname))
 
     pipeline["TRANSFORMATION"] = os.path.basename(tname)
     pipeline["ROTATION"] = os.path.basename(tname)
     dic2file(pipeline, pipeline_file)
+    printc("-> Rotation transformation saved", c="g")
 
 
 def _morph_limb(experiment_folder_path):
@@ -581,8 +592,8 @@ def _morph_limb(experiment_folder_path):
     stage = pipeline.get("STAGE", False)
 
     if not stage:
-        print("Please run the staging algorithm first!")
-        exit()
+        printc("Error: Please run the staging algorithm first!", c="r")
+        sys.exit(1)
 
     settings.default_font = "Calco"
     settings.enable_default_mouse_callbacks = False
@@ -592,11 +603,9 @@ def _morph_limb(experiment_folder_path):
 
     # Get the target stage
     reference_stage = closest_value(reference_stages, int(stage))
-    print(
-        f"The stage of the limb is {stage} and we are using as reference {reference_stage}."
-    )
+    printc(f"Limb stage: {stage}, using reference stage: {reference_stage}", c="lg")
     refence_limb = get_reference_limb(reference_stage)
-    print(f"The reference limb is in file {refence_limb}.")
+    printc(f"Reference limb file: {refence_limb}", c="lg")
     target = Mesh(refence_limb).color("yellow5", 0.8)
 
     plt = MorphPlotter(source, target, axes=14)
@@ -607,8 +616,9 @@ def _morph_limb(experiment_folder_path):
 
     tname = surface.replace("_surface.vtk", "_morphing.mat")
     wrap_transform.write(tname)
-    print(wrap_transform)
+    printc("-> Writing morphing transformation", tname, c="g")
 
     pipeline["TRANSFORMATION"] = os.path.basename(tname)
     pipeline["MORPHING"] = os.path.basename(tname)
     dic2file(pipeline, pipeline_file)
+    printc("-> Morphing transformation saved", c="g")
