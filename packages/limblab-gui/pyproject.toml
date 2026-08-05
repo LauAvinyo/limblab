@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "limblab-gui"
+version = "0.4.0"
+description = "GUI wrapper for LimbLab (depends on limblab-core)"
+authors = ["LauAvinyo <avinyo.laura@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.10,<4.0"
+"limblab-core" = {path = "../limblab-core", develop = true}
+vedo = "^2025"
+
+[tool.poetry.scripts]
+limblab-gui = "limblab.main:app" # or point to a GUI entry when implemented
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

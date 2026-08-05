@@ -2,13 +2,13 @@
 site/
 data/
 .DS_Store
-src/
 .tmp/
 miscellaneous/
 limb-staging/
-.vscode
+.vscode/
 archive
 figures
 example_data
 case_studies
 __pycache__/
+archive/

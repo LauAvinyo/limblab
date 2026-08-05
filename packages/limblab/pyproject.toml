@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "limblab-core"
+version = "0.4.1"
+description = ""
+authors = ["LauAvinyo <avinyo.laura@gmail.com>"]
+readme = "README.md"
+packages = [{ include = "limblab" }]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<4.0"
+sqlmodel = "0.0.22"
+requests = "2.32.3"
+vedo = "2025.5.4"    
+scipy = "1.14.1"
+pip-system-certs = "4.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

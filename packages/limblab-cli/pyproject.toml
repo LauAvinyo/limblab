@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "limblab-cli"
+version = "0.4.0"
+description = "CLI package for LimbLab (depends on limblab-core)"
+authors = ["LauAvinyo <avinyo.laura@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.10,<4.0"
+"limblab-core" = {path = "../limblab-core", develop = true}
+typer = {extras = ["all"], version = "^0.16.0"}
+click = "^8.2.0"
+
+[tool.poetry.scripts]
+limb = "limblab_cli.main:app"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
