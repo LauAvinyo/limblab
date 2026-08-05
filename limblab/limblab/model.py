@@ -19,6 +19,7 @@ class PipelineConfig(BaseModel):
     position: Optional[str] = None
     surface: Optional[Path] = None
     species: Optional[str] = None
+    stage: Optional[int] = None
 
     @classmethod
     def load(cls, path: Path) -> "PipelineConfig":
