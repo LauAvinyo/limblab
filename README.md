@@ -13,7 +13,7 @@
 
 # LimbLab
 
-LimbLab is a Python package and command-line tool for preprocessing, staging, aligning, and visualizing 3D limb imaging data. It is designed for mouse limb models and combines automated pipelines with interactive visualization powered by Vedo.
+LimbLab is a Python package and command-line tool for preprocessing, staging, aligning, and visualizing 3D limb imaging data. It is designed for mouse limb models and combines automated pipelines with interactive visualization powered by Vedo. Gemma ha estat aqui
 
 ## What LimbLab Does
 
