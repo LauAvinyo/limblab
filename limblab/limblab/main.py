@@ -35,6 +35,8 @@ from limblab.visualizations import (dynamic_slab, one_channel_isosurface,
                                       probe, raycast, slices,
                                       two_chanel_isosurface, arbitary_slice)
 
+from .model import PipelineConfig
+
 app = typer.Typer()
 
 # Help text for experiment folder argument
@@ -125,6 +127,32 @@ def clean_volume(
     _clean_volume(experiment_folder_path, volume_path, channel_name, 
                  gaussian_sigma=parsed_sigma, frequency_cutoff=frequency_cutoff, low_res_size=parsed_size)
 
+
+###
+@app.command()
+def _extract_surface_(
+    experiment_folder_path: Path = typer.Argument(help="Path to the experiment folder"),
+    isovalue: Optional[int] = None,
+    auto: bool = typer.Option(False, help="Automatically determine isovalue from volume histogram")
+):
+    """
+    Extract 3D surface mesh from volume data.
+    """
+    log_file = experiment_folder_path / "pipeline.log"
+    
+    if not log_file.exists():
+        typer.echo(f"Error: pipeline.log not found in {experiment_folder_path}", err=True)
+        raise typer.Exit(1)
+
+    # 1. Load config
+    config = PipelineConfig.load(log_file)
+
+    # 2. Run core processing function directly with model
+    config = _extract_surface(config, isovalue=isovalue, auto=auto)
+
+    # 3. Save updated config back to disk
+    config.save(log_file)
+###
 
 @app.command()
 def extract_surface(

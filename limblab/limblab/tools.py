@@ -198,83 +198,132 @@ def _clean_volume(experiment_folder_path, raw_volume, channel, verbose=True,
             printc("Please answer 'y' or 'n'.", c="r")
 
 
-def _extract_surface(experiment_folder_path, isovalue, auto):
+# def _extract_surface(experiment_folder_path, isovalue, auto):
+#     """
+#     Extract surface mesh from volume data using isosurface extraction.
+    
+#     This function creates a 3D surface mesh from the DAPI volume using isosurface
+#     extraction. The surface is then decimated for optimization and saved as a VTK file.
+    
+#     Args:
+#         experiment_folder_path: Path to the experiment folder containing pipeline.log
+#         isovalue: Specific isovalue to use for surface extraction. If None, will be determined interactively or automatically
+#         auto: If True, automatically determine isovalue from volume histogram. If False, use interactive selection
+    
+#     Returns:
+#         None. Saves surface mesh to experiment folder and updates pipeline.log
+    
+#     Note:
+#         Requires a cleaned DAPI volume to exist in the experiment folder.
+#         The surface will be decimated to 0.5% of original points for performance.
+    
+#     Example:
+#         >>> _extract_surface("./experiment", isovalue=200, auto=False)
+#         >>> _extract_surface("./experiment", isovalue=None, auto=True)
+#     """
+
+#     # Make sure the dapi volume exits
+#     # Get the paths
+#     pipeline_path = os.path.join(experiment_folder_path, "pipeline.log")
+#     pipeline = load_pipeline(experiment_folder_path)
+#     volume = pipeline.get("DAPI", False)
+
+#     if not volume:
+#         printc("Error: DAPI volume not found. Please run volume cleaning first!", c="r")
+#         return
+#     volume = os.path.join(experiment_folder_path, volume)
+#     vol = Volume(volume)
+
+#     # If the user selects
+#     if isovalue:
+#         iso_value = isovalue
+#     # If it want it to be automatic
+#     elif auto:
+#         printc("Using automatic isovalue detection...", c="y")
+#         h = histogram(vol, bins=75, logscale=1, max_entries=1e5)
+#         iso_value = h.mean
+
+#         iso_value = float(iso_value)
+
+#     # Otherwise, allow the user to pick interactively
+#     else:
+#         # IsosurfaceBrowser(Plotter) instance:
+#         plt = IsosurfaceBrowser(vol.color((255, 127, 17, 0)),
+#                                 use_gpu=True,
+#                                 c="green",
+#                                 alpha=0.6)
+#         plt.show(axes=7, bg2="lb")
+
+#         # Get the isosurface value
+#         iso_value = plt.sliders[0][0].value
+#         plt.close()
+#     printc(f"Selected isovalue: {iso_value:.2f}", c="cyan")
+
+#     # Computing isosurface
+#     printc(f"-> Computing isosurface with value {iso_value:.2f}...", c="y")
+#     surface = vol.isosurface(iso_value).extract_largest_region()
+
+#     # Decimating isosurface
+#     printc(f"-> Decimating surface from {surface.npoints} to 0.5% of points...", c="y")
+#     surface.decimate(0.005)
+
+#     path_surface = volume.replace(".vti", "_surface.vtk")
+#     surface.write(path_surface)
+#     printc("-> Writing surface mesh", path_surface, c="g")
+
+#     # Store the path
+#     pipeline["SURFACE"] = os.path.basename(path_surface)
+#     dic2file(pipeline, pipeline_path)
+
+from pathlib import Path
+from typing import Optional
+from limblab.models import PipelineConfig
+
+def _extract_surface(
+    config: PipelineConfig, 
+    isovalue: Optional[float] = None, 
+    auto: bool = False
+) -> PipelineConfig:
     """
     Extract surface mesh from volume data using isosurface extraction.
-    
-    This function creates a 3D surface mesh from the DAPI volume using isosurface
-    extraction. The surface is then decimated for optimization and saved as a VTK file.
-    
-    Args:
-        experiment_folder_path: Path to the experiment folder containing pipeline.log
-        isovalue: Specific isovalue to use for surface extraction. If None, will be determined interactively or automatically
-        auto: If True, automatically determine isovalue from volume histogram. If False, use interactive selection
-    
-    Returns:
-        None. Saves surface mesh to experiment folder and updates pipeline.log
-    
-    Note:
-        Requires a cleaned DAPI volume to exist in the experiment folder.
-        The surface will be decimated to 0.5% of original points for performance.
-    
-    Example:
-        >>> _extract_surface("./experiment", isovalue=200, auto=False)
-        >>> _extract_surface("./experiment", isovalue=None, auto=True)
+    Accepts and returns a PipelineConfig object.
     """
+    if not config.nuclei:
+        printc("Error: Nuclei/DAPI channel missing from config!", c="r")
+        return config
 
-    # Make sure the dapi volume exits
-    # Get the paths
-    pipeline_path = os.path.join(experiment_folder_path, "pipeline.log")
-    pipeline = load_pipeline(experiment_folder_path)
-    volume = pipeline.get("DAPI", False)
+    # Resolve full file path relative to base directory
+    vol_path = config.base / config.nuclei.path
+    if not vol_path.exists():
+        printc(f"Error: Volume file not found at {vol_path}", c="r")
+        return config
 
-    if not volume:
-        printc("Error: DAPI volume not found. Please run volume cleaning first!", c="r")
-        return
-    volume = os.path.join(experiment_folder_path, volume)
-    vol = Volume(volume)
+    vol = Volume(str(vol_path))
 
-    # If the user selects
     if isovalue:
         iso_value = isovalue
-    # If it want it to be automatic
     elif auto:
         printc("Using automatic isovalue detection...", c="y")
         h = histogram(vol, bins=75, logscale=1, max_entries=1e5)
-        iso_value = h.mean
-
-        iso_value = float(iso_value)
-
-    # Otherwise, allow the user to pick interactively
+        iso_value = float(h.mean)
     else:
-        # IsosurfaceBrowser(Plotter) instance:
-        plt = IsosurfaceBrowser(vol.color((255, 127, 17, 0)),
-                                use_gpu=True,
-                                c="green",
-                                alpha=0.6)
+        plt = IsosurfaceBrowser(vol.color((255, 127, 17, 0)), use_gpu=True, c="green", alpha=0.6)
         plt.show(axes=7, bg2="lb")
-
-        # Get the isosurface value
         iso_value = plt.sliders[0][0].value
         plt.close()
+
     printc(f"Selected isovalue: {iso_value:.2f}", c="cyan")
 
-    # Computing isosurface
-    printc(f"-> Computing isosurface with value {iso_value:.2f}...", c="y")
     surface = vol.isosurface(iso_value).extract_largest_region()
-
-    # Decimating isosurface
-    printc(f"-> Decimating surface from {surface.npoints} to 0.5% of points...", c="y")
     surface.decimate(0.005)
 
-    path_surface = volume.replace(".vti", "_surface.vtk")
-    surface.write(path_surface)
-    printc("-> Writing surface mesh", path_surface, c="g")
+    surface_path = vol_path.with_name(vol_path.stem + "_surface.vtk")
+    surface.write(str(surface_path))
+    printc("-> Writing surface mesh", str(surface_path), c="g")
 
-    # Store the path
-    pipeline["SURFACE"] = os.path.basename(path_surface)
-    dic2file(pipeline, pipeline_path)
-
+    # Update Pydantic model directly
+    config.surface = surface_path.relative_to(config.base)
+    return config
 
 def _stage_limb(experiment_folder_path, limb_stager=None):
     """
