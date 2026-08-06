@@ -1,14 +1,32 @@
+# OS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
 .venv/
+venv/
+env/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# PyInstaller
+build/
+dist/
+*.spec.bak
+
+# Editors
+.vscode/
+
+# Project-specific
 site/
 data/
-.DS_Store
 .tmp/
 miscellaneous/
 limb-staging/
-.vscode/
-archive
-figures
-example_data
-case_studies
-__pycache__/
 archive/
+figures/
+example_data/
+case_studies/

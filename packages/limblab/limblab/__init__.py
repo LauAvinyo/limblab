@@ -6,7 +6,7 @@ __version__ = "0.4.1"
 
 from .tools.clean import clean, pick_isovalues
 from .tools.surface import extract_surface, auto_isovalue, pick_isovalue
-
+from .database import get_engine, init_db, save_experiment, print_hello
 # add other tools as you migrate them:
 # from .tools.rotate import rotate
 
@@ -20,4 +20,10 @@ __all__ = [
     "extract_surface",
     "LimbLabError",
     "VolumeProcessingError",
+
+    # database functions
+    "get_engine",
+    "init_db",
+    "save_experiment", 
+    "print_hello",
 ]
