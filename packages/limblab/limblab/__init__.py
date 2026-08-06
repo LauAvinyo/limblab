@@ -6,12 +6,7 @@ __version__ = "0.4.1"
 
 from .tools.clean import clean, pick_isovalues
 from .tools.surface import extract_surface, auto_isovalue, pick_isovalue
-<<<<<<< HEAD
 from .database import get_engine, init_db, save_experiment
-=======
-from .tools.stage import stage_limb 
-from .database import get_engine, init_db, save_experiment, print_hello
->>>>>>> 46360791a7da49a67c4ea4c92dba73db2e978386
 # add other tools as you migrate them:
 # from .tools.rotate import rotate
 
@@ -30,13 +25,11 @@ __all__ = [
     # database functions
     "get_engine",
     "init_db",
-<<<<<<< HEAD
+    'get_experiment',
+    'list_experiment',
+    'create_test_database',
     "save_experiment",
     "update_experiment",
-    "delete_ex"
-=======
-    "save_experiment", 
-    "print_hello",
->>>>>>> 46360791a7da49a67c4ea4c92dba73db2e978386
+    "delete_experiment"
 
 ]
