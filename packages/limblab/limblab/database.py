@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import List, Optional
 from sqlmodel import Session, SQLModel, create_engine, select
-from models import Channel, Experiment
+from limblab.models import Channel, Experiment
 
 
 def get_engine(db_path: Path):
@@ -49,3 +49,5 @@ def delete_experiment(db_path: Path, experiment_id: str) -> bool:
             return True
         return False
 
+def print_hello():
+    print("Hello from database.py!!!!!!")
