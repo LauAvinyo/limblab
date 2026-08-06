@@ -17,8 +17,7 @@ from PyQt6.QtWidgets import (
 )
 
 from limblab.utils import *
-from limblab.config import *
-from limblab.main import MainWindow
+
 #from limblab.NavigationMixin import NavigationMixin
 
 

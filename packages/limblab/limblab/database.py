@@ -49,5 +49,7 @@ def delete_experiment(db_path: Path, experiment_id: str) -> bool:
             return True
         return False
 
-def print_hello():
-    print("Hello from database.py!!!!!!")
+
+def update_experiment(self):
+    return
+

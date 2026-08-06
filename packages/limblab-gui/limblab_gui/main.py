@@ -57,7 +57,7 @@ class MainWindow(QMainWindow, NavigationMixin):
         github.triggered.connect(lambda: webbrowser.open('https://limblab.embl.es/docs/'))
         resources.addAction(github)
         return resources
-
+    
     def _build_contact_menu(self, menu):
         """Build the Contact us submenu."""
         contact = menu.addMenu("Contact us")
