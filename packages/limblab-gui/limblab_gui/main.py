@@ -20,6 +20,8 @@ from PyQt6.QtWidgets import (
 
 from utils import *
 from config import *
+from limblab.database import *
+#database in limblab, not in the same folder!
 
 from NavigationMixin import NavigationMixin
 
@@ -30,6 +32,13 @@ class MainWindow(QMainWindow, NavigationMixin):
         self.setWindowTitle("LimbLab")
         self.setStyleSheet("QMainWindow, QWidget { background-color: #141414; }")
         self.setStatusBar(QStatusBar(self))
+
+        self.db_path = Path('experiments.db')
+        #database!
+
+        create_test_database(self.db_path, force=True)  # Force=True is key
+        #reloads the dabase each time the program is created
+        #just for TESTING
 
         self.viewer = Viewer3D()
         self.experiments = []
@@ -162,7 +171,6 @@ class MainWindow(QMainWindow, NavigationMixin):
         right_menu = QMenuBar(menu_bar)
         menu_bar.setCornerWidget(right_menu, Qt.Corner.TopRightCorner)
 
-        
 
         self._build_resources_menu(right_menu)
         
@@ -219,7 +227,7 @@ class MainWindow(QMainWindow, NavigationMixin):
 
         self.label_upload = create_label("Upload your limb data", "color: #ffffff; font-size: 40px;")
         self.button_upload = create_styled_button("Create experiment")
-        self.button_upload.clicked.connect(self.getfilename)
+        self.button_upload.clicked.connect(self.addexp_button_clicked)
 
 
         self.label_library = create_label("Load limb data", "color: #ffffff; font-size: 40px;")
@@ -252,6 +260,25 @@ class MainWindow(QMainWindow, NavigationMixin):
         self.reset_menu_bar()
         self.viewer.setParent(None)
 
+        if not self.db_path.exists():
+                # Database doesn't exist, create it with test data
+                    init_db(self.db_path)
+                    self._create_test_data()
+                    print("Created new database with test data")
+                    
+        else:
+                            # Database exists, check if it has any experiments
+            experiments = list_experiments(self.db_path)
+            if not experiments:
+            # Database exists but empty, generate test data
+                init_db(self.db_path)
+                print("Generated test data in existing database")
+            else:
+                print(f"Found {experiments} existing experiments")
+                
+        self._load_experiments_from_db()
+        #load database! TESTING
+
         top_row = QHBoxLayout()
         top_row.addWidget(create_back_button(self.go_back))
         top_row.addWidget(self._create_left_button())
@@ -270,7 +297,9 @@ class MainWindow(QMainWindow, NavigationMixin):
             threebutton.setIcon(QIcon("threedots.png"))
             threebutton.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
             threebutton.clicked.connect(lambda checked, p=path, b=threebutton: self._click_threebuttons(p, b))
-            
+            #path is the actual experiment id, so it gets passed by twice
+            # display name is the user friendly file name            
+
             checkbox = QCheckBox()
             row.addWidget(label)
             row.addWidget(checkbox)
@@ -333,6 +362,7 @@ class MainWindow(QMainWindow, NavigationMixin):
         menu_bar.clear()
 
         if hasattr(self, 'filepath') and self.filepath:
+            self.filepath = self.filepath + '.png'
             volume = self._png_to_dummy_volume(self.filepath)
             self.viewer.show_volume(volume)
 
@@ -918,6 +948,60 @@ class MainWindow(QMainWindow, NavigationMixin):
         if reply == QMessageBox.StandardButton.Yes:
             self.log_pipeline(f"{category} - alignment confirmed against '{reference}'.")
 
+
+    #database actions (mod. location?)
+    def _initialize_database(self):
+        """Initialize database and create test data if needed."""
+        if not self.db_path.exists():
+            # Database doesn't exist - create it with test data
+            init_db(self.db_path)
+            create_test_database(self.db_path)
+            print("✅ Created new database with test data")
+        else:
+            # Database exists - check if it has data
+            try:
+                experiments = list_experiments(self.db_path)
+                if not experiments:
+                    # Database exists but empty - add test data
+                    create_test_database(self.db_path)
+                    print("✅ Added test data to existing database")
+                else:
+                    print(f"📂 Found {len(experiments)} existing experiments")
+            except Exception as e:
+                print(f"⚠️ Error reading database: {e}")
+                # Recreate database with test data
+                create_test_database(self.db_path, force=True)
+                print("✅ Recreated database with test data")
+
+    def _load_experiments_from_db(self):
+        """Load all experiments from the database."""
+        try:
+            # Get list of experiment IDs from database
+            exp_ids = list_experiments(self.db_path)
+            self.experiments = exp_ids
+            
+            # Load metadata for each experiment
+            self.experiment_metadata = {}
+            self.experiment_names = {}
+            
+            for exp_id in exp_ids:
+                exp_data = get_experiment(self.db_path, exp_id)
+                if exp_data:
+                    #jsut for TESTING
+                    print(f"📊 Loaded: {exp_id}")  # DEBUG
+                    # Store full experiment data
+                    self.experiment_metadata[exp_id] = exp_data
+                    # Set display name
+                    self.experiment_names[exp_id] = exp_id
+                    
+            print(f"📂 Loaded {len(self.experiments)} experiments from database")
+            
+        except Exception as e:
+            print(f"⚠️ Error loading experiments: {e}")
+            self.experiments = []
+            self.experiment_metadata = {}
+
+
     # Button Actions
     def _create_left_button(self):
         """Create the left menu button with dropdown."""
@@ -949,8 +1033,10 @@ class MainWindow(QMainWindow, NavigationMixin):
         menu = QMenu(self)
         menu.setStyleSheet(SECMENU_STYLE)
 
+        #connect with database functions
         delete_act = QAction('Delete')
-        delete_act.triggered.connect(lambda: self._delete_selected_experiments(path))
+        #database function
+        delete_act.triggered.connect(lambda: self._delete_experiment(path))
         menu.addAction(delete_act)
 
         rename_act = QAction('Rename')
@@ -958,40 +1044,18 @@ class MainWindow(QMainWindow, NavigationMixin):
         menu.addAction(rename_act)
 
         details_act = QAction('Details')
-        details_act.triggered.connect(self.menu_button_clicked)
+        details_act.triggered.connect(lambda:self.menu_button_clicked)
         menu.addAction(details_act)
 
         download_act = QAction('Download .tiff')
-        download_act.triggered.connect(self.menu_button_clicked)
+        download_act.triggered.connect(lambda:self.menu_button_clicked)
         menu.addAction(download_act)
 
         menu.exec(button.mapToGlobal(button.rect().bottomLeft()))
 
-    def _delete_selected_experiments(self, checked=False):
-        """Delete selected experiments."""
-        if not hasattr(self, 'experiment_checkboxes') or not self.experiment_checkboxes:
-            return
 
-        selected = [path for path, cb in self.experiment_checkboxes if cb.isChecked()]
-        if not selected:
-            QMessageBox.warning(self, "Nothing selected", "Please check an experiment to delete.")
-            return
+    #DETELE, already defined database function
 
-        reply = QMessageBox.question(
-            self, "Delete experiment",
-            f"Delete {len(selected)} selected experiment(s)?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-        )
-        if reply != QMessageBox.StandardButton.Yes:
-            return
-
-        for path in selected:
-            self.experiments.remove(path)
-
-        if hasattr(self, 'filepath') and self.filepath in selected:
-            self.filepath = None
-
-        self.navigate_to(self.show_exp)
 
     def _rename_experiment(self, path):
         """Rename an experiment."""
@@ -1002,6 +1066,48 @@ class MainWindow(QMainWindow, NavigationMixin):
         if ok and new_name.strip():
             self.experiment_names[path] = new_name.strip()
             self.show_exp()
+
+
+#DELETE FUNCTION CALLS DATABASE DELETE FUNCTION, AUXILIAR UI
+    def _delete_experiment(self, experiment_id):
+        """Delete an experiment from the database."""
+        # Confirm with user
+        reply = QMessageBox.question(
+            self, 
+            "Delete Experiment",
+            f"Are you sure you want to delete experiment '{experiment_id}'?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        
+        if reply == QMessageBox.StandardButton.Yes:
+            # 🔥 Call the imported delete_experiment with correct parameters
+            success = delete_experiment(self.db_path, experiment_id)
+            
+            if success:
+                # Remove from local lists
+                if experiment_id in self.experiments:
+                    self.experiments.remove(experiment_id)
+                if experiment_id in self.experiment_names:
+                    del self.experiment_names[experiment_id]
+                if experiment_id in self.experiment_metadata:
+                    del self.experiment_metadata[experiment_id]
+                
+                # Refresh the UI
+                self.show_exp()
+                QMessageBox.information(self, "Success", f"Deleted experiment: {experiment_id}")
+            else:
+                QMessageBox.warning(self, "Error", f"Experiment '{experiment_id}' not found in database.")
+
+
+
+
+
+
+
+
+
+
+
 
     def _png_to_dummy_volume(self, filepath, depth=10, size=64):
         """Convert PNG to dummy 3D volume for testing."""
@@ -1122,43 +1228,6 @@ class MainWindow(QMainWindow, NavigationMixin):
         else:
             return None
 
-
-
-    # Public Methods
-    def getfilename(self):
-        """Handle file selection dialog."""
-        file_filter = 'Images (*.png *.jpg *.jpeg)'
-        filepath, _ = QFileDialog.getOpenFileName(
-            parent=self, caption='Select a .tiff file',
-            directory=os.getcwd(), filter=file_filter,
-            initialFilter=file_filter
-        )
-        if not filepath:
-            return
-
-        if not filepath.lower().endswith((".png", ".jpg", ".jpeg")):
-            QMessageBox.warning(self, "Invalid file", "Please select a .tiff file (a png image for trial).")
-            return
-
-        limb_options = self.ask_limbinfo()
-        
-        if limb_options is None:
-            # User cancelled - don't proceed
-            return
-        ''''
-        # Use the selected options
-        side = limb_options['side']        # 'L' or 'R'
-        position = limb_options['position'] # 'F' or 'H'
-        spacing = limb_options['spacing']   # (x, y, z) tuple
-        
-        print(f"Selected: Side={side}, Position={position}, Spacing={spacing}")
-        
-       '''
-
-        if filepath not in self.experiments:
-            self.experiments.append(filepath)
-
-        self.navigate_to(self.show_exp)
  
     def addexp_button_clicked(self, checked=False):
         """Add experiment button handler."""
@@ -1173,15 +1242,60 @@ class MainWindow(QMainWindow, NavigationMixin):
             QMessageBox.warning(self, "Invalid file", "Please select an image file.")
             return
 
-        if filepath not in self.experiments:
-            self.experiments.append(filepath)
+        # Create new experiment from file
+        try:
+            exp_id = os.path.basename(filepath).split('.')[0]
+            
+            # Check if experiment already exists
+            if exp_id in self.experiments:
+                QMessageBox.warning(self, "Duplicate", f"Experiment '{exp_id}' already exists.")
+                return
+            
+            # Create a new experiment from the new added  experimetn
+            #JSUT TESTING
+            new_exp = Experiment(
+                experiment_id=exp_id, 
+                base=os.path.dirname(filepath),
+                spacing_x=0.65,
+                spacing_y=0.65,
+                spacing_z=2.0,
+                side="L",  # Default
+                position="H",  # Default
+                channels=[
+                    Channel(
+                        experiment_id=f"{exp_id}",
+                        channel_name="DAPI",
+                        path="dapi.vti",
+                        v0=238.0,
+                        v1=463.0
+                    ),
+                    Channel(
+                        experiment_id=f"{exp_id}",
+                        channel_name="SHH",
+                        path="shh.vti",
+                        v0=174.0,
+                        v1=335.0
+                    ),
+                ]
+            )
+        
+            save_experiment(self.db_path, new_exp)
+            #saves the added experiment into our DB!!!
+
+            self._load_experiments_from_db()
+            #diaply of the newly added experiment into the db
+            self.show_exp()
+        
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Failed to add experiment: {e}")
 
         self.navigate_to(self.show_exp)
+
 
     def saveexp_button_clicked(self):
         """Save experiment button handler."""
         print(True)
-
+ 
     def viewexp_button_clicked(self):
         """View experiment button handler."""
         selected = [path for path, cb in self.experiment_checkboxes if cb.isChecked()]
@@ -1189,7 +1303,7 @@ class MainWindow(QMainWindow, NavigationMixin):
             QMessageBox.warning(self, "No experiment selected", "Please select an experiment to visualize.")
             return
 
-        self.filepath = selected[0]
+        self.filepath = selected[0]                   
         self.navigate_to(self.show_viz)
 
     def menu_button_clicked(self, s):

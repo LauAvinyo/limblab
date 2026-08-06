@@ -23,6 +23,11 @@ __all__ = [
     # database functions
     "get_engine",
     "init_db",
+    'get_experiment',
+    'list_experiment',
+    'create_test_database',
+    "save_experiment",
     "update_experiment",
+    "delete_experiment"
 
 ]

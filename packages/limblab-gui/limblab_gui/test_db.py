@@ -11,10 +11,8 @@ from PyQt6.QtGui import QAction, QIcon
 
 from PyQt6.QtWidgets import (
     QLabel, QMainWindow, QStatusBar, QVBoxLayout,
-    QPushButton, QWidget, QHBoxLayout, QMessageBox,
-    QMenuBar, QMenu, QToolButton, QFileDialog,
-    QCheckBox, QInputDialog, QSpinBox,
-    QScrollArea, QComboBox, QDialog, QDoubleSpinBox, QGroupBox
+    QWidget, QHBoxLayout, QMessageBox,
+    QMenu, QToolButton, QFileDialog, QCheckBox
 )
 
 from pathlib import Path
@@ -31,7 +29,6 @@ from limblab.database import *
 from limblab.models import Experiment, Channel
 
 
-
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -45,6 +42,9 @@ class MainWindow(QMainWindow):
 
         self.db_path = Path('experiments.db')
 
+        create_test_database(self.db_path, force=True)  # Force=True is key
+        #just for TESTING
+
         self.experiments = []
         self.experiment_names = {}
         self.experiment_checkboxes = []
@@ -53,6 +53,7 @@ class MainWindow(QMainWindow):
         if not self.db_path.exists():
             # Database doesn't exist, create it with test data
             init_db(self.db_path)
+            self._create_test_data()
             print("Created new database with test data")
 
         else:
@@ -67,14 +68,32 @@ class MainWindow(QMainWindow):
 
         
         self._load_experiments_from_db()
+
         self.show_exp()
 
-  
-        #show test experiment screen
-        
 
-
-
+    def _initialize_database(self):
+        """Initialize database and create test data if needed."""
+        if not self.db_path.exists():
+            # Database doesn't exist - create it with test data
+            init_db(self.db_path)
+            create_test_database(self.db_path)
+            print("✅ Created new database with test data")
+        else:
+            # Database exists - check if it has data
+            try:
+                experiments = list_experiments(self.db_path)
+                if not experiments:
+                    # Database exists but empty - add test data
+                    create_test_database(self.db_path)
+                    print("✅ Added test data to existing database")
+                else:
+                    print(f"📂 Found {len(experiments)} existing experiments")
+            except Exception as e:
+                print(f"⚠️ Error reading database: {e}")
+                # Recreate database with test data
+                create_test_database(self.db_path, force=True)
+                print("✅ Recreated database with test data")
 
     def _load_experiments_from_db(self):
         """Load all experiments from the database."""
@@ -86,14 +105,15 @@ class MainWindow(QMainWindow):
             # Load metadata for each experiment
             self.experiment_metadata = {}
             self.experiment_names = {}
-
-                
+            
             for exp_id in exp_ids:
                 exp_data = get_experiment(self.db_path, exp_id)
                 if exp_data:
+                    #jsut for TESTING
+                    print(f"📊 Loaded: {exp_id}")  # DEBUG
                     # Store full experiment data
                     self.experiment_metadata[exp_id] = exp_data
-                    # Set display name (use experiment_id as default)
+                    # Set display name
                     self.experiment_names[exp_id] = exp_id
                     
             print(f"📂 Loaded {len(self.experiments)} experiments from database")
@@ -107,10 +127,11 @@ class MainWindow(QMainWindow):
 
 
 
-
     def show_exp(self):
             #self.reset_menu_bar()
             #self.viewer.setParent(None)
+        
+        self.setCentralWidget(None)
 
         top_row = QHBoxLayout()
         #top_row.addWidget(create_back_button(self.go_back))
@@ -119,7 +140,6 @@ class MainWindow(QMainWindow):
 
         card_layout = QVBoxLayout()
         self.experiment_checkboxes = []
-
 
         if self.experiments:
             for exp_id in self.experiments:
@@ -134,10 +154,6 @@ class MainWindow(QMainWindow):
                     position = exp_data.position if hasattr(exp_data, 'position') else ''
                     if side and position:
                         display_name = f"{display_name} [{side}{position}]"
-
-                if "_fake" in exp_id:
-                    display_name = f"{display_name} (from DB)"
-
 
                 label = QLabel(display_name)
                 label.setStyleSheet("color: #ffffff; font-size: 18px;")
@@ -161,70 +177,42 @@ class MainWindow(QMainWindow):
             empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             card_layout.addWidget(empty_label)
 
+        card_layout.addStretch()
 
-            '''''
+        experiments_card = QWidget()
+        experiments_card.setStyleSheet("background-color: #2A2A2A; border-radius: 12px;")
+        experiments_card.setLayout(card_layout)
+        experiments_card.setMinimumHeight(250)
 
-            for path in self.experiments:
-                display_name = self.experiment_names.get(path, os.path.basename(path))
-                row = QHBoxLayout()
-                label = QLabel(display_name)
-                label.setStyleSheet("color: #ffffff; font-size: 18px;")
-                
-                threebutton = QToolButton()
-                threebutton.setIcon(QIcon("threedots.png"))
-                threebutton.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
-                threebutton.clicked.connect(lambda checked, p=path, b=threebutton: self._click_threebuttons(p, b))
-                
-                checkbox = QCheckBox()
-                row.addWidget(label)
-                row.addWidget(checkbox)
-                row.addWidget(threebutton)
-                row.addStretch()
-                card_layout.addLayout(row)
-                self.experiment_checkboxes.append((path, checkbox))
+        self.add_btn = create_styled_button('+ Add Experiment', "#7C6FD6", "#8E7FD6")
+        self.save_btn = create_styled_button('Save Experiment', "#4B2E83", "#5C3A9E")
+        self.view_btn = create_styled_button('View', "#41B3A2", "#5FBF9F")
 
-            '''
+        self.add_btn.clicked.connect(self.addexp_button_clicked)
+        self.save_btn.clicked.connect(self.saveexp_button_clicked)
+        self.view_btn.clicked.connect(self.viewexp_button_clicked)
 
-            card_layout.addStretch()
+        buttons_row = QVBoxLayout()
+        buttons_row.setContentsMargins(0, 20, 0, 20)
 
-            experiments_card = QWidget()
-            experiments_card.setStyleSheet("background-color: #2A2A2A; border-radius: 12px;")
-            experiments_card.setLayout(card_layout)
-            experiments_card.setMinimumHeight(250)
+        buttons_row.addStretch(1)
+        buttons_row.addWidget(self.add_btn)
+        buttons_row.addSpacing(10)
+        buttons_row.addWidget(self.save_btn)
+        buttons_row.addSpacing(10)
+        buttons_row.addWidget(self.view_btn)
+        buttons_row.addStretch(1)
 
-            self.add_btn = create_styled_button('+ Add Experiment', "#7C6FD6", "#8E7FD6")
-            self.save_btn = create_styled_button('Save Experiment', "#4B2E83", "#5C3A9E")
-            self.view_btn = create_styled_button('View', "#41B3A2", "#5FBF9F")
+        container = QWidget()
+        main_layout = QVBoxLayout(container)
+        main_layout.addLayout(top_row)
+        main_layout.addWidget(experiments_card, stretch=1)
+        main_layout.addSpacing(10)
+        main_layout.addLayout(buttons_row)
+        main_layout.addStretch(1)
+        main_layout.setContentsMargins(30, 20, 30, 5)
 
-            self.add_btn.clicked.connect(self.addexp_button_clicked)
-            self.save_btn.clicked.connect(self.saveexp_button_clicked)
-            self.view_btn.clicked.connect(self.viewexp_button_clicked)
-
-            buttons_row = QVBoxLayout()
-            buttons_row.setContentsMargins(0, 20, 0, 20)  # Add vertical padding
-
-            # Add stretch before and after to center the group, but with big spacing
-            buttons_row.addStretch(1)  # Big stretch on left
-            buttons_row.addWidget(self.add_btn)
-            buttons_row.addSpacing(10)  # Space between buttons
-            buttons_row.addWidget(self.save_btn)
-            buttons_row.addSpacing(10)  # Space between buttons
-            buttons_row.addWidget(self.view_btn)
-            buttons_row.addStretch(1)  # Big stretch on right
-
-            # Assemble everything
-            container = QWidget()
-            main_layout = QVBoxLayout(container)
-            main_layout.addLayout(top_row)
-            main_layout.addWidget(experiments_card, stretch=1)
-
-            # Add the buttons row with some spacing
-            main_layout.addSpacing(10)
-            main_layout.addLayout(buttons_row)
-            main_layout.addStretch(1)  # Extra stretch at bottom
-            main_layout.setContentsMargins(30, 20, 30, 5)
-
-            self.setCentralWidget(container)
+        self.setCentralWidget(container)
 
 
 
@@ -328,14 +316,15 @@ class MainWindow(QMainWindow):
             )
         
             save_experiment(self.db_path, new_exp)
+            #saves the added experiment into our DB!!!
+
             self._load_experiments_from_db()
+            #diaply of the newly added experiment into the db
             self.show_exp()
-            print(f"✅ Added experiment: {exp_id}_fake")
+            print(f"✅ Added experiment: {exp_id}_TEST")
         
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Failed to add experiment: {e}")
-
-
 
         self.show_exp()
     
