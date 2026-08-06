@@ -19,5 +19,5 @@ __all__ = [
     "pick_isovalue",
     "extract_surface",
     "LimbLabError",
-    "VolumeProcessingError",
+    "VolumeProcessingError"
 ]

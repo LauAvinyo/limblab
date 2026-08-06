@@ -48,3 +48,4 @@ def delete_experiment(db_path: Path, experiment_id: str) -> bool:
             session.commit()
             return True
         return False
+
