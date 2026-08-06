@@ -4,11 +4,11 @@ Esta lista resume las tareas de refactorización, limpieza y mejoras que debes c
 
 Formato: cada ítem incluye título corto y una frase de acción.
 
-- [ ] Cleaning .gitignore — Eliminar la línea "src/" en la raíz si no es intencional; deduplicar entradas (archive, .vscode), y añadir ignores estándar de Python (__pycache__/, *.py[cod], .venv/, dist/, build/, .pytest_cache/). Asegurar que example_data/ y docs/ no queden ignorados. (ver [.gitignore](/Users/laura/limblab/.gitignore))
+- [x] Cleaning .gitignore — Eliminar la línea "src/" en la raíz si no es intencional; deduplicar entradas (archive, .vscode), y añadir ignores estándar de Python (__pycache__/, *.py[cod], .venv/, dist/, build/, .pytest_cache/). Asegurar que example_data/ y docs/ no queden ignorados. (ver [.gitignore](/Users/laura/limblab/.gitignore))
 
 - [ ] Refactorizar herramientas a _tools — Mover scripts utilitarios y carpetas de scripts a un paquete _tools; añadir __init__.py, actualizar imports internos y añadir tests para utilidades clave.
 
-- [ ] Estandarizar layout de paquetes — Decidir si usar layout con "src/" o raíz de paquete y aplicar de forma consistente en [limblab](/Users/laura/limblab/limblab), [limblab-cli](/Users/laura/limblab/limblab-cli) y [limblab-gui](/Users/laura/limblab/limblab-gui) y en packages/.
+- [x] Estandarizar layout de paquetes — Decidir si usar layout con "src/" o raíz de paquete y aplicar de forma consistente en [limblab](/Users/laura/limblab/limblab), [limblab-cli](/Users/laura/limblab/limblab-cli) y [limblab-gui](/Users/laura/limblab/limblab-gui) y en packages/.
 
 - [ ] Corregir dependencias entre paquetes — Verificar y actualizar dependencias de ruta en pyproject.toml (por ejemplo limblab-gui -> limblab-core). Asegurar que los path deps apunten a la carpeta correcta o usar nombres publicados.
 

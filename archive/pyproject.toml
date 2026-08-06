@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "limblab"
+version = "0.4.0"
+description = ""
+authors = ["LauAvinyo <avinyo.laura@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.scripts]
+limb = "limblab.cli:app"
+
+[tool.poetry.dependencies]
+python = ">=3.10,<4.0"
+typer = {extras = ["all"], version = "^0.16.0"}
+click = "^8.2.0"
+requests = "^2.32.3"
+vedo = "^2025"
+scipy = "^1.14.1"
+pip-system-certs = ">=4.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+ 

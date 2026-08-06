@@ -17,6 +17,9 @@ LimbLab is a Python package and command-line tool for preprocessing, staging, al
 ** THIS HAS CHANGED A LOT!!! ** 
 README underconstruction! 
 
+## WARNINGS
+Currently morphing is not active. 
+There VTK >= 9.3 does not allow it with the current code and needs a re-implementation. 
 
 # Development 
 
@@ -46,8 +49,6 @@ Run from Terminal (not double-click) to catch errors:
 ```
 
 ### Notes
-- `build/` and `dist/` are gitignored — always regenerated, never commit them.
-- If you add a new dependency that ships its own data files (fonts, assets, etc.), you may need to add it to `datas` in `LimbLab.spec` using `collect_data_files('package_name')`.
 - Config lives in `LimbLab.spec` — edit there for icon, bundle ID, hidden imports, etc.
 
 # License
