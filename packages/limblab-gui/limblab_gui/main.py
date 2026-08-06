@@ -2,7 +2,7 @@
 
 from typing import Callable
 
-from PyQt6.QtCore import Qt, pyqtSignal, QObject
+from PyQt6.QtCore import Qt
 from PIL import Image
 import os
 import webbrowser
@@ -11,10 +11,10 @@ import numpy as np
 import pyqtgraph.opengl as gl
 from PyQt6.QtGui import QAction, QIcon
 from PyQt6.QtWidgets import (
-    QApplication, QLabel, QMainWindow, QStatusBar, QVBoxLayout,
+    QLabel, QMainWindow, QStatusBar, QVBoxLayout,
     QPushButton, QWidget, QHBoxLayout, QMessageBox,
-    QSizePolicy, QMenuBar, QMenu, QToolButton, QFileDialog,
-    QCheckBox, QInputDialog, QSlider, QSpinBox,
+    QMenuBar, QMenu, QToolButton, QFileDialog,
+    QCheckBox, QInputDialog, QSpinBox,
     QScrollArea, QComboBox, QDialog, QDoubleSpinBox, QGroupBox
 )
 
@@ -22,6 +22,7 @@ from utils import *
 from config import *
 
 from NavigationMixin import NavigationMixin
+
 
 class MainWindow(QMainWindow, NavigationMixin):
     def __init__(self):
@@ -1009,8 +1010,6 @@ class MainWindow(QMainWindow, NavigationMixin):
         arr = np.array(img)
         return np.stack([arr] * depth, axis=0)
 
-
-
     def ask_limbinfo(self):
         """Popup dialog asking for limb side, position, and spacing."""
         dialog = QDialog()
@@ -1160,9 +1159,7 @@ class MainWindow(QMainWindow, NavigationMixin):
             self.experiments.append(filepath)
 
         self.navigate_to(self.show_exp)
-
-        
-
+ 
     def addexp_button_clicked(self, checked=False):
         """Add experiment button handler."""
         filepath, _ = QFileDialog.getOpenFileName(
@@ -1205,9 +1202,3 @@ class MainWindow(QMainWindow, NavigationMixin):
         if hasattr(self, 'pipeline_log_widget'):
             self.pipeline_log_widget.setText("\n".join(self.pipeline_log[-10:]))
 
-
-# Run the application
-app = QApplication([])
-window = MainWindow()
-window.show()
-app.exec()

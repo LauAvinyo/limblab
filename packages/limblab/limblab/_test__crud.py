@@ -1,6 +1,6 @@
 from pathlib import Path
-from packages.limblab.limblab.models import Channel, Experiment
-from packages.limblab.limblab.database import (
+from models import Channel, Experiment
+from database import (
     delete_experiment,
     get_experiment,
     init_db,
@@ -27,9 +27,9 @@ if __name__ == "__main__":
         side="L",
         position="H",
         channels=[
-            Channel(experiment_id="HCR10_SHH_l3", channel_name="DAPI", channel_type="nuclei", path="dapi.vti", v0=238.0, v1=463.0),
-            Channel(experiment_id="HCR10_SHH_l3", channel_name="SHH", channel_type="gene", path="shh.vti", v0=174.0, v1=335.0),
-            Channel(experiment_id="HCR10_SHH_l3", channel_name="SOX9", channel_type="gene", path="sox9.vti", v0=392.0, v1=418.0),
+            Channel(experiment_id="HCR10_SHH_l3", channel_name="DAPI", path="dapi.vti", v0=238.0, v1=463.0),
+            Channel(experiment_id="HCR10_SHH_l3", channel_name="SHH", path="shh.vti", v0=174.0, v1=335.0),
+            Channel(experiment_id="HCR10_SHH_l3", channel_name="SOX9", path="sox9.vti", v0=392.0, v1=418.0),
         ],
     )
     save_experiment(DB_PATH, exp1)
@@ -40,12 +40,12 @@ if __name__ == "__main__":
         raise ValueError("Experiment not found")
     print(f"Loaded: {retrieved.experiment_id}, Side: {retrieved.side}")
     for ch in retrieved.channels:
-        print(f" -> Channel {ch.channel_name} ({ch.channel_type}): {ch.path}")
+        print(f" -> Channel {ch.channel_name}: {ch.path}")
 
     # 3. UPDATE
     retrieved.species = "Mouse"
     retrieved.channels.append(
-        Channel(experiment_id="HCR10_SHH_l3", channel_name="FGF8", channel_type="gene", path="fgf8.vti", v0=100.0, v1=200.0)
+        Channel(experiment_id="HCR10_SHH_l3", channel_name="FGF8", path="fgf8.vti", v0=100.0, v1=200.0)
     )
     save_experiment(DB_PATH, retrieved)
 

@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import List, Optional
 from sqlmodel import Session, SQLModel, create_engine, select
-from packages.limblab.limblab.models import Channel, Experiment
+from models import Channel, Experiment
 
 
 def get_engine(db_path: Path):
