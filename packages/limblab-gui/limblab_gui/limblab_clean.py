@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import (
     QPushButton, QWidget, QHBoxLayout, QMessageBox,
     QSizePolicy, QMenuBar, QMenu, QToolButton, QFileDialog,
     QCheckBox, QInputDialog, QSlider, QSpinBox,
-    QScrollArea, QComboBox
+    QScrollArea, QComboBox, QDialog, QDoubleSpinBox, QGroupBox
 )
 
 # Constants
@@ -550,12 +550,14 @@ class MainWindow(QMainWindow):
         top_row.addStretch()
 
         self.label_upload = create_label("Upload your limb data", "color: #ffffff; font-size: 40px;")
-        self.button_upload = create_styled_button("Select .tiff file")
+        self.button_upload = create_styled_button("Create experiment")
         self.button_upload.clicked.connect(self.getfilename)
+
 
         self.label_library = create_label("Load limb data", "color: #ffffff; font-size: 40px;")
         self.button_library = create_styled_button("Access limb library")
         self.button_library.clicked.connect(lambda: self.navigate_to(self.show_viz))
+
 
         upload_column = QVBoxLayout()
         upload_column.addWidget(self.label_upload, alignment=Qt.AlignmentFlag.AlignHCenter)
@@ -1340,6 +1342,122 @@ class MainWindow(QMainWindow):
         arr = np.array(img)
         return np.stack([arr] * depth, axis=0)
 
+
+
+    def ask_limbinfo(self):
+        """Popup dialog asking for limb side, position, and spacing."""
+        dialog = QDialog()
+        dialog.setWindowTitle("Limb Options")
+        dialog.setModal(True)
+        dialog.setFixedWidth(350)
+
+        layout = QVBoxLayout(dialog)
+        layout.setSpacing(15)
+        layout.setContentsMargins(20, 20, 20, 20)
+
+        side_layout = QHBoxLayout()
+        side_label = QLabel("Limb Side:")
+        side_label.setFixedWidth(100)
+        side_combo = QComboBox()
+        side_combo.addItems(["L", "R"])
+        side_combo.setCurrentIndex(0)
+        side_layout.addWidget(side_label)
+        side_layout.addWidget(side_combo)
+        layout.addLayout(side_layout)
+
+    # ---- Position ----
+        position_layout = QHBoxLayout()
+        position_label = QLabel("Position:")
+        position_label.setFixedWidth(100)
+        position_combo = QComboBox()
+        position_combo.addItems(["F", "H"])
+        position_combo.setCurrentIndex(0)
+        position_layout.addWidget(position_label)
+        position_layout.addWidget(position_combo)
+        layout.addLayout(position_layout)
+
+
+            # ---- Spacing ----
+        spacing_group = QGroupBox("Spacing")
+        spacing_layout = QVBoxLayout(spacing_group)
+        
+        # X spacing
+        x_layout = QHBoxLayout()
+        x_label = QLabel("X:")
+        x_label.setFixedWidth(30)
+        x_spin = QDoubleSpinBox()
+        x_spin.setRange(0.01, 10.0)
+        x_spin.setSingleStep(0.01)
+        x_spin.setValue(0.65)
+        x_spin.setDecimals(2)
+        x_layout.addWidget(x_label)
+        x_layout.addWidget(x_spin)
+        spacing_layout.addLayout(x_layout)
+        
+        # Y spacing
+        y_layout = QHBoxLayout()
+        y_label = QLabel("Y:")
+        y_label.setFixedWidth(30)
+        y_spin = QDoubleSpinBox()
+        y_spin.setRange(0.01, 10.0)
+        y_spin.setSingleStep(0.01)
+        y_spin.setValue(0.65)
+        y_spin.setDecimals(2)
+        y_layout.addWidget(y_label)
+        y_layout.addWidget(y_spin)
+        spacing_layout.addLayout(y_layout)
+        
+        # Z spacing
+        z_layout = QHBoxLayout()
+        z_label = QLabel("Z:")
+        z_label.setFixedWidth(30)
+        z_spin = QDoubleSpinBox()
+        z_spin.setRange(0.01, 10.0)
+        z_spin.setSingleStep(0.01)
+        z_spin.setValue(2.0)
+        z_spin.setDecimals(2)
+        z_layout.addWidget(z_label)
+        z_layout.addWidget(z_spin)
+        spacing_layout.addLayout(z_layout)
+        
+        layout.addWidget(spacing_group)
+
+
+
+        # ---- Buttons ----
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+        
+        cancel_button = QPushButton("Cancel")
+        cancel_button.setObjectName("cancel_button")
+        cancel_button.clicked.connect(dialog.reject)
+        
+        ok_button = QPushButton("OK")
+        ok_button.clicked.connect(dialog.accept)
+        
+        button_layout.addWidget(cancel_button)
+        button_layout.addWidget(ok_button)
+        layout.addLayout(button_layout)
+
+        # Show dialog and get result
+        result = dialog.exec()
+
+
+        if result == QDialog.DialogCode.Accepted:
+            side = side_combo.currentText()
+            position = position_combo.currentText()
+            spacing = (x_spin.value(), y_spin.value(), z_spin.value())
+
+            return {
+                'side': side,
+                'position': position,
+                'spacing': spacing
+        }
+        else:
+            return None
+
+
+
     # Public Methods
     def getfilename(self):
         """Handle file selection dialog."""
@@ -1355,6 +1473,21 @@ class MainWindow(QMainWindow):
         if not filepath.lower().endswith((".png", ".jpg", ".jpeg")):
             QMessageBox.warning(self, "Invalid file", "Please select a .tiff file (a png image for trial).")
             return
+
+        limb_options = self.ask_limbinfo()
+        
+        if limb_options is None:
+            # User cancelled - don't proceed
+            return
+        ''''
+        # Use the selected options
+        side = limb_options['side']        # 'L' or 'R'
+        position = limb_options['position'] # 'F' or 'H'
+        spacing = limb_options['spacing']   # (x, y, z) tuple
+        
+        print(f"Selected: Side={side}, Position={position}, Spacing={spacing}")
+        
+       '''
 
         if filepath not in self.experiments:
             self.experiments.append(filepath)
