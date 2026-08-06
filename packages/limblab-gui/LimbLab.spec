@@ -7,6 +7,9 @@ vedo_datas = collect_data_files('vedo')
 
 block_cipher = None
 
+from PyInstaller.utils.hooks import collect_submodules
+vedo_hiddenimports = collect_submodules('vedo')
+
 a = Analysis(
     ['limblab_gui/app.py'],
     pathex=['limblab_gui'],
@@ -21,7 +24,7 @@ a = Analysis(
         'config',
         'NavigationMixin',
         'utils',
-    ],
+    ] + vedo_hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

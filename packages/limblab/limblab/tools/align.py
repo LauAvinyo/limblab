@@ -14,8 +14,9 @@ from vedo import Mesh, Axes, Text2D
 
 CURRENT_PATH = os.path.abspath(__file__)
 CURRENT_DIR = os.path.dirname(CURRENT_PATH)
-
 REFERENCE_LIMB_FOLDER = os.path.join(os.path.dirname(CURRENT_DIR), "limb")
+REFERENCE_LIMB_FOLDER = "/Users/laura/limblab/packages/limblab/limblab/limb"
+# TODO: FIX THIS!
 
 files = [
     file
@@ -98,7 +99,7 @@ def _rotate_limb(
     params: dict[str, Any] = dict(shape="1|2", sharecam=False)
     kwargs = generate_kwargs(params=params, renderer=renderer, outside_class=outside_class)
 
-    plt = Plotter(**kwargs)
+    plt = Plotter(**kwargs) # type: ignore
 
     # Set the camera positions for the three views
     plt.at(2).camera = dict(
