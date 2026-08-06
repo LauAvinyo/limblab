@@ -7,7 +7,7 @@ from vedo.applications import IsosurfaceBrowser
 
 from limblab.models import Experiment, Channel
 from limblab.exceptions import VolumeProcessingError
-
+from limblab.utils import generate_kwargs
 
 def auto_isovalue(raw_volume_path: Path) -> float:
     """Automatically determine isovalue from volume histogram."""
@@ -24,11 +24,8 @@ def pick_isovalue(
     """Opens the vedo IsosurfaceBrowser and lets the user pick a single isovalue."""
     vol = Volume(str(raw_volume_path))
 
-    kwargs: dict[str, Any] = dict(use_gpu=True, c="green", alpha=0.6)
-    if renderer == "pyqt":
-        if outside_class is None:
-            raise ValueError("outside_class must be provided when renderer is 'pyqt'")
-        kwargs["qt_widget"] = outside_class.vtkWidget
+    params: dict[str, Any] = dict(use_gpu=True, c="green", alpha=0.6)
+    kwargs = generate_kwargs(params=params, renderer=renderer, outside_class=outside_class)
 
     plt = IsosurfaceBrowser(vol.color((255, 127, 17, 0)), **kwargs)
     plt.show(axes=7, bg2="lb")

@@ -29,6 +29,10 @@ class Experiment(SQLModel, table=True):
     position: Optional[str] = None
     surface: Optional[str] = None
     species: Optional[str] = None
+    stage: Optional[int] = None
+    transformation_matrix: Optional[str] = None
+    linear_transform: Optional[str] = None
+    nonlinear_transform: Optional[str] = None
 
     channels: List[Channel] = Relationship(
             back_populates="experiment",
