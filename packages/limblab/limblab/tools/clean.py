@@ -1,10 +1,12 @@
 from pathlib import Path
+from limblab import params
 from vedo import Volume, Plotter, Text2D
 from vedo.applications import IsosurfaceBrowser
 
 from limblab.models import Channel, Experiment
 from limblab.params import CleanParams
 from limblab.exceptions import VolumeProcessingError
+from limblab.utils import generate_kwargs
 
 from typing import Optional, Any, Literal
 
@@ -17,11 +19,8 @@ def pick_isovalues(raw_volume_path: Path, renderer: Optional[Literal["pyqt"]] = 
     """
     vol = Volume(str(raw_volume_path))
 
-    kwargs: dict[str, Any] = dict(use_gpu=True, bg="white", c="green", alpha=0.6)
-    if renderer == "pyqt":
-        if outside_class is None:
-            raise ValueError("outside_class must be provided when renderer is 'pyqt'")
-        kwargs["qt_widget"] = outside_class.vtkWidget
+    params: dict[str, Any] = dict(use_gpu=True, bg="white", c="green", alpha=0.6)
+    kwargs = generate_kwargs(params=params, renderer=renderer, outside_class=outside_class)
 
 
     plt = IsosurfaceBrowser(vol, **kwargs) 

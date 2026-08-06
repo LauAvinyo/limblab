@@ -2,6 +2,8 @@ from typing import Optional, Any, Literal
 import os
 
 from limblab.models import Experiment
+from limblab.utils import generate_kwargs
+
 from colorama import Fore as c
 import requests
 
@@ -14,7 +16,6 @@ MESSAGE = "Could not connect to the staging system. Try again, if the problem pe
 STAGING_URL = "https://limbstaging.embl.es/api"
 
 
-# TODO: maybe i can like split this function into smaller pieces. 
 def _stage_limb(
     surface: str,
     renderer: Optional[Literal["pyqt"]] = None,
@@ -76,18 +77,14 @@ def _stage_limb(
             plt.close()
 
 
-    kwargs: dict[str, Any] = dict(                        
+    params: dict[str, Any] = dict(                        
         title="3D Stager",
         N=2,
         sharecam=0,
         size=(2000, 1000),
         axes=14
     )
-
-    if renderer == "pyqt":
-        if outside_class is None:
-            raise ValueError("outside_class must be provided when renderer is 'pyqt'")
-        kwargs["qt_widget"] = outside_class.vtkWidget
+    kwargs = generate_kwargs(params=params, renderer=renderer, outside_class=outside_class)
 
     plt = SplinePlotter(msh, **kwargs)
     plt.verbose = False
