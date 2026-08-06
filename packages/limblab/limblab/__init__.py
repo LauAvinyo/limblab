@@ -7,6 +7,7 @@ __version__ = "0.4.1"
 from .tools.clean import clean, pick_isovalues
 from .tools.surface import extract_surface, auto_isovalue, pick_isovalue
 from .tools.stage import stage_limb 
+from .tools.align import rotate_limb
 from .database import get_engine, init_db, save_experiment, update_experiment, delete_experiment
 # add other tools as you migrate them:
 # from .tools.rotate import rotate
@@ -20,6 +21,7 @@ __all__ = [
     "pick_isovalue",
     "extract_surface",
     "stage_limb",
+    "rotate_limb",
     "LimbLabError",
     "VolumeProcessingError",
 
