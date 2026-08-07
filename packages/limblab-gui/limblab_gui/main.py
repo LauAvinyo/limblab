@@ -15,15 +15,27 @@ from PyQt6.QtWidgets import (
     QPushButton, QWidget, QHBoxLayout, QMessageBox,
     QMenuBar, QMenu, QToolButton, QFileDialog,
     QCheckBox, QInputDialog, QSpinBox,
-    QScrollArea, QComboBox, QDialog, QDoubleSpinBox, QGroupBox
+    QScrollArea, QComboBox, QDialog, QDoubleSpinBox, QGroupBox, QFrame
 )
+
 
 from utils import *
 from config import *
 from limblab.database import *
 #database in limblab, not in the same folder!
 
+from limblab.limb import *##################TODO not loaded????????????????????????
+
+
 from NavigationMixin import NavigationMixin
+from pathlib import Path
+from limblab.params import CleanParams
+
+import vtk
+from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
+from vedo import *
+
+vtk.qt.QVTKRWIBase = "QGLWidget"
 
 
 class MainWindow(QMainWindow, NavigationMixin):
@@ -52,25 +64,43 @@ class MainWindow(QMainWindow, NavigationMixin):
         self.check_genes_viz = ['Hoxa11', 'Sox9', 'BMP2']
         self.filepath = None
 
+        # ---- Workflow state ----
+        # Tracks whether the required action for each step of the
+        # Viz -> Clean -> Surface -> Stage -> Align pipeline has been
+        # completed. This drives both forward-navigation guards (can't
+        # jump ahead without finishing the current step) and back
+        # navigation warnings (you're about to lose unsaved progress).
+        self.workflow_state = {
+            "clean_done": False,
+            "last_cleaned_channel": None,
+            "surface_done": False,
+            "stage_done": False,
+            "selected_stage": None,
+            "align_done": False,
+            "alignment_method": None,
+        }
+
         self.navigate_to(self.show_home)
 
+    # ------------------------------------------------------------------
     # Menu Building Methods
+    # ------------------------------------------------------------------
     def _build_resources_menu(self, menu):
         """Build the Resources submenu."""
         resources = menu.addMenu("Resources")
         paper = QAction("Paper", self)
         paper.triggered.connect(lambda: webbrowser.open('https://pmc.ncbi.nlm.nih.gov/articles/PMC12794269/'))
         resources.addAction(paper)
-        
+
         github = QAction("GitHub", self)
         github.triggered.connect(lambda: webbrowser.open('https://limblab.embl.es/docs/'))
         resources.addAction(github)
         return resources
-    
+
     def _build_contact_menu(self, menu):
         """Build the Contact us submenu."""
         contact = menu.addMenu("Contact us")
-        
+
         # contact.addAction(QLabel("EMBL, Barcelona", self))
         # contact.addAction(QLabel("info@embl.es", self))
         return contact
@@ -96,7 +126,7 @@ class MainWindow(QMainWindow, NavigationMixin):
             (None, None),  # Separator
             ("Delete experiment", None),
         ]
-        
+
         for text, shortcut in actions:
             if text is None:
                 file_menu.addSeparator()
@@ -111,54 +141,104 @@ class MainWindow(QMainWindow, NavigationMixin):
     def _build_view_menu(self, menu_bar):
         """Build the View menu."""
         view_menu = menu_bar.addMenu("&View")
-        view_menu.addAction(QLabel("Visualization Mode", self))
-        
+        view_menu.addAction(QAction("Visualization Mode", self))
+
         viz_modes = ["Isosurface", "Slices", "Raycast", "Probe", "2D Projection Slab"]
         for mode in viz_modes:
-            action = QAction(mode, self) #. , checkable=True
+            action = QAction(mode, self)  # , checkable=True
             action.triggered.connect(lambda checked, m=mode: self.add_viz_section(m))
             view_menu.addAction(action)
         return view_menu
 
-    def _build_clean_menu(self, menu_bar):
-        """Build the Clean menu."""
-        clean_menu = menu_bar.addMenu("Clean")
-        clean_action = QAction("Clean", self)
-        clean_action.triggered.connect(lambda: self.add_category_section("Clean"))
-        clean_menu.addAction(clean_action)
-        return clean_menu
 
-    def _build_surface_menu(self, menu_bar):
-        """Build the Surface menu."""
-        surface_menu = menu_bar.addMenu("Surface")
-        surface_action = QAction("Surface", self)
-        surface_action.triggered.connect(lambda: self.add_category_section("Surface"))
-        surface_menu.addAction(surface_action)
-        return surface_menu
+    # ------------------------------------------------------------------
+    # Shared workflow-screen layout
+    #
+    # Every step of the pipeline (Viz, Clean, Surface, Stage, Align)
+    # uses the exact same shell:
+    #   - top row: Back button | Left menu | ...stretch... | Next-step button
+    #   - the live 3D viewer
+    #   - an optional per-step action bar just below the viewer
+    #   - the same right-hand side panel (Visualizer / Pipeline / params)
+    # This is what keeps the layout visually identical as the user moves
+    # through the pipeline.
+    # ------------------------------------------------------------------
+    def _build_workflow_top_row(self, next_label=None, next_callback=None, back_guard=None):
+        """Build the Back | Left-menu | ...stretch... | Next-step-button row.
 
-    def _build_stage_menu(self, menu_bar):
-        """Build the Stage menu."""
-        stage_menu = menu_bar.addMenu("Stage")
-        stage_action = QAction("Stage", self)
-        stage_action.triggered.connect(lambda: self.add_category_section("Stage"))
-        stage_menu.addAction(stage_action)
-        return stage_menu
+        back_guard, if given, is a zero-arg callable returning
+        (is_done: bool, message: str). If is_done is False when the user
+        presses Back, they get a confirmation popup telling them what
+        they haven't done yet before letting them leave the screen.
+        """
+        top_row = QHBoxLayout()
 
-    def _build_align_menu(self, menu_bar):
-        """Build the Align menu."""
-        align_menu = menu_bar.addMenu("Align")
-        align_menu.addAction(QAction(text = "Alignment method", parent=self)) # , enabled=False
-        
-        linear = QAction('Linear-Rigid', self)
-        linear.triggered.connect(lambda: self.add_category_section("Align_Linear"))
-        align_menu.addAction(linear)
-        
-        non_linear = QAction('Non Linear-TPS', self)
-        non_linear.triggered.connect(lambda: self.add_category_section("Align_nonLinear"))
-        align_menu.addAction(non_linear)
-        return align_menu
+        back_btn = create_back_button(lambda: self._handle_back(back_guard))
+        top_row.addWidget(back_btn)
+        top_row.addWidget(self._create_left_button())
+        top_row.addStretch()
 
+        if next_label and next_callback:
+            next_btn = create_styled_button(next_label, "#0D7C66", "#41B3A2")
+            next_btn.clicked.connect(next_callback)
+            top_row.addWidget(next_btn)
+
+        return top_row
+
+    def _handle_back(self, guard=None):
+        """Go back, warning the user first if the current step isn't finished."""
+        if guard is not None:
+            done, message = guard()
+            if not done:
+                reply = QMessageBox.question(
+                    self, "Step not completed",
+                    f"{message}\n\nGo back anyway? Progress on this step will be lost.",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                )
+                if reply != QMessageBox.StandardButton.Yes:
+                    return
+        self.go_back()
+
+    def _reset_top_menu_bar(self):
+        """Clear the QMainWindow menu bar back to its plain (non-home) state."""
+        menu_bar = self.menuBar()
+        menu_bar.setVisible(True)
+        menu_bar.setStyleSheet("")
+        old_corner = menu_bar.cornerWidget(Qt.Corner.TopRightCorner)
+        menu_bar.setCornerWidget(None)
+        if old_corner is not None:
+            old_corner.deleteLater()
+        menu_bar.clear()
+        return menu_bar
+
+    def _build_workflow_container(self, next_label=None, next_callback=None,
+                                   back_guard=None, action_widget=None):
+        """Build the shared viewer + side-panel container used by every step screen."""
+        self.viewer.setParent(None)
+
+        top_row = self._build_workflow_top_row(next_label, next_callback, back_guard)
+
+        left_container = QWidget()
+        left_layout = QVBoxLayout(left_container)
+        left_layout.setContentsMargins(0, 0, 0, 0)
+        left_layout.addLayout(top_row)
+        left_layout.addWidget(self.viewer, stretch=1)
+        if action_widget is not None:
+            left_layout.addWidget(action_widget)
+
+        side_panel = self._build_side_panel()
+
+        container = QWidget()
+        main_layout = QHBoxLayout(container)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+        main_layout.addWidget(left_container, stretch=1)
+        main_layout.addWidget(side_panel, stretch=0)
+        return container
+
+    # ------------------------------------------------------------------
     # Screen Methods
+    # ------------------------------------------------------------------
     def show_home(self):
         self.reset_menu_bar()
         self.viewer.setParent(None)
@@ -171,9 +251,8 @@ class MainWindow(QMainWindow, NavigationMixin):
         right_menu = QMenuBar(menu_bar)
         menu_bar.setCornerWidget(right_menu, Qt.Corner.TopRightCorner)
 
-
         self._build_resources_menu(right_menu)
-        
+
         aboutus_action = QAction("About us", self)
         aboutus_action.triggered.connect(lambda: webbrowser.open('https://www.embl.org/groups/sharpe/'))
         right_menu.addAction(aboutus_action)
@@ -195,7 +274,7 @@ class MainWindow(QMainWindow, NavigationMixin):
             '<span style="font-size:100px; font-weight:bold; color:#8E7FD6;">Lab</span>'
         )
         label_main.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        
+
         sublabel_main = create_label(
             "Analyze your 3D limb data with unprecedented ease.",
             "color: #A0A0A0; font-size: 20px;"
@@ -210,30 +289,44 @@ class MainWindow(QMainWindow, NavigationMixin):
         left_layout.addStretch(2)
         left_layout.setContentsMargins(40, 0, 40, 0)
 
+
+        self.frame = QFrame()
+        self.vtkWidget = QVTKRenderWindowInteractor(self.frame)
+        
+        self.plt = Plotter(qt_widget=self.vtkWidget)
+        # Create vedo renderer and add objects and callbacks
+        self.limb_home = Mesh("-Limb-rec_249.vtk")
+                
         container = QWidget()
         layout = QHBoxLayout(container)
         layout.addWidget(left_panel, stretch=3)
-        layout.addWidget(self.viewer, stretch=2)
+        layout.addWidget(self.vtkWidget, stretch=2)
         self.setCentralWidget(container)
+        
+        
+        self.plt.show(self.limb_home)# build the vedo rendering
+        
+
+
 
     def show_first_screen(self):
         self.reset_menu_bar()
         self.viewer.setParent(None)
 
         top_row = QHBoxLayout()
+
         top_row.addWidget(create_back_button(self.go_back))
         top_row.addWidget(self._create_left_button())
+
         top_row.addStretch()
 
         self.label_upload = create_label("Upload your limb data", "color: #ffffff; font-size: 40px;")
         self.button_upload = create_styled_button("Create experiment")
         self.button_upload.clicked.connect(self.addexp_button_clicked)
 
-
         self.label_library = create_label("Load limb data", "color: #ffffff; font-size: 40px;")
         self.button_library = create_styled_button("Access limb library")
         self.button_library.clicked.connect(lambda: self.navigate_to(self.show_viz))
-
 
         upload_column = QVBoxLayout()
         upload_column.addWidget(self.label_upload, alignment=Qt.AlignmentFlag.AlignHCenter)
@@ -261,21 +354,21 @@ class MainWindow(QMainWindow, NavigationMixin):
         self.viewer.setParent(None)
 
         if not self.db_path.exists():
-                # Database doesn't exist, create it with test data
-                    init_db(self.db_path)
-                    self._create_test_data()
-                    print("Created new database with test data")
-                    
+            # Database doesn't exist, create it with test data
+            init_db(self.db_path)
+            self._create_test_data()
+            print("Created new database with test data")
+
         else:
-                            # Database exists, check if it has any experiments
+            # Database exists, check if it has any experiments
             experiments = list_experiments(self.db_path)
             if not experiments:
-            # Database exists but empty, generate test data
+                # Database exists but empty, generate test data
                 init_db(self.db_path)
                 print("Generated test data in existing database")
             else:
                 print(f"Found {experiments} existing experiments")
-                
+
         self._load_experiments_from_db()
         #load database! TESTING
 
@@ -292,13 +385,13 @@ class MainWindow(QMainWindow, NavigationMixin):
             row = QHBoxLayout()
             label = QLabel(display_name)
             label.setStyleSheet("color: #ffffff; font-size: 18px;")
-            
+
             threebutton = QToolButton()
             threebutton.setIcon(QIcon("threedots.png"))
             threebutton.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
             threebutton.clicked.connect(lambda checked, p=path, b=threebutton: self._click_threebuttons(p, b))
             #path is the actual experiment id, so it gets passed by twice
-            # display name is the user friendly file name            
+            # display name is the user friendly file name
 
             checkbox = QCheckBox()
             row.addWidget(label)
@@ -349,59 +442,480 @@ class MainWindow(QMainWindow, NavigationMixin):
 
         self.setCentralWidget(container)
 
+    # ---- Pipeline step screens (Viz -> Clean -> Surface -> Stage -> Align -> Viz) ----
+
     def show_viz(self):
-        self.viewer.setParent(None)
-
-        menu_bar = self.menuBar()
-        menu_bar.setVisible(False)
-        menu_bar.setStyleSheet("")
-        old_corner = menu_bar.cornerWidget(Qt.Corner.TopRightCorner)
-        menu_bar.setCornerWidget(None)
-        if old_corner is not None:
-            old_corner.deleteLater()
-        menu_bar.clear()
-
-        if hasattr(self, 'filepath') and self.filepath:
-            self.filepath = self.filepath + '.png'
-            volume = self._png_to_dummy_volume(self.filepath)
-            self.viewer.show_volume(volume)
-
-        top_row = QHBoxLayout()
-        top_row.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        top_row.addWidget(create_back_button(self.go_back))
-        top_row.addStretch()
-
-        left_container = QWidget()
-        left_layout = QVBoxLayout(left_container)
-        left_layout.setContentsMargins(0, 0, 0, 0)
-        left_layout.addLayout(top_row)
-        left_layout.addWidget(self.viewer)
-
-        self.side_panel = self._build_side_panel()
-
-        container = QWidget()
-        main_layout = QHBoxLayout(container)
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.setSpacing(0)
-        main_layout.addWidget(left_container, stretch=1)
-        main_layout.addWidget(self.side_panel, stretch=0)
+        """Visualization screen. Top bar just shows the Clean button (the next step)."""
+        container = self._build_workflow_container(
+            next_label="Clean",
+            next_callback=lambda: self.navigate_to(self.show_clean),
+            back_guard=None,  # nothing to lose by leaving the visualizer
+        )
         self.setCentralWidget(container)
 
-        menu_bar.setVisible(True)
+        menu_bar = self._reset_top_menu_bar()
+        self._build_file_menu(menu_bar)
+        self._build_view_menu(menu_bar)
+
+        if self.filepath:
+            self.update_viewer(self.filepath)
+
+    def update_viewer(self, filepath):
+        """Load a PNG, turn it into a dummy 3D volume, and show it."""
+        if not filepath:
+            return
+        if not filepath.endswith('.png'):
+            filepath = filepath + '.png'
+        volume = self._png_to_dummy_volume(filepath)
+        self.viewer.show_volume(volume)
+
+
+    def show_clean(self):
+        """Clean screen. Top bar shows the Extract Surface button (the next step)."""
+        container = self._build_workflow_container(
+            next_label="Extract Surface",
+            next_callback=self._go_next_from_clean,
+            back_guard=lambda: (
+                self.workflow_state["clean_done"],
+                "You haven't cleaned any volume yet."
+            ),
+            action_widget=self._build_clean_action_bar(),
+        )
+        self.setCentralWidget(container)
+
+        menu_bar = self._reset_top_menu_bar()
+        self._build_file_menu(menu_bar)
+        self._build_view_menu(menu_bar)
+
+    def _build_clean_action_bar(self):
+        """Build the clean action bar with all CleanParams widgets."""
+        bar = QWidget()
+        bar.setStyleSheet("background-color: #1E1E1E;")
+        layout = QVBoxLayout(bar)  # Changed to VBox for more widgets
+        layout.setContentsMargins(20, 15, 20, 15)
+        layout.setSpacing(12)
+
+
+        # Store widgets for parameter access
+        self.clean_widgets = {}
+
+        # === Channel Selection ===
+        channel_row = QHBoxLayout()
+        channel_label = create_label("Channel:", "color: #ffffff; font-size: 13px; font-weight: bold;")
+        channel_row.addWidget(channel_label)
+
+        channel_combo = QComboBox()
+        channel_combo.addItems(["DAPI", "SHH", "BMP2", "Sox9", "Hoxa11"])
+        channel_combo.setStyleSheet("""
+            QComboBox { 
+                color: #ffffff; 
+                background-color: #2A2A2A; 
+                border: 1px solid #41B3A2;
+                border-radius: 6px; 
+                padding: 4px 8px; 
+                font-size: 12px; 
+                min-width: 120px;
+            }
+            QComboBox::drop-down { border: none; }
+            QComboBox QAbstractItemView { 
+                background-color: #2A2A2A; 
+                color: #ffffff;
+                selection-background-color: #41B3A2; 
+            }
+        """)
+        channel_row.addWidget(channel_combo)
+        channel_row.addStretch()
+        layout.addLayout(channel_row)
+        self.clean_widgets["channel"] = channel_combo
+
+        # === Isovalue Parameters (v0 and v1) ===
+        isovalue_group = QGroupBox("Isovalue Thresholds")
+        isovalue_group.setStyleSheet("""
+            QGroupBox {
+                color: #A0A0A0;
+                border: 1px solid #2A2A2A;
+                border-radius: 6px;
+                margin-top: 8px;
+                padding-top: 8px;
+                font-size: 12px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 5px 0 5px;
+            }
+        """)
+        isovalue_layout = QVBoxLayout(isovalue_group)
+        isovalue_layout.setSpacing(8)
+
+        # Lower isovalue (v0)
+        v0_row = QHBoxLayout()
+        v0_label = create_label("Lower (v0):", "color: #ffffff; font-size: 12px;")
+        v0_label.setFixedWidth(100)
+        v0_spin = QDoubleSpinBox()
+        v0_spin.setRange(0, 1000)
+        v0_spin.setSingleStep(10)
+        v0_spin.setValue(100)
+        v0_spin.setDecimals(1)
+        v0_spin.setStyleSheet("""
+            QDoubleSpinBox {
+                color: #ffffff;
+                background-color: #2A2A2A;
+                border: 1px solid #41B3A2;
+                border-radius: 4px;
+                padding: 4px;
+                min-width: 80px;
+            }
+        """)
+        v0_row.addWidget(v0_label)
+        v0_row.addWidget(v0_spin)
+        v0_row.addStretch()
+        isovalue_layout.addLayout(v0_row)
+        self.clean_widgets["v0"] = v0_spin
+
+        # Upper isovalue (v1)
+        v1_row = QHBoxLayout()
+        v1_label = create_label("Upper (v1):", "color: #ffffff; font-size: 12px;")
+        v1_label.setFixedWidth(100)
+        v1_spin = QDoubleSpinBox()
+        v1_spin.setRange(0, 1000)
+        v1_spin.setSingleStep(10)
+        v1_spin.setValue(400)
+        v1_spin.setDecimals(1)
+        v1_spin.setStyleSheet("""
+            QDoubleSpinBox {
+                color: #ffffff;
+                background-color: #2A2A2A;
+                border: 1px solid #41B3A2;
+                border-radius: 4px;
+                padding: 4px;
+                min-width: 80px;
+            }
+        """)
+        v1_row.addWidget(v1_label)
+        v1_row.addWidget(v1_spin)
+        v1_row.addStretch()
+        isovalue_layout.addLayout(v1_row)
+        self.clean_widgets["v1"] = v1_spin
+
+        layout.addWidget(isovalue_group)
+
+        # === Gaussian Sigma ===
+        sigma_row = QHBoxLayout()
+        sigma_label = create_label("Gaussian Sigma:", "color: #ffffff; font-size: 12px;")
+        sigma_label.setFixedWidth(120)
+        sigma_spin = QDoubleSpinBox()
+        sigma_spin.setRange(0.1, 10.0)
+        sigma_spin.setSingleStep(0.1)
+        sigma_spin.setValue(1.5)
+        sigma_spin.setDecimals(1)
+        sigma_spin.setStyleSheet("""
+            QDoubleSpinBox {
+                color: #ffffff;
+                background-color: #2A2A2A;
+                border: 1px solid #41B3A2;
+                border-radius: 4px;
+                padding: 4px;
+                min-width: 80px;
+            }
+        """)
+        sigma_row.addWidget(sigma_label)
+        sigma_row.addWidget(sigma_spin)
+        sigma_row.addStretch()
+        layout.addLayout(sigma_row)
+        self.clean_widgets["gaussian_sigma"] = sigma_spin
+
+        # === Frequency Cutoff ===
+        freq_row = QHBoxLayout()
+        freq_label = create_label("Frequency Cutoff:", "color: #ffffff; font-size: 12px;")
+        freq_label.setFixedWidth(120)
+        freq_spin = QDoubleSpinBox()
+        freq_spin.setRange(0.01, 1.0)
+        freq_spin.setSingleStep(0.05)
+        freq_spin.setValue(0.3)
+        freq_spin.setDecimals(2)
+        freq_spin.setStyleSheet("""
+            QDoubleSpinBox {
+                color: #ffffff;
+                background-color: #2A2A2A;
+                border: 1px solid #41B3A2;
+                border-radius: 4px;
+                padding: 4px;
+                min-width: 80px;
+            }
+        """)
+        freq_row.addWidget(freq_label)
+        freq_row.addWidget(freq_spin)
+        freq_row.addStretch()
+        layout.addLayout(freq_row)
+        self.clean_widgets["frequency_cutoff"] = freq_spin
+
+        # === Low Res Size ===
+        res_row = QHBoxLayout()
+        res_label = create_label("Low Res Size:", "color: #ffffff; font-size: 12px;")
+        res_label.setFixedWidth(120)
+        res_spin = QSpinBox()
+        res_spin.setRange(64, 512)
+        res_spin.setSingleStep(16)
+        res_spin.setValue(256)
+        res_spin.setStyleSheet("""
+            QSpinBox {
+                color: #ffffff;
+                background-color: #2A2A2A;
+                border: 1px solid #41B3A2;
+                border-radius: 4px;
+                padding: 4px;
+                min-width: 80px;
+            }
+        """)
+        res_row.addWidget(res_label)
+        res_row.addWidget(res_spin)
+        res_row.addStretch()
+        layout.addLayout(res_row)
+        self.clean_widgets["low_res_size"] = res_spin
+
+        # === Execute Button ===
+        btn_row = QHBoxLayout()
+        btn_row.addStretch()
+        
+        execute_btn = create_styled_button("Clean Volume", "#0D7C66", "#41B3A2")
+        execute_btn.setFixedHeight(40)
+        execute_btn.setFixedWidth(200)
+        execute_btn.clicked.connect(self._execute_clean)
+        btn_row.addWidget(execute_btn)
+        btn_row.addStretch()
+        
+        layout.addLayout(btn_row)
+        
+        return bar
+
+    def _go_next_from_clean(self):
+
+        self.navigate_to(self.show_surface)
+        ''''
+        """Guard for Clean -> Surface: must have cleaned, and specifically cleaned DAPI."""
+        if not self.workflow_state["clean_done"]:
+            QMessageBox.warning(
+                self, "Clean required",
+                "Please clean a channel before extracting the surface."
+            )
+            return
+        if self.workflow_state["last_cleaned_channel"] != "DAPI":
+            QMessageBox.information(
+                self, "DAPI channel required",
+                "Surface extraction can only be performed on DAPI channel data.\n"
+                "Please clean the DAPI channel before continuing."
+            )
+            return
+        '''
+        
+
+
+
+
+    def show_surface(self):
+        """Surface screen. Top bar shows the Stage button (the next step)."""
+        container = self._build_workflow_container(
+            next_label="Stage",
+            next_callback=self._go_next_from_surface,
+            back_guard=lambda: (
+                self.workflow_state["surface_done"],
+                "You haven't extracted a surface yet."
+            ),
+            action_widget=self._build_surface_action_bar(),
+        )
+        self.setCentralWidget(container)
+
+        menu_bar = self._reset_top_menu_bar()
+        self._build_file_menu(menu_bar)
+        self._build_view_menu(menu_bar)
+
+    def _build_surface_action_bar(self):
+        """Execute Surface Extraction button, shown under the viewer on the Surface screen."""
+        bar = QWidget()
+        bar.setStyleSheet("background-color: #1E1E1E;")
+        layout = QHBoxLayout(bar)
+        layout.setContentsMargins(20, 10, 20, 10)
+
+        info = create_label(
+            "Surface extraction runs on the cleaned DAPI channel.",
+            "color: #A0A0A0; font-size: 12px; font-style: italic;"
+        )
+        execute_btn = create_styled_button("Execute Surface Extraction", "#0D7C66", "#41B3A2")
+        execute_btn.clicked.connect(self._execute_surface)
+
+        layout.addWidget(info)
+        layout.addStretch()
+        layout.addWidget(execute_btn)
+        return bar
+
+    def _execute_surface(self):
+        """Run surface extraction. DAPI-only, same restriction shown again defensively."""
+        if self.workflow_state.get("last_cleaned_channel") != "DAPI":
+            QMessageBox.information(
+                self, "DAPI channel required",
+                "Surface extraction can only be performed on DAPI channel data."
+            )
+            return
+
+        try:
+            # TODO: replace this with your real surface-extraction call, e.g.:
+            #   result = extract_surface(experiment=exp_data, channel_name="DAPI", params=...)
+            self.workflow_state["surface_done"] = True
+            self.log_pipeline("Surface extracted from DAPI channel.")
+            QMessageBox.information(self, "Success", "Surface extraction completed.")
+        except Exception as e:
+            QMessageBox.critical(self, "Surface Error", f"Failed to extract surface: {str(e)}")
+            self.log_pipeline(f"Surface extraction error: {str(e)}")
+
+    def _go_next_from_surface(self):
+        """Guard for Surface -> Stage: must have extracted a surface."""
+        if not self.workflow_state["surface_done"]:
+            QMessageBox.warning(
+                self, "Surface required",
+                "Please extract a surface before proceeding to Stage."
+            )
+            return
+        self.navigate_to(self.show_stage)
+
+
+
+
+
+    def show_stage(self):
+        """Stage screen. Top bar shows the Align button (the next step)."""
+        container = self._build_workflow_container(
+            next_label="Align",
+            next_callback=self._go_next_from_stage,
+            back_guard=lambda: (
+                self.workflow_state["stage_done"],
+                "You haven't selected and confirmed a stage yet."
+            ),
+            action_widget=self._build_stage_action_bar(),
+        )
+        self.setCentralWidget(container)
+
+        menu_bar = self._reset_top_menu_bar()
         self._build_file_menu(menu_bar)
         self._build_view_menu(menu_bar)
         
-        select_action = QAction("Select", self)
-        select_action.triggered.connect(self.menu_button_clicked)
-        select_menu = menu_bar.addMenu("&Select")
-        select_menu.addAction(select_action)
 
-        self._build_clean_menu(menu_bar)
-        self._build_surface_menu(menu_bar)
-        self._build_stage_menu(menu_bar)
-        self._build_align_menu(menu_bar)
+    def _build_stage_action_bar(self):
+        """Stage picker + Confirm Stage button, shown under the viewer on the Stage screen."""
+        bar = QWidget()
+        bar.setStyleSheet("background-color: #1E1E1E;")
+        layout = QHBoxLayout(bar)
+        layout.setContentsMargins(20, 10, 20, 10)
 
+        label = create_label("Stage:", "color: #ffffff; font-size: 13px;")
+
+        stage_combo = QComboBox()
+        stage_combo.addItems([
+            "Stage 20 - E10.5", "Stage 22 - E11.5",
+            "Stage 24 - E12.5", "Stage 26 - E13.5"
+        ])
+        if self.workflow_state.get("selected_stage") in [
+            stage_combo.itemText(i) for i in range(stage_combo.count())
+        ]:
+            stage_combo.setCurrentText(self.workflow_state["selected_stage"])
+        stage_combo.setStyleSheet("""
+            QComboBox { color: #ffffff; background-color: #2A2A2A; border: 1px solid #41B3A2;
+                        border-radius: 6px; padding: 4px 8px; font-size: 12px; }
+            QComboBox::drop-down { border: none; }
+            QComboBox QAbstractItemView { background-color: #2A2A2A; color: #ffffff;
+                        selection-background-color: #41B3A2; }
+        """)
+
+        confirm_btn = create_styled_button("Confirm Stage", "#0D7C66", "#41B3A2")
+        confirm_btn.clicked.connect(lambda: self._confirm_stage(stage_combo.currentText()))
+
+        layout.addWidget(label)
+        layout.addWidget(stage_combo)
+        layout.addStretch()
+        layout.addWidget(confirm_btn)
+        return bar
+
+    def _confirm_stage(self, stage_text):
+        self.workflow_state["stage_done"] = True
+        self.workflow_state["selected_stage"] = stage_text
+        self.log_pipeline(f"Stage confirmed: {stage_text}")
+        QMessageBox.information(self, "Stage confirmed", f"Stage set to {stage_text}.")
+
+    def _go_next_from_stage(self):
+        """Guard for Stage -> Align: must have confirmed a stage."""
+        if not self.workflow_state["stage_done"]:
+            QMessageBox.warning(
+                self, "Stage required",
+                "Please select and confirm a stage before proceeding to Alignment."
+            )
+            return
+        self.navigate_to(self.show_align)
+
+
+
+
+
+
+    def show_align(self):
+        """Align screen. Top bar shows a button back to the visualizer (end of the pipeline)."""
+        container = self._build_workflow_container(
+            next_label="Visualize",
+            next_callback=self._go_next_from_align,
+            back_guard=lambda: (
+                self.workflow_state["align_done"],
+                "You haven't confirmed an alignment yet."
+            ),
+            action_widget=self._build_align_action_bar(),
+        )
+        self.setCentralWidget(container)
+
+        menu_bar = self._reset_top_menu_bar()
+        self._build_file_menu(menu_bar)
+
+    def _build_align_action_bar(self):
+        """Linear-Rigid / Non Linear-TPS buttons, shown under the viewer on the Align screen."""
+        bar = QWidget()
+        bar.setStyleSheet("background-color: #1E1E1E;")
+        layout = QHBoxLayout(bar)
+        layout.setContentsMargins(20, 10, 20, 10)
+
+        linear_btn = create_styled_button("Linear-Rigid", "#2A2A2A", "#41B3A2")
+        linear_btn.clicked.connect(lambda: self._confirm_alignment("Linear-Rigid"))
+
+        nonlinear_btn = create_styled_button("Non Linear-TPS", "#2A2A2A", "#41B3A2")
+        nonlinear_btn.clicked.connect(lambda: self._confirm_alignment("Non Linear-TPS"))
+
+        layout.addWidget(linear_btn)
+        layout.addWidget(nonlinear_btn)
+        layout.addStretch()
+        return bar
+
+    def _confirm_alignment(self, method):
+        self.workflow_state["align_done"] = True
+        self.workflow_state["alignment_method"] = method
+        self.log_pipeline(f"Alignment completed using {method}.")
+        QMessageBox.information(
+            self, "Alignment complete",
+            f"Alignment using {method} completed successfully!"
+        )
+
+    def _go_next_from_align(self):
+        """Guard for Align -> Viz (end of pipeline): must have confirmed an alignment."""
+        if not self.workflow_state["align_done"]:
+            QMessageBox.warning(
+                self, "Alignment required",
+                "Please confirm an alignment before finishing."
+            )
+            return
+        self.navigate_to(self.show_viz)
+
+
+
+        
+
+    # ------------------------------------------------------------------
     # Side Panel Methods
+    # ------------------------------------------------------------------
     def _build_side_panel(self):
         """Build the collapsible right-side panel."""
         panel = QWidget()
@@ -474,7 +988,6 @@ class MainWindow(QMainWindow, NavigationMixin):
             self._current_section_widgets[category] = section
 
         scroll_layout.addStretch()
-
         scroll_area.setWidget(scroll_content)
         panel_layout = QVBoxLayout(panel)
         panel_layout.setContentsMargins(0, 0, 0, 0)
@@ -482,6 +995,68 @@ class MainWindow(QMainWindow, NavigationMixin):
 
         self._refresh_visualizer_list()
         return panel
+
+    def _execute_clean(self, channel_name):
+        """Simulate the clean step for screen-navigation testing.
+ 
+        NOTE: this intentionally does NOT call the real clean(...) pipeline
+        (experiment lookup, CleanParams, raw_volume_path, etc.) — the dummy
+        PNG-based experiments don't have the real file attributes that
+        function needs. This just marks the step complete so you can walk
+        through Viz -> Clean -> Surface -> Stage -> Align. Swap this back to
+        the block below (kept commented) once real volumes are wired in.
+        """
+        QMessageBox.information(
+            self, "Clean (simulated)",
+            f"Clean step simulated for channel '{channel_name}'. No file was modified."
+        )
+        self.log_pipeline(f"[simulated] Clean run on channel {channel_name}")
+ 
+        self.workflow_state["clean_done"] = True
+        self.workflow_state["last_cleaned_channel"] = channel_name
+ 
+        # ---- Real implementation (needs real experiment volume files) ----
+        # if not hasattr(self, 'filepath') or not self.filepath:
+        #     QMessageBox.warning(self, "No experiment", "Please select an experiment first.")
+        #     return
+        # try:
+        #     exp_data = self.experiment_metadata.get(self.filepath)
+        #     if not exp_data:
+        #         QMessageBox.warning(self, "Error", "Experiment data not found.")
+        #         return
+        #     clean_params_ui = self.param_values.get("Clean", {})
+        #     params = CleanParams(
+        #         v0=clean_params_ui.get("v0", 100),
+        #         v1=clean_params_ui.get("v1", 400),
+        #         low_res_size=clean_params_ui.get("low_res_size", 256),
+        #         gaussian_sigma=clean_params_ui.get("gaussian_sigma", 1.5),
+        #         frequency_cutoff=clean_params_ui.get("frequency_cutoff", 0.3)
+        #     )
+        #     raw_volume_path = Path(exp_data.get("path", ""))
+        #     if not raw_volume_path.exists():
+        #         file_path, _ = QFileDialog.getOpenFileName(
+        #             parent=self, caption='Select raw volume file',
+        #             directory=os.getcwd(),
+        #             filter='Volume files (*.vti *.nii *.nii.gz *.tif *.tiff)'
+        #         )
+        #         if not file_path:
+        #             return
+        #         raw_volume_path = Path(file_path)
+        #     result_channel = clean(
+        #         experiment=exp_data, raw_volume_path=raw_volume_path,
+        #         channel_name=channel_name, params=params
+        #     )
+        #     QMessageBox.information(
+        #         self, "Success",
+        #         f"Cleaned volume saved for channel {channel_name}\nPath: {result_channel.path}"
+        #     )
+        #     self.log_pipeline(f"Volume cleaned successfully for channel {channel_name}")
+        #     self.workflow_state["clean_done"] = True
+        #     self.workflow_state["last_cleaned_channel"] = channel_name
+        # except Exception as e:
+        #     QMessageBox.critical(self, "Clean Error", f"Failed to clean volume: {str(e)}")
+        #     self.log_pipeline(f"Clean error: {str(e)}")
+
 
     def _refresh_visualizer_list(self):
         """Refresh the visualizer experiment list."""
@@ -513,7 +1088,9 @@ class MainWindow(QMainWindow, NavigationMixin):
             elif item.layout():
                 self._clear_layout(item.layout())
 
+    # ------------------------------------------------------------------
     # Category and Viz Section Builders
+    # ------------------------------------------------------------------
     def add_category_section(self, category):
         """Add a category section to the side panel."""
         if category not in self.active_categories:
@@ -664,7 +1241,9 @@ class MainWindow(QMainWindow, NavigationMixin):
         if viz_name in refresh_callbacks:
             refresh_callbacks[viz_name]()
 
+    # ------------------------------------------------------------------
     # Parameter Builders
+    # ------------------------------------------------------------------
     def _add_slider_param(self, layout, category, param, stored):
         """Add a slider parameter row."""
         name = param["name"]
@@ -947,7 +1526,11 @@ class MainWindow(QMainWindow, NavigationMixin):
         )
         if reply == QMessageBox.StandardButton.Yes:
             self.log_pipeline(f"{category} - alignment confirmed against '{reference}'.")
-
+            # If this reference-alignment section happens to live under the
+            # Align category, treat it as satisfying the Align step's guard too.
+            if category == "Align":
+                self.workflow_state["align_done"] = True
+                self.workflow_state["alignment_method"] = reference
 
     #database actions (mod. location?)
     def _initialize_database(self):
@@ -979,11 +1562,11 @@ class MainWindow(QMainWindow, NavigationMixin):
             # Get list of experiment IDs from database
             exp_ids = list_experiments(self.db_path)
             self.experiments = exp_ids
-            
+
             # Load metadata for each experiment
             self.experiment_metadata = {}
             self.experiment_names = {}
-            
+
             for exp_id in exp_ids:
                 exp_data = get_experiment(self.db_path, exp_id)
                 if exp_data:
@@ -993,16 +1576,17 @@ class MainWindow(QMainWindow, NavigationMixin):
                     self.experiment_metadata[exp_id] = exp_data
                     # Set display name
                     self.experiment_names[exp_id] = exp_id
-                    
+
             print(f"📂 Loaded {len(self.experiments)} experiments from database")
-            
+
         except Exception as e:
             print(f"⚠️ Error loading experiments: {e}")
             self.experiments = []
             self.experiment_metadata = {}
 
-
+    # ------------------------------------------------------------------
     # Button Actions
+    # ------------------------------------------------------------------
     def _create_left_button(self):
         """Create the left menu button with dropdown."""
         button = QToolButton()
@@ -1053,9 +1637,7 @@ class MainWindow(QMainWindow, NavigationMixin):
 
         menu.exec(button.mapToGlobal(button.rect().bottomLeft()))
 
-
     #DETELE, already defined database function
-
 
     def _rename_experiment(self, path):
         """Rename an experiment."""
@@ -1067,22 +1649,21 @@ class MainWindow(QMainWindow, NavigationMixin):
             self.experiment_names[path] = new_name.strip()
             self.show_exp()
 
-
-#DELETE FUNCTION CALLS DATABASE DELETE FUNCTION, AUXILIAR UI
+    #DELETE FUNCTION CALLS DATABASE DELETE FUNCTION, AUXILIAR UI
     def _delete_experiment(self, experiment_id):
         """Delete an experiment from the database."""
         # Confirm with user
         reply = QMessageBox.question(
-            self, 
+            self,
             "Delete Experiment",
             f"Are you sure you want to delete experiment '{experiment_id}'?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
-        
+
         if reply == QMessageBox.StandardButton.Yes:
             # 🔥 Call the imported delete_experiment with correct parameters
             success = delete_experiment(self.db_path, experiment_id)
-            
+
             if success:
                 # Remove from local lists
                 if experiment_id in self.experiments:
@@ -1091,23 +1672,12 @@ class MainWindow(QMainWindow, NavigationMixin):
                     del self.experiment_names[experiment_id]
                 if experiment_id in self.experiment_metadata:
                     del self.experiment_metadata[experiment_id]
-                
+
                 # Refresh the UI
                 self.show_exp()
                 QMessageBox.information(self, "Success", f"Deleted experiment: {experiment_id}")
             else:
                 QMessageBox.warning(self, "Error", f"Experiment '{experiment_id}' not found in database.")
-
-
-
-
-
-
-
-
-
-
-
 
     def _png_to_dummy_volume(self, filepath, depth=10, size=64):
         """Convert PNG to dummy 3D volume for testing."""
@@ -1137,7 +1707,7 @@ class MainWindow(QMainWindow, NavigationMixin):
         side_layout.addWidget(side_combo)
         layout.addLayout(side_layout)
 
-    # ---- Position ----
+        # ---- Position ----
         position_layout = QHBoxLayout()
         position_label = QLabel("Position:")
         position_label.setFixedWidth(100)
@@ -1148,11 +1718,10 @@ class MainWindow(QMainWindow, NavigationMixin):
         position_layout.addWidget(position_combo)
         layout.addLayout(position_layout)
 
-
-            # ---- Spacing ----
+        # ---- Spacing ----
         spacing_group = QGroupBox("Spacing")
         spacing_layout = QVBoxLayout(spacing_group)
-        
+
         # X spacing
         x_layout = QHBoxLayout()
         x_label = QLabel("X:")
@@ -1165,7 +1734,7 @@ class MainWindow(QMainWindow, NavigationMixin):
         x_layout.addWidget(x_label)
         x_layout.addWidget(x_spin)
         spacing_layout.addLayout(x_layout)
-        
+
         # Y spacing
         y_layout = QHBoxLayout()
         y_label = QLabel("Y:")
@@ -1178,7 +1747,7 @@ class MainWindow(QMainWindow, NavigationMixin):
         y_layout.addWidget(y_label)
         y_layout.addWidget(y_spin)
         spacing_layout.addLayout(y_layout)
-        
+
         # Z spacing
         z_layout = QHBoxLayout()
         z_label = QLabel("Z:")
@@ -1191,29 +1760,26 @@ class MainWindow(QMainWindow, NavigationMixin):
         z_layout.addWidget(z_label)
         z_layout.addWidget(z_spin)
         spacing_layout.addLayout(z_layout)
-        
+
         layout.addWidget(spacing_group)
-
-
 
         # ---- Buttons ----
         button_layout = QHBoxLayout()
         button_layout.addStretch()
-        
+
         cancel_button = QPushButton("Cancel")
         cancel_button.setObjectName("cancel_button")
         cancel_button.clicked.connect(dialog.reject)
-        
+
         ok_button = QPushButton("OK")
         ok_button.clicked.connect(dialog.accept)
-        
+
         button_layout.addWidget(cancel_button)
         button_layout.addWidget(ok_button)
         layout.addLayout(button_layout)
 
         # Show dialog and get result
         result = dialog.exec()
-
 
         if result == QDialog.DialogCode.Accepted:
             side = side_combo.currentText()
@@ -1224,11 +1790,10 @@ class MainWindow(QMainWindow, NavigationMixin):
                 'side': side,
                 'position': position,
                 'spacing': spacing
-        }
+            }
         else:
             return None
 
- 
     def addexp_button_clicked(self, checked=False):
         """Add experiment button handler."""
         filepath, _ = QFileDialog.getOpenFileName(
@@ -1245,16 +1810,16 @@ class MainWindow(QMainWindow, NavigationMixin):
         # Create new experiment from file
         try:
             exp_id = os.path.basename(filepath).split('.')[0]
-            
+
             # Check if experiment already exists
             if exp_id in self.experiments:
                 QMessageBox.warning(self, "Duplicate", f"Experiment '{exp_id}' already exists.")
                 return
-            
+
             # Create a new experiment from the new added  experimetn
             #JSUT TESTING
             new_exp = Experiment(
-                experiment_id=exp_id, 
+                experiment_id=exp_id,
                 base=os.path.dirname(filepath),
                 spacing_x=0.65,
                 spacing_y=0.65,
@@ -1278,24 +1843,23 @@ class MainWindow(QMainWindow, NavigationMixin):
                     ),
                 ]
             )
-        
+
             save_experiment(self.db_path, new_exp)
             #saves the added experiment into our DB!!!
 
             self._load_experiments_from_db()
             #diaply of the newly added experiment into the db
             self.show_exp()
-        
+
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Failed to add experiment: {e}")
 
         self.navigate_to(self.show_exp)
 
-
     def saveexp_button_clicked(self):
         """Save experiment button handler."""
         print(True)
- 
+
     def viewexp_button_clicked(self):
         """View experiment button handler."""
         selected = [path for path, cb in self.experiment_checkboxes if cb.isChecked()]
@@ -1303,7 +1867,17 @@ class MainWindow(QMainWindow, NavigationMixin):
             QMessageBox.warning(self, "No experiment selected", "Please select an experiment to visualize.")
             return
 
-        self.filepath = selected[0]                   
+        self.filepath = selected[0]
+        # Starting a new experiment resets pipeline progress.
+        self.workflow_state = {
+            "clean_done": False,
+            "last_cleaned_channel": None,
+            "surface_done": False,
+            "stage_done": False,
+            "selected_stage": None,
+            "align_done": False,
+            "alignment_method": None,
+        }
         self.navigate_to(self.show_viz)
 
     def menu_button_clicked(self, s):
@@ -1315,4 +1889,3 @@ class MainWindow(QMainWindow, NavigationMixin):
         self.pipeline_log.append(message)
         if hasattr(self, 'pipeline_log_widget'):
             self.pipeline_log_widget.setText("\n".join(self.pipeline_log[-10:]))
-

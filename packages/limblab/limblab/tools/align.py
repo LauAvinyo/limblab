@@ -18,16 +18,9 @@ REFERENCE_LIMB_FOLDER = os.path.join(os.path.dirname(CURRENT_DIR), "limb")
 REFERENCE_LIMB_FOLDER = "/Users/laura/limblab/packages/limblab/limblab/limb"
 # TODO: FIX THIS!
 
-files = [
-    file
-    for file in os.listdir(REFERENCE_LIMB_FOLDER)
-    if os.path.isfile(os.path.join(REFERENCE_LIMB_FOLDER, file))
-    and not file.startswith(".DS")
-    or file.startswith("-")
-]
-
-reference_stages = [int(file.split(".")[0].split("_")[1]) for file in files]
-
+#files''' = [file for file in os.listdir(REFERENCE_LIMB_FOLDER) if os.path.isfile(os.path.join(REFERENCE_LIMB_FOLDER, file)) and not file.startswith(".DS") or file.startswith("-")]
+#reference_stages = [int(file.split(".")[0].split("_")[1]) for file in files]
+#DE-COMMENT -> i don't have the files yet!
 
 def closest_value(input_list: list, target: int) -> int:
     """ "Get the closest value of the list to our target."""
