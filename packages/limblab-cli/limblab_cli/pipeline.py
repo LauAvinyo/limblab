@@ -12,7 +12,8 @@ def _create_experiment(experiment_folder_path, experiment_name):
     if os.path.exists(full_path):
         typer.echo(f"The directory {full_path} already exists.")
         delete = typer.confirm(
-            "Do you want to delete it and create a new one?", default=False)
+            "Do you want to delete it and create a new one?", default=False
+        )
         if delete:
             shutil.rmtree(full_path)
             os.makedirs(full_path)
@@ -35,8 +36,9 @@ def _create_experiment(experiment_folder_path, experiment_name):
     while True:
         volume_spacing_input = typer.prompt(
             "Enter the volume spacing (three float values separated by space). Click enter for default is (0.65, 0.65, 2). Or type 'q' to quit and comeback later.)",
-            default="0.65 0.65 2")
-        if volume_spacing_input.lower() == 'q':
+            default="0.65 0.65 2",
+        )
+        if volume_spacing_input.lower() == "q":
             typer.echo("Exiting the program.")
             break
         try:

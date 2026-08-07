@@ -21,4 +21,4 @@ VALID_LIMB_SIDES = ["R", "L"]
 VALID_LIMB_POSITIONS = ["H", "F"]
 
 # Messages
-EXPERIMENT_FOLDER_HELP = "Path to the experiment folder" 
+EXPERIMENT_FOLDER_HELP = "Path to the experiment folder"

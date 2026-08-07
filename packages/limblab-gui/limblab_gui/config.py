@@ -1,5 +1,3 @@
-
-
 # Constants
 MENU_STYLE = """
     QMenu { background-color: #0D7C66; color: white; border: 1px solid #41B3A2; }
@@ -16,14 +14,44 @@ SECMENU_STYLE = """
 
 CATEGORY_PARAMS = {
     "Clean": [
-        {"name": "Voxel spacing", "type": "slider", "min": 0, "max": 255, "default": 30},
-        {"name": "Gaussian smoothing", "type": "spinbox", "min": 0, "max": 10, "default": 0},
-        {"name": "Strip background noise", "type": "spinbox", "min": 0, "max": 10, "default": 0},
-        {"name": "Low-pass filter", "type": "spinbox", "min": 0, "max": 10, "default": 0},
+        {
+            "name": "Voxel spacing",
+            "type": "slider",
+            "min": 0,
+            "max": 255,
+            "default": 30,
+        },
+        {
+            "name": "Gaussian smoothing",
+            "type": "spinbox",
+            "min": 0,
+            "max": 10,
+            "default": 0,
+        },
+        {
+            "name": "Strip background noise",
+            "type": "spinbox",
+            "min": 0,
+            "max": 10,
+            "default": 0,
+        },
+        {
+            "name": "Low-pass filter",
+            "type": "spinbox",
+            "min": 0,
+            "max": 10,
+            "default": 0,
+        },
     ],
     "Surface": [
-        {"name": "Surface extraction", "type": "spinbox", "min": 0, "max": 1, "default": 0},
-        {"type": "text", "default": 'Select isovalue'},
+        {
+            "name": "Surface extraction",
+            "type": "spinbox",
+            "min": 0,
+            "max": 1,
+            "default": 0,
+        },
+        {"type": "text", "default": "Select isovalue"},
     ],
     "Stage": [
         {"name": "aer_line", "type": "aer_line"},
@@ -43,32 +71,41 @@ CATEGORY_PARAMS = {
 
 VIZ_PARAMS = {
     "Isosurface": [
-        {"name": "Number of isosurfaces", "type": "slider", "min": 0, "max": 10, "default": 3},
-        {"name": "Threshold", "type": "slider", "min": 0, "max": 10, "default": 1}
+        {
+            "name": "Number of isosurfaces",
+            "type": "slider",
+            "min": 0,
+            "max": 10,
+            "default": 3,
+        },
+        {"name": "Threshold", "type": "slider", "min": 0, "max": 10, "default": 1},
     ],
-    'Slices': [
+    "Slices": [
         {"type": "text", "default": "2D Plane sliders"},
         {"name": "X", "type": "slider", "min": 0, "max": 10, "default": 3},
         {"name": "Y", "type": "slider", "min": 0, "max": 10, "default": 1},
         {"name": "Z", "type": "slider", "min": 0, "max": 10, "default": 8},
-        {"type": "text", "default": "Color map - redefine widget type"}
+        {"type": "text", "default": "Color map - redefine widget type"},
     ],
-    'Raycast': [
+    "Raycast": [
         {"type": "text", "default": "Opacity"},
         {"name": "Hoxa11", "type": "slider", "min": 0, "max": 10, "default": 3},
         {"name": "Sox9", "type": "slider", "min": 0, "max": 10, "default": 1},
         {"name": "BMP2", "type": "slider", "min": 0, "max": 10, "default": 1},
         {"name": "Limb surface", "type": "slider", "min": 0, "max": 10, "default": 1},
-        {"type": "text", "default": "Colour mapping - redefine widget type"}
+        {"type": "text", "default": "Colour mapping - redefine widget type"},
     ],
-    'Probe': [
-        {"type": "text", "default": "Make a line through the limb to see the selected gene intensity values across"},
-        {"name": "probe_line", "type": "probe_line"}
+    "Probe": [
+        {
+            "type": "text",
+            "default": "Make a line through the limb to see the selected gene intensity values across",
+        },
+        {"name": "probe_line", "type": "probe_line"},
     ],
-    '2D Projection Slab': [
+    "2D Projection Slab": [
         {"type": "text", "default": "Slab projection"},
         {"name": "Slab Max Value", "type": "slider", "min": 0, "max": 10, "default": 3},
         {"name": "Slab Min Value", "type": "slider", "min": 0, "max": 10, "default": 1},
         {"type": "text", "default": "Mean slab projection:"},
-    ]
+    ],
 }

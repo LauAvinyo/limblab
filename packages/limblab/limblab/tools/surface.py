@@ -9,11 +9,12 @@ from limblab.models import Experiment, Channel
 from limblab.exceptions import VolumeProcessingError
 from limblab.utils import generate_kwargs
 
+
 def auto_isovalue(raw_volume_path: Path) -> float:
     """Automatically determine isovalue from volume histogram."""
     vol = Volume(str(raw_volume_path))
     h = histogram(vol, bins=75, logscale=1, max_entries=1e5)
-    return float(h.mean) # type: ignore
+    return float(h.mean)  # type: ignore
 
 
 def pick_isovalue(
@@ -25,7 +26,9 @@ def pick_isovalue(
     vol = Volume(str(raw_volume_path))
 
     params: dict[str, Any] = dict(use_gpu=True, c="green", alpha=0.6)
-    kwargs = generate_kwargs(params=params, renderer=renderer, outside_class=outside_class)
+    kwargs = generate_kwargs(
+        params=params, renderer=renderer, outside_class=outside_class
+    )
 
     plt = IsosurfaceBrowser(vol.color((255, 127, 17, 0)), **kwargs)
     plt.show(axes=7, bg2="lb")
@@ -46,17 +49,15 @@ def extract_surface(
     Returns the path to the saved surface mesh.
     """
     for channel in experiment.channels:
-        if channel.channel_name.lower() == "nuclei": 
+        if channel.channel_name.lower() == "nuclei":
             nuclei_channel_path = Path(channel.path)
             break
-        
+
     vol = Volume(str(nuclei_channel_path))
     surface = vol.isosurface(isovalue).extract_largest_region()
     surface.decimate(decimate_fraction)
 
-    out_path = nuclei_channel_path.with_name(
-        nuclei_channel_path.stem + "_surface.vtk"
-    )
+    out_path = nuclei_channel_path.with_name(nuclei_channel_path.stem + "_surface.vtk")
     try:
         surface.write(str(out_path))
     except Exception as e:

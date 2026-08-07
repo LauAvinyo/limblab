@@ -19,7 +19,9 @@ def save_experiment(db_path: Path, experiment: Experiment) -> None:
     """CREATE / UPDATE: Saves the model and all associated child channels directly."""
     engine = get_engine(db_path)
     with Session(engine) as session:
-        session.merge(experiment)  # Insert or update experiment + cascade update channels
+        session.merge(
+            experiment
+        )  # Insert or update experiment + cascade update channels
         session.commit()
 
 
@@ -50,22 +52,23 @@ def delete_experiment(db_path: Path, experiment_id: str) -> bool:
         return False
 
 
-
 # Keep the standalone script functionality for testing
 if __name__ == "__main__":
     DB_PATH = Path("experiments.db")
-    
+
     # Test reading the data
     retrieved = get_experiment(DB_PATH, "HCR10_SHH_l3")
     if retrieved:
         print(f"\n📖 Loaded: {retrieved.experiment_id}, Side: {retrieved.side}")
         for ch in retrieved.channels:
             print(f"   -> Channel {ch.channel_name}: {ch.path}")
-    
+
     print(f"\n📋 All experiments: {list_experiments(DB_PATH)}")
 
 
-def update_experiment(db_path: Path, experiment_id: str, **kwargs) -> Optional[Experiment]:
+def update_experiment(
+    db_path: Path, experiment_id: str, **kwargs
+) -> Optional[Experiment]:
     """UPDATE: Update specific fields of an experiment."""
     engine = get_engine(db_path)
     with Session(engine) as session:
@@ -78,4 +81,3 @@ def update_experiment(db_path: Path, experiment_id: str, **kwargs) -> Optional[E
             session.refresh(exp)
             return exp
         return None
-

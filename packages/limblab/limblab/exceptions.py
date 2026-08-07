@@ -5,6 +5,7 @@ class LimbLabError(Exception):
 class VolumeProcessingError(LimbLabError):
     """Raised when a volume processing operation (clean, rotate, extract, etc.) fails."""
 
+
 class StagingError(LimbLabError):
     """Raised when limb staging fails."""
 

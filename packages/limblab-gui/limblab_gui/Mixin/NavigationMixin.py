@@ -8,8 +8,8 @@ from PyQt6.QtCore import Qt
 from utils import *
 from config import *
 
-class NavigationMixin:
 
+class NavigationMixin:
     # Types
     nav_stack: list
     current_screen: Callable | None
@@ -31,7 +31,7 @@ class NavigationMixin:
     def reset_menu_bar(self):
         menu_bar = self.menuBar()
         menu_bar.setVisible(False)
-        old_corner = menu_bar.cornerWidget(Qt.Corner.TopRightCorner) 
+        old_corner = menu_bar.cornerWidget(Qt.Corner.TopRightCorner)
         menu_bar.setCornerWidget(None)
         if old_corner is not None:
             old_corner.deleteLater()

@@ -1,4 +1,5 @@
 """LimbLab Plotter"""
+
 import json
 import os
 import shutil
@@ -6,15 +7,25 @@ import sys
 
 import matplotlib.colors as mcolors
 import numpy as np
-from vedo import (Axes, Box, Line, LinearTransform, Mesh, NonLinearTransform,
-                  PlaneCutter, Plotter, Text2D, Volume, printc, progressbar,
-                  show)
-from vedo.applications import (IsosurfaceBrowser, RayCastPlotter,
-                               Slicer3DPlotter)
+from vedo import (
+    Axes,
+    Box,
+    Line,
+    LinearTransform,
+    Mesh,
+    NonLinearTransform,
+    PlaneCutter,
+    Plotter,
+    Text2D,
+    Volume,
+    printc,
+    progressbar,
+    show,
+)
+from vedo.applications import IsosurfaceBrowser, RayCastPlotter, Slicer3DPlotter
 from vedo.pyplot import plot
 
-from packages.limblab.utils import file2dic, pick_evenly_distributed_values , styles
-
+from packages.limblab.utils import file2dic, pick_evenly_distributed_values, styles
 
 
 # from vedo.utils import camera_from_dict
@@ -35,8 +46,9 @@ def closest_value(input_list, target):
 
 def get_stage_to_angle_dict(start_x, end_x, start_y, end_y):
     x_values = np.arange(start_x, end_x + 1).astype(int)
-    y_values = np.linspace(start_y, end_y, num=len(x_values),
-                           dtype=int)  # Ensure integer y-values
+    y_values = np.linspace(
+        start_y, end_y, num=len(x_values), dtype=int
+    )  # Ensure integer y-values
     return {int(x): int(y) for x, y in zip(x_values, y_values)}
 
 
@@ -78,14 +90,14 @@ def two_chanel_isosurface(folder, channel_0, channel_1):
         volume_file = os.path.join(folder, logs[channel])
         volume = Volume(volume_file)
         txt = Text2D(pos="top-center", bg="yellow5", s=1.5)
-        plt1 = IsosurfaceBrowser(volume, use_gpu=True, c='gold')
+        plt1 = IsosurfaceBrowser(volume, use_gpu=True, c="gold")
         txt.text("Select the lower isovalue, then press 'q' to confirm")
-        plt1.show(txt, axes=7, bg2='lb')
+        plt1.show(txt, axes=7, bg2="lb")
         low_iso_value = int(plt1.sliders[0][0].value)
 
         # plt2 = IsosurfaceBrowser(volume, use_gpu=True, c='gold')
         txt.text("Select the upper isovalue, then press 'q' to confirm")
-        plt1.show(txt, axes=7, bg2='lb')
+        plt1.show(txt, axes=7, bg2="lb")
         high_iso_value = int(plt1.sliders[0][0].value)
         plt1.close()
 
@@ -105,7 +117,9 @@ def two_chanel_isosurface(folder, channel_0, channel_1):
             shutil.rmtree(isosurface_folder)
         os.makedirs(isosurface_folder)
 
-        printc("Computing isosurfaces and saving files to the isosurface folder...", c="y")
+        printc(
+            "Computing isosurfaces and saving files to the isosurface folder...", c="y"
+        )
         for iso_val in picked_values:
             surf = volume.isosurface(iso_val)
             surf.write(os.path.join(isosurface_folder, f"{int(iso_val)}.vtk"))
@@ -117,8 +131,7 @@ def two_chanel_isosurface(folder, channel_0, channel_1):
 
         # Generate linearly spaced values between the two colors
         interpolated_colors = [
-            rgb1 + (rgb2 - rgb1) * i / (num_values - 1)
-            for i in range(num_values)
+            rgb1 + (rgb2 - rgb1) * i / (num_values - 1) for i in range(num_values)
         ]
 
         # Convert RGB values back to hexadecimal format
@@ -153,23 +166,21 @@ def two_chanel_isosurface(folder, channel_0, channel_1):
         # Read array
         all_files = os.listdir(isosurface_folder)
         file_names = [
-            f for f in all_files
-            if os.path.isfile(os.path.join(isosurface_folder, f))
+            f for f in all_files if os.path.isfile(os.path.join(isosurface_folder, f))
         ]
-        isovalues = np.sort(
-            np.array([int(os.path.splitext(f)[0]) for f in file_names]))
+        isovalues = np.sort(np.array([int(os.path.splitext(f)[0]) for f in file_names]))
 
         # Load isosurfaces
         isosurfaces = {}
         for isovalue in progressbar(isovalues, title="Loading isosurfaces..."):
             surface = Mesh(os.path.join(isosurface_folder, f"{isovalue}.vtk"))
             surface.name = f"{isovalue}_{channel}"
-            isosurfaces[f"{isovalue}_{channel}"] = surface.alpha(0.3).lighting(
-                "off").frontface_culling()
+            isosurfaces[f"{isovalue}_{channel}"] = (
+                surface.alpha(0.3).lighting("off").frontface_culling()
+            )
             if transformation:
                 if "morphing" in transformation:
-                    T = NonLinearTransform(os.path.join(
-                        folder, transformation))
+                    T = NonLinearTransform(os.path.join(folder, transformation))
                 else:
                     T = LinearTransform(os.path.join(folder, transformation))
                 isosurfaces[f"{isovalue}_{channel}"].apply_transform(T)
@@ -187,17 +198,18 @@ def two_chanel_isosurface(folder, channel_0, channel_1):
         compute_isosurfaces(pipeline, channel_1, isosurface_folder_1)
 
     # Load isosurfaces
-    isosurfaces_0, isovalues_0 = load_isosurfaces(isosurface_folder_0,
-                                                  transformation, "0")
-    isosurfaces_1, isovalues_1 = load_isosurfaces(isosurface_folder_1,
-                                                  transformation, "1")
+    isosurfaces_0, isovalues_0 = load_isosurfaces(
+        isosurface_folder_0, transformation, "0"
+    )
+    isosurfaces_1, isovalues_1 = load_isosurfaces(
+        isosurface_folder_1, transformation, "1"
+    )
 
     isosurfaces = {0: isosurfaces_0, 1: isosurfaces_1}
     isovalues = {0: isovalues_0, 1: isovalues_1}
 
     # Load the limb surface
-    surface = os.path.join(folder, pipeline.get("BLENDER",
-                                                pipeline["SURFACE"]))
+    surface = os.path.join(folder, pipeline.get("BLENDER", pipeline["SURFACE"]))
 
     limb = Mesh(surface)
     limb.color(styles["limb"]["color"]).alpha(0.1)
@@ -212,12 +224,12 @@ def two_chanel_isosurface(folder, channel_0, channel_1):
     number_isosurfaces = {0: 3, 1: 3}
     static_limit_values = {
         0: (isovalues_0.min(), isovalues_0.max()),
-        1: (isovalues_1.min(), isovalues_1.max())
+        1: (isovalues_1.min(), isovalues_1.max()),
     }
 
     dynamic_limit_values = {
         0: [isovalues_0.min(), isovalues_0.max()],
-        1: [isovalues_1.min(), isovalues_1.max()]
+        1: [isovalues_1.min(), isovalues_1.max()],
     }
 
     # Create the plotter an add initial isosurfaces
@@ -242,8 +254,10 @@ def two_chanel_isosurface(folder, channel_0, channel_1):
         pos=(0.5, 0.1),  # x,y fraction from bottom left corner
         states=["Hide limb", "Show limb"],  # text for each state
         c=["w", "w"],  # font color for each state
-        bc=[styles["ui"]["secondary"],
-            styles["ui"]["primary"]],  # background color for each state
+        bc=[
+            styles["ui"]["secondary"],
+            styles["ui"]["primary"],
+        ],  # background color for each state
         font="courier",  # font type
         size=30,  # font size
         bold=True,  # bold font
@@ -254,16 +268,15 @@ def two_chanel_isosurface(folder, channel_0, channel_1):
     current_isovalues = {0: [], 1: []}
 
     def init_isosurfaces(render):
-        current_isovalues[render] = pick_values(isovalues[render],
-                                                *dynamic_limit_values[render],
-                                                number_isosurfaces[render])
-        colors = interpolate_colors(*styles[render],
-                                    number_isosurfaces[render])
+        current_isovalues[render] = pick_values(
+            isovalues[render], *dynamic_limit_values[render], number_isosurfaces[render]
+        )
+        colors = interpolate_colors(*styles[render], number_isosurfaces[render])
         for i, _isovalue in enumerate(current_isovalues[render]):
             plt.at(render).add(
-                isosurfaces[render][f"{_isovalue}_{render}"].color(colors[i]))
-            plt.at(2).add(isosurfaces[render][f"{_isovalue}_{render}"].color(
-                colors[i]))
+                isosurfaces[render][f"{_isovalue}_{render}"].color(colors[i])
+            )
+            plt.at(2).add(isosurfaces[render][f"{_isovalue}_{render}"].color(colors[i]))
 
     init_isosurfaces(0)
     init_isosurfaces(1)
@@ -276,23 +289,25 @@ def two_chanel_isosurface(folder, channel_0, channel_1):
 
     def add_isosurfaces(render):
         # global plt, number_isosurfaces, current_isovalues
-        selected_isovalues = pick_values(isovalues[render],
-                                         *dynamic_limit_values[render],
-                                         number_isosurfaces[render])
+        selected_isovalues = pick_values(
+            isovalues[render], *dynamic_limit_values[render], number_isosurfaces[render]
+        )
         if number_isosurfaces[render] == 1:
-            _isosurface = isosurfaces[render][
-                f"{selected_isovalues[0]}_{render}"].color(
-                    styles[render][0]).alpha(
-                        styles["isosurfaces"]["alpha-unique"])
+            _isosurface = (
+                isosurfaces[render][f"{selected_isovalues[0]}_{render}"]
+                .color(styles[render][0])
+                .alpha(styles["isosurfaces"]["alpha-unique"])
+            )
             plt.at(render).add(_isosurface)
             plt.at(2).add(_isosurface)
         else:
-            _colors = interpolate_colors(*styles[render],
-                                         number_isosurfaces[render])
+            _colors = interpolate_colors(*styles[render], number_isosurfaces[render])
             for c, _isovalue in enumerate(selected_isovalues):
-                _isosurface = isosurfaces[render][
-                    f"{_isovalue}_{render}"].color(_colors[c]).alpha(
-                        styles["isosurfaces"]["alpha"])
+                _isosurface = (
+                    isosurfaces[render][f"{_isovalue}_{render}"]
+                    .color(_colors[c])
+                    .alpha(styles["isosurfaces"]["alpha"])
+                )
                 plt.at(render).add(_isosurface)
                 plt.at(2).add(_isosurface)
         current_isovalues[render] = selected_isovalues
@@ -308,22 +323,26 @@ def two_chanel_isosurface(folder, channel_0, channel_1):
 
     n_surfaces_slider_0 = n_surfaces_slider_factory(0)
     n_surfaces_slider_1 = n_surfaces_slider_factory(1)
-    plt.at(0).add_slider(n_surfaces_slider_0,
-                         xmin=1,
-                         xmax=10,
-                         value=number_isosurfaces[0],
-                         c=styles["ui"]["primary"],
-                         pos=styles["positions"]["number"],
-                         title="Number of isosurfaces",
-                         delayed=True)
-    plt.at(1).add_slider(n_surfaces_slider_1,
-                         xmin=1,
-                         xmax=10,
-                         value=number_isosurfaces[1],
-                         c=styles["ui"]["primary"],
-                         pos=styles["positions"]["number"],
-                         title="Number of isosurfaces",
-                         delayed=True)
+    plt.at(0).add_slider(
+        n_surfaces_slider_0,
+        xmin=1,
+        xmax=10,
+        value=number_isosurfaces[0],
+        c=styles["ui"]["primary"],
+        pos=styles["positions"]["number"],
+        title="Number of isosurfaces",
+        delayed=True,
+    )
+    plt.at(1).add_slider(
+        n_surfaces_slider_1,
+        xmin=1,
+        xmax=10,
+        value=number_isosurfaces[1],
+        c=styles["ui"]["primary"],
+        pos=styles["positions"]["number"],
+        title="Number of isosurfaces",
+        delayed=True,
+    )
 
     # Min - max sliders
     def slider_factory(render, limit):
@@ -335,8 +354,9 @@ def two_chanel_isosurface(folder, channel_0, channel_1):
                 if widget.value > dynamic_limit_values[render][0]:
                     dynamic_limit_values[render][1] = widget.value
                 else:
-                    dynamic_limit_values[render][
-                        1] = dynamic_limit_values[render][0] + 1
+                    dynamic_limit_values[render][1] = (
+                        dynamic_limit_values[render][0] + 1
+                    )
                     widget.value = dynamic_limit_values[render][1]
                 clean_plotter(render)
                 add_isosurfaces(render)
@@ -346,8 +366,9 @@ def two_chanel_isosurface(folder, channel_0, channel_1):
                 if widget.value < dynamic_limit_values[render][1]:
                     dynamic_limit_values[render][0] = widget.value
                 else:
-                    dynamic_limit_values[render][
-                        0] = dynamic_limit_values[render][1] - 1
+                    dynamic_limit_values[render][0] = (
+                        dynamic_limit_values[render][1] - 1
+                    )
                     widget.value = dynamic_limit_values[render][0]
 
                 clean_plotter(render)
@@ -427,7 +448,7 @@ def raycast(folder, channel):
     volume.mode(1).cmap("jet")  # change visual properties
 
     # Create a Plotter instance and show
-    plt = RayCastPlotter(volume, bg='white', axes=7)
+    plt = RayCastPlotter(volume, bg="white", axes=7)
     plt.show(viewup="z")
     plt.close()
 
@@ -438,16 +459,17 @@ def slices(folder, channel):
     volume_file = os.path.join(folder, pipeline[channel.upper()])
     volume = Volume(volume_file)
 
-    plt = Slicer3DPlotter(volume,
-                          cmaps=("gist_ncar_r", "jet", "Spectral_r", "hot_r",
-                                 "bone_r"),
-                          use_slider3d=False,
-                          bg="white")
+    plt = Slicer3DPlotter(
+        volume,
+        cmaps=("gist_ncar_r", "jet", "Spectral_r", "hot_r", "bone_r"),
+        use_slider3d=False,
+        bg="white",
+    )
 
     # Can now add any other vedo object to the Plotter scene:
     plt += Text2D(__doc__)
 
-    plt.show(viewup='z')
+    plt.show(viewup="z")
     plt.close()
 
 
@@ -530,7 +552,8 @@ def probe(folder, channels, points=None):
                     spline=True,
                     lc=colors[i],  # line color
                     marker="O",  # marker style
-                    like=_plot)
+                    like=_plot,
+                )
 
         fig = fig.shift(0, 25, 0).clone2d()
         fig.name = "figure"
@@ -542,7 +565,7 @@ def probe(folder, channels, points=None):
     # Add a callback to print the center of mass of the spline
     sptool.add_observer(
         "end of interaction",
-        lambda o, e: (update_probe(sptool.spline().vertices)),
+        lambda o, e: update_probe(sptool.spline().vertices),
     )
 
     # Stay in the loop until the user presses q
@@ -619,7 +642,7 @@ def _probe(folder, channel, points=None):
     # Add a callback to print the center of mass of the spline
     sptool.add_observer(
         "end of interaction",
-        lambda o, e: (update_probe(sptool.spline().vertices)),
+        lambda o, e: update_probe(sptool.spline().vertices),
     )
 
     # Stay in the loop until the user presses q
@@ -648,14 +671,14 @@ def one_channel_isosurface(folder, channel):
         volume = Volume(volume_file)
 
         txt = Text2D(pos="top-center", bg="yellow5", s=1.5)
-        plt1 = IsosurfaceBrowser(volume, use_gpu=True, c='gold')
+        plt1 = IsosurfaceBrowser(volume, use_gpu=True, c="gold")
         txt.text("Select the lower isovalue, then press 'q' to confirm")
-        plt1.show(txt, axes=7, bg2='lb')
+        plt1.show(txt, axes=7, bg2="lb")
         low_iso_value = int(plt1.sliders[0][0].value)
 
         # plt2 = IsosurfaceBrowser(volume, use_gpu=True, c='gold')
         txt.text("Select the upper isovalue, then press 'q' to confirm")
-        plt1.show(txt, axes=7, bg2='lb')
+        plt1.show(txt, axes=7, bg2="lb")
         high_iso_value = int(plt1.sliders[0][0].value)
         plt1.close()
 
@@ -682,8 +705,7 @@ def one_channel_isosurface(folder, channel):
 
         # Generate linearly spaced values between the two colors
         interpolated_colors = [
-            rgb1 + (rgb2 - rgb1) * i / (num_values - 1)
-            for i in range(num_values)
+            rgb1 + (rgb2 - rgb1) * i / (num_values - 1) for i in range(num_values)
         ]
 
         # Convert RGB values back to hexadecimal format
@@ -718,11 +740,9 @@ def one_channel_isosurface(folder, channel):
         # Read array
         all_files = os.listdir(isosurface_folder)
         file_names = [
-            f for f in all_files
-            if os.path.isfile(os.path.join(isosurface_folder, f))
+            f for f in all_files if os.path.isfile(os.path.join(isosurface_folder, f))
         ]
-        isovalues = np.sort(
-            np.array([int(os.path.splitext(f)[0]) for f in file_names]))
+        isovalues = np.sort(np.array([int(os.path.splitext(f)[0]) for f in file_names]))
 
         # Load isosurfaces
         isosurfaces = {}
@@ -730,7 +750,8 @@ def one_channel_isosurface(folder, channel):
             surface = Mesh(os.path.join(isosurface_folder, f"{isovalue}.vtk"))
             surface.name = str(isovalue)
             isosurfaces[isovalue] = surface.alpha(0.3).lighting(
-                "off")  #.frontface_culling()
+                "off"
+            )  # .frontface_culling()
             if transformation:
                 T = LinearTransform(os.path.join(folder, transformation))
                 isosurfaces[isovalue].apply_transform(T)
@@ -741,12 +762,10 @@ def one_channel_isosurface(folder, channel):
         compute_isosurfaces(pipeline, channel, folder, isosurface_folder)
 
     # Load the channel isosurfaces
-    isosurfaces, isovalues = load_isosurfaces(isosurface_folder,
-                                              transformation)
+    isosurfaces, isovalues = load_isosurfaces(isosurface_folder, transformation)
 
     # Load the limb surface
-    surface = os.path.join(folder, pipeline.get("BLENDER",
-                                                pipeline["SURFACE"]))
+    surface = os.path.join(folder, pipeline.get("BLENDER", pipeline["SURFACE"]))
     limb = Mesh(surface)
     limb.color(styles["limb"]["color"]).alpha(0.1)
     limb.extract_largest_region()
@@ -762,14 +781,19 @@ def one_channel_isosurface(folder, channel):
     static_min_value = isovalues.min()
     static_max_value = isovalues.max()
 
-    global _dynamic_min_value, _number_isosurfaces, _dynamic_max_value, _current_isovalues
+    global \
+        _dynamic_min_value, \
+        _number_isosurfaces, \
+        _dynamic_max_value, \
+        _current_isovalues
     _number_isosurfaces = 8
     _dynamic_min_value = static_min_value
     _dynamic_max_value = static_max_value
 
     # Initial isovalues
-    _current_isovalues = pick_values(isovalues, _dynamic_min_value,
-                                     _dynamic_max_value, _number_isosurfaces)
+    _current_isovalues = pick_values(
+        isovalues, _dynamic_min_value, _dynamic_max_value, _number_isosurfaces
+    )
     colors = interpolate_colors(color1, color2, _number_isosurfaces)
     for i, isovalue in enumerate(_current_isovalues):
         plt += isosurfaces[isovalue].color(colors[i])
@@ -780,10 +804,14 @@ def one_channel_isosurface(folder, channel):
             plt.remove(str(isovalue))
 
     def add_isosurfaces():
-        global _number_isosurfaces, _current_isovalues, _dynamic_min_value, _dynamic_max_value
-        selected_isovalues = pick_values(isovalues, _dynamic_min_value,
-                                         _dynamic_max_value,
-                                         _number_isosurfaces)
+        global \
+            _number_isosurfaces, \
+            _current_isovalues, \
+            _dynamic_min_value, \
+            _dynamic_max_value
+        selected_isovalues = pick_values(
+            isovalues, _dynamic_min_value, _dynamic_max_value, _number_isosurfaces
+        )
         colors = interpolate_colors(color1, color2, _number_isosurfaces)
         if not (selected_isovalues.shape[0]):
             printc("No isosurfaces found in the selected range.", c="r")
@@ -857,7 +885,8 @@ def one_channel_isosurface(folder, channel):
         c=secondary,
         pos="bottom-right-vertical",  # type: ignore
         title="Number of isosurfaces",
-        delayed=True)
+        delayed=True,
+    )
 
     # Toggle the limb function
     def limb_toggle_fun(obj, ename):
@@ -872,8 +901,10 @@ def one_channel_isosurface(folder, channel):
         pos=(0.5, 0.9),  # x,y fraction from bottom left corner
         states=["Hide limb", "Show limb"],  # text for each state
         c=["w", "w"],  # font color for each state
-        bc=[styles["ui"]["secondary"],
-            styles["ui"]["primary"]],  # background color for each state
+        bc=[
+            styles["ui"]["secondary"],
+            styles["ui"]["primary"],
+        ],  # background color for each state
         font="courier",  # font type
         size=30,  # font size
         bold=True,  # bold font
@@ -897,7 +928,6 @@ def dynamic_slab(folder, channel):
     vol = Volume(volume)  # .resize([100, 100, 100])
     printc("Volume loaded successfully", c="g")
 
-
     # Apply non linear tranformation
     tname = os.path.join(folder, pipeline["TRANSFORMATION"])
     if "rotation" in pipeline["TRANSFORMATION"]:
@@ -912,17 +942,12 @@ def dynamic_slab(folder, channel):
     # T = LinearTransform(tname)
     printc("Rotation transformation loaded", c="lg")
 
-    
     vol.apply_transform(T)
     vol.rotate_y(-angle_d[int(stage)])
     printc("Rotation applied to volume and limb meshes", c="g")
-    
-    
-    
 
     # Load the limb surface
-    surface = os.path.join(folder, pipeline.get("BLENDER",
-                                                pipeline["SURFACE"]))
+    surface = os.path.join(folder, pipeline.get("BLENDER", pipeline["SURFACE"]))
 
     limb = Mesh(surface)
     limb.color(styles["limb"]["color"]).alpha(0.1)
@@ -1038,7 +1063,7 @@ def dynamic_slab(folder, channel):
     ).screenshot(slab_path).close()
 
 
-def multi_channel_isosurface(folder, channels): 
+def multi_channel_isosurface(folder, channels):
     """Compute and visualize isosurfaces for multiple channels."""
 
     # Get the paths
@@ -1050,13 +1075,13 @@ def multi_channel_isosurface(folder, channels):
         volume_file = os.path.join(folder, logs[channel])
         volume = Volume(volume_file)
         txt = Text2D(pos="top-center", bg="yellow5", s=1.5)
-        plt1 = IsosurfaceBrowser(volume, use_gpu=True, c='gold')
+        plt1 = IsosurfaceBrowser(volume, use_gpu=True, c="gold")
         txt.text("Select the lower isovalue, then press 'q' to confirm")
-        plt1.show(txt, axes=7, bg2='lb')
+        plt1.show(txt, axes=7, bg2="lb")
         low_iso_value = int(plt1.sliders[0][0].value)
 
         txt.text("Select the upper isovalue, then press 'q' to confirm")
-        plt1.show(txt, axes=7, bg2='lb')
+        plt1.show(txt, axes=7, bg2="lb")
         high_iso_value = int(plt1.sliders[0][0].value)
         plt1.close()
 
@@ -1080,8 +1105,7 @@ def multi_channel_isosurface(folder, channels):
         rgb2 = np.array(mcolors.to_rgb(color2))
 
         interpolated_colors = [
-            rgb1 + (rgb2 - rgb1) * i / (num_values - 1)
-            for i in range(num_values)
+            rgb1 + (rgb2 - rgb1) * i / (num_values - 1) for i in range(num_values)
         ]
 
         interpolated_colors_hex = [
@@ -1106,22 +1130,20 @@ def multi_channel_isosurface(folder, channels):
     def load_isosurfaces(isosurface_folder, transformation, channel):
         all_files = os.listdir(isosurface_folder)
         file_names = [
-            f for f in all_files
-            if os.path.isfile(os.path.join(isosurface_folder, f))
+            f for f in all_files if os.path.isfile(os.path.join(isosurface_folder, f))
         ]
-        isovalues = np.sort(
-            np.array([int(os.path.splitext(f)[0]) for f in file_names]))
+        isovalues = np.sort(np.array([int(os.path.splitext(f)[0]) for f in file_names]))
 
         isosurfaces = {}
         for isovalue in progressbar(isovalues, title="Loading isosurfaces..."):
             surface = Mesh(os.path.join(isosurface_folder, f"{isovalue}.vtk"))
             surface.name = f"{isovalue}_{channel}"
-            isosurfaces[f"{isovalue}_{channel}"] = surface.alpha(0.3).lighting(
-                "off").frontface_culling()
+            isosurfaces[f"{isovalue}_{channel}"] = (
+                surface.alpha(0.3).lighting("off").frontface_culling()
+            )
             if transformation:
                 if "morphing" in transformation:
-                    T = NonLinearTransform(os.path.join(
-                        folder, transformation))
+                    T = NonLinearTransform(os.path.join(folder, transformation))
                 else:
                     T = LinearTransform(os.path.join(folder, transformation))
                 isosurfaces[f"{isovalue}_{channel}"].apply_transform(T)
@@ -1142,22 +1164,17 @@ def multi_channel_isosurface(folder, channels):
             compute_isosurfaces(pipeline, channel, isosurface_folder)
 
         loaded_isosurfaces, loaded_isovalues = load_isosurfaces(
-            isosurface_folder, transformation, i)
+            isosurface_folder, transformation, i
+        )
         isosurfaces[i] = loaded_isosurfaces
         isovalues[i] = loaded_isovalues
 
-        number_isosurfaces[
-            i] = 3  # Initialize with 3 isosurfaces for each channel
-        static_limit_values[i] = (loaded_isovalues.min(),
-                                  loaded_isovalues.max())
-        dynamic_limit_values[i] = [
-            loaded_isovalues.min(),
-            loaded_isovalues.max()
-        ]
+        number_isosurfaces[i] = 3  # Initialize with 3 isosurfaces for each channel
+        static_limit_values[i] = (loaded_isovalues.min(), loaded_isovalues.max())
+        dynamic_limit_values[i] = [loaded_isovalues.min(), loaded_isovalues.max()]
 
     # Load the limb surface
-    surface = os.path.join(folder, pipeline.get("BLENDER",
-                                                pipeline["SURFACE"]))
+    surface = os.path.join(folder, pipeline.get("BLENDER", pipeline["SURFACE"]))
 
     limb = Mesh(surface)
     limb.color(styles["limb"]["color"]).alpha(0.1)
@@ -1202,16 +1219,17 @@ def multi_channel_isosurface(folder, channels):
     current_isovalues = {i: [] for i in range(len(channels))}
 
     def init_isosurfaces(render):
-        current_isovalues[render] = pick_values(isovalues[render],
-                                                *dynamic_limit_values[render],
-                                                number_isosurfaces[render])
-        colors = interpolate_colors(*styles[render],
-                                    number_isosurfaces[render])
+        current_isovalues[render] = pick_values(
+            isovalues[render], *dynamic_limit_values[render], number_isosurfaces[render]
+        )
+        colors = interpolate_colors(*styles[render], number_isosurfaces[render])
         for i, _isovalue in enumerate(current_isovalues[render]):
             plt.at(render).add(
-                isosurfaces[render][f"{_isovalue}_{render}"].color(colors[i]))
+                isosurfaces[render][f"{_isovalue}_{render}"].color(colors[i])
+            )
             plt.at(len(channels)).add(
-                isosurfaces[render][f"{_isovalue}_{render}"].color(colors[i]))
+                isosurfaces[render][f"{_isovalue}_{render}"].color(colors[i])
+            )
 
     for i in range(len(channels)):
         init_isosurfaces(i)
@@ -1222,23 +1240,25 @@ def multi_channel_isosurface(folder, channels):
             plt.at(len(channels)).remove(f"{_isovalue}_{render}")
 
     def add_isosurfaces(render):
-        selected_isovalues = pick_values(isovalues[render],
-                                         *dynamic_limit_values[render],
-                                         number_isosurfaces[render])
+        selected_isovalues = pick_values(
+            isovalues[render], *dynamic_limit_values[render], number_isosurfaces[render]
+        )
         if number_isosurfaces[render] == 1:
-            _isosurface = isosurfaces[render][
-                f"{selected_isovalues[0]}_{render}"].color(
-                    styles[render][0]).alpha(
-                        styles["isosurfaces"]["alpha-unique"])
+            _isosurface = (
+                isosurfaces[render][f"{selected_isovalues[0]}_{render}"]
+                .color(styles[render][0])
+                .alpha(styles["isosurfaces"]["alpha-unique"])
+            )
             plt.at(render).add(_isosurface)
             plt.at(len(channels)).add(_isosurface)
         else:
-            _colors = interpolate_colors(*styles[render],
-                                         number_isosurfaces[render])
+            _colors = interpolate_colors(*styles[render], number_isosurfaces[render])
             for c, _isovalue in enumerate(selected_isovalues):
-                _isosurface = isosurfaces[render][
-                    f"{_isovalue}_{render}"].color(_colors[c]).alpha(
-                        styles["isosurfaces"]["alpha"])
+                _isosurface = (
+                    isosurfaces[render][f"{_isovalue}_{render}"]
+                    .color(_colors[c])
+                    .alpha(styles["isosurfaces"]["alpha"])
+                )
                 plt.at(render).add(_isosurface)
                 plt.at(len(channels)).add(_isosurface)
         current_isovalues[render] = selected_isovalues
@@ -1254,12 +1274,14 @@ def multi_channel_isosurface(folder, channels):
 
     for i in range(len(channels)):
         n_surfaces_slider = n_surfaces_slider_factory(i)
-        plt.at(i).add_slider(n_surfaces_slider,
-                             xmin=1,
-                             xmax=10,
-                             value=number_isosurfaces[i],
-                             pos=styles["positions"]["number"],
-                             title="Number of isosurfaces")
+        plt.at(i).add_slider(
+            n_surfaces_slider,
+            xmin=1,
+            xmax=10,
+            value=number_isosurfaces[i],
+            pos=styles["positions"]["number"],
+            title="Number of isosurfaces",
+        )
 
     def low_threshold_slider_factory(render):
 
@@ -1320,11 +1342,9 @@ def arbitary_slice(folder, channel0, channel1):
 
     def func(w, _):
         c, n = pcutter.origin, pcutter.normal
-        vslice0 = vol0.slice_plane(c, n,
-                                   autocrop=True).cmap("Blues").alpha(0.5)
+        vslice0 = vol0.slice_plane(c, n, autocrop=True).cmap("Blues").alpha(0.5)
         vslice0.name = "Slice0"
-        vslice1 = vol1.slice_plane(c, n,
-                                   autocrop=True).cmap("Oranges").alpha(0.5)
+        vslice1 = vol1.slice_plane(c, n, autocrop=True).cmap("Oranges").alpha(0.5)
         vslice1.name = "Slice1"
         plt.at(1).remove("Slice0").add(vslice0)
         plt.at(1).remove("Slice1").add(vslice1)

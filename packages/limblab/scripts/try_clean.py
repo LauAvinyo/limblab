@@ -13,12 +13,18 @@ from limblab.params import CleanParams
 from limblab.exceptions import VolumeProcessingError
 
 
-TEST_VOLUME_PATH = Path("/Users/laura/Desktop/righthindlimb3_E12_autofluorescence_488.tif")
+TEST_VOLUME_PATH = Path(
+    "/Users/laura/Desktop/righthindlimb3_E12_autofluorescence_488.tif"
+)
 
 
 experiment = Experiment(
-    experiment_id="manual_test", base="test",
-    spacing_x=1.0, spacing_y=1.0, spacing_z=1.0, side="R",
+    experiment_id="manual_test",
+    base="test",
+    spacing_x=1.0,
+    spacing_y=1.0,
+    spacing_z=1.0,
+    side="R",
 )
 
 

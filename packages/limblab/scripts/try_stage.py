@@ -1,4 +1,5 @@
 from limblab.tools.stage import stage_limb
+
 # packages/limblab/scripts/try_clean.py
 from pathlib import Path
 from limblab.models import Experiment, Channel
@@ -19,9 +20,15 @@ TEST_SURFACE_PATH = "HCR11_MEIS2_l1_dapi_488_LF_surface.vtk"
 
 
 experiment = Experiment(
-    experiment_id="manual_test", base=TEST_BASE_PATH,
-    spacing_x=1.0, spacing_y=1.0, spacing_z=1.0, side="F", position="L", species="mouse",
-    surface=TEST_SURFACE_PATH
+    experiment_id="manual_test",
+    base=TEST_BASE_PATH,
+    spacing_x=1.0,
+    spacing_y=1.0,
+    spacing_z=1.0,
+    side="F",
+    position="L",
+    species="mouse",
+    surface=TEST_SURFACE_PATH,
 )
 
 stage_result = stage_limb(experiment)

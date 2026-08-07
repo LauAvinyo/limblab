@@ -7,11 +7,29 @@ import numpy as np
 import pyqtgraph.opengl as gl
 from PyQt6.QtGui import QAction, QIcon
 from PyQt6.QtWidgets import (
-    QApplication, QLabel, QMainWindow, QStatusBar, QVBoxLayout,
-    QPushButton, QWidget, QHBoxLayout, QMessageBox,
-    QSizePolicy, QMenuBar, QMenu, QToolButton, QFileDialog,
-    QCheckBox, QInputDialog, QSlider, QSpinBox,
-    QScrollArea, QComboBox, QDialog, QDoubleSpinBox, QGroupBox
+    QApplication,
+    QLabel,
+    QMainWindow,
+    QStatusBar,
+    QVBoxLayout,
+    QPushButton,
+    QWidget,
+    QHBoxLayout,
+    QMessageBox,
+    QSizePolicy,
+    QMenuBar,
+    QMenu,
+    QToolButton,
+    QFileDialog,
+    QCheckBox,
+    QInputDialog,
+    QSlider,
+    QSpinBox,
+    QScrollArea,
+    QComboBox,
+    QDialog,
+    QDoubleSpinBox,
+    QGroupBox,
 )
 
 
@@ -34,12 +52,14 @@ def create_styled_button(text, color="#0D7C66", hover_color="#41B3A2", size=None
     btn.setCursor(Qt.CursorShape.PointingHandCursor)
     return btn
 
+
 def create_label(text, style, alignment=Qt.AlignmentFlag.AlignLeft):
     """Create a styled label."""
     label = QLabel(text)
     label.setStyleSheet(style)
     label.setAlignment(alignment)
     return label
+
 
 def create_slider(min_val, max_val, default_val, color="#0D7C66"):
     """Create a styled slider."""
@@ -62,6 +82,7 @@ def create_slider(min_val, max_val, default_val, color="#0D7C66"):
     """)
     return slider
 
+
 def create_collapsible_section(title, content_widget, expanded=True):
     """Wraps content_widget in a header button that shows/hides it."""
     section = QWidget()
@@ -74,7 +95,9 @@ def create_collapsible_section(title, content_widget, expanded=True):
     toggle_button.setCheckable(True)
     toggle_button.setChecked(expanded)
     toggle_button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
-    toggle_button.setArrowType(Qt.ArrowType.DownArrow if expanded else Qt.ArrowType.RightArrow)
+    toggle_button.setArrowType(
+        Qt.ArrowType.DownArrow if expanded else Qt.ArrowType.RightArrow
+    )
     toggle_button.setStyleSheet("""
         QToolButton {
             background-color: #2A2A2A; color: #ffffff;
@@ -90,12 +113,15 @@ def create_collapsible_section(title, content_widget, expanded=True):
 
     def on_toggle(checked):
         content_widget.setVisible(checked)
-        toggle_button.setArrowType(Qt.ArrowType.DownArrow if checked else Qt.ArrowType.RightArrow)
+        toggle_button.setArrowType(
+            Qt.ArrowType.DownArrow if checked else Qt.ArrowType.RightArrow
+        )
 
     toggle_button.toggled.connect(on_toggle)
     section_layout.addWidget(toggle_button)
     section_layout.addWidget(content_widget)
     return section
+
 
 def create_back_button(callback):
     """Create a back button with consistent styling."""
@@ -112,11 +138,13 @@ def create_back_button(callback):
     back_button.clicked.connect(callback)
     return back_button
 
+
 # Custom Classes
 class PointSelector(QObject):
     """Base class for point selection on the 3D viewer."""
+
     points_changed = pyqtSignal(list)
-    
+
     def __init__(self, viewer, color=(0.6, 0.4, 1.0, 1.0)):
         super().__init__()
         self.viewer = viewer
@@ -142,7 +170,7 @@ class PointSelector(QObject):
         """Add a point at the given screen ratio."""
         if self.max_points and len(self.points) >= self.max_points:
             return
-        
+
         radius = 10
         theta = screen_ratio * np.pi
         x = radius * np.cos(theta)
@@ -225,8 +253,11 @@ class Viewer3D(gl.GLViewWidget):
 
         md = gl.MeshData.sphere(rows=20, cols=20, radius=10)
         self.volume_item = gl.GLMeshItem(
-            meshdata=md, smooth=True, color=(0.4, 0.6, 1.0, 1.0),
-            shader="shaded", glOptions="opaque"
+            meshdata=md,
+            smooth=True,
+            color=(0.4, 0.6, 1.0, 1.0),
+            shader="shaded",
+            glOptions="opaque",
         )
         self.addItem(self.volume_item)
 
@@ -239,14 +270,16 @@ class Viewer3D(gl.GLViewWidget):
         vol -= vol.min()
         max_val = vol.max()
         if max_val > 0:
-            vol = (vol / max_val * 255)
+            vol = vol / max_val * 255
         vol = vol.astype(np.ubyte)
 
         rgba = np.zeros(vol.shape + (4,), dtype=np.ubyte)
         rgba[..., 0] = rgba[..., 1] = rgba[..., 2] = rgba[..., 3] = vol
 
         self.volume_item = gl.GLVolumeItem(rgba)
-        self.volume_item.translate(-vol.shape[0] / 2, -vol.shape[1] / 2, -vol.shape[2] / 2)
+        self.volume_item.translate(
+            -vol.shape[0] / 2, -vol.shape[1] / 2, -vol.shape[2] / 2
+        )
         self.addItem(self.volume_item)
 
     def mousePressEvent(self, event):
@@ -259,4 +292,3 @@ class Viewer3D(gl.GLViewWidget):
                 self.probe_selector.add_point(ratio)
                 return
         super().mousePressEvent(event)
-

@@ -7,7 +7,9 @@ class Channel(SQLModel, table=True):
     """Database table for dynamic image channels."""
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    experiment_id: str = Field(foreign_key="experiment.experiment_id", ondelete="CASCADE")
+    experiment_id: str = Field(
+        foreign_key="experiment.experiment_id", ondelete="CASCADE"
+    )
     channel_name: str
     path: str
     v0: float
@@ -35,9 +37,9 @@ class Experiment(SQLModel, table=True):
     nonlinear_transform: Optional[str] = None
 
     channels: List[Channel] = Relationship(
-            back_populates="experiment",
-            sa_relationship_kwargs={
-                "cascade": "all, delete-orphan",
-                "lazy": "selectin",
-            },
-        )
+        back_populates="experiment",
+        sa_relationship_kwargs={
+            "cascade": "all, delete-orphan",
+            "lazy": "selectin",
+        },
+    )

@@ -3,7 +3,7 @@ import os
 
 from limblab.models import Experiment
 from limblab.tools import stage
-from limblab.utils  import generate_kwargs  
+from limblab.utils import generate_kwargs
 from colorama import Fore as c
 
 from vedo import settings
@@ -18,9 +18,16 @@ REFERENCE_LIMB_FOLDER = os.path.join(os.path.dirname(CURRENT_DIR), "limb")
 REFERENCE_LIMB_FOLDER = "/Users/laura/limblab/packages/limblab/limblab/limb"
 # TODO: FIX THIS!
 
-#files''' = [file for file in os.listdir(REFERENCE_LIMB_FOLDER) if os.path.isfile(os.path.join(REFERENCE_LIMB_FOLDER, file)) and not file.startswith(".DS") or file.startswith("-")]
-#reference_stages = [int(file.split(".")[0].split("_")[1]) for file in files]
-#DE-COMMENT -> i don't have the files yet!
+files = [
+    file
+    for file in os.listdir(REFERENCE_LIMB_FOLDER)
+    if os.path.isfile(os.path.join(REFERENCE_LIMB_FOLDER, file))
+    and not file.startswith(".DS")
+    or file.startswith("-")
+]
+reference_stages = [int(file.split(".")[0].split("_")[1]) for file in files]
+# DE-COMMENT -> i don't have the files yet!
+
 
 def closest_value(input_list: list, target: int) -> int:
     """ "Get the closest value of the list to our target."""
@@ -36,13 +43,13 @@ def closest_value(input_list: list, target: int) -> int:
     return closest
 
 
-
 def get_reference_limb(stage: int) -> str | None:
     """From the stage, get the reference limb path"""
     file = os.path.join(REFERENCE_LIMB_FOLDER, "Limb-rec_" + str(stage) + ".vtk")
     if os.path.isfile(file):
         return file
     return None
+
 
 def _store_transformation_matrix(T, surface_path: str) -> str:
 
@@ -55,7 +62,7 @@ def _store_transformation_matrix(T, surface_path: str) -> str:
     return transformation_path
 
 
-def _initialize_limbs_paths(experiment: Experiment,):
+def _initialize_limbs_paths(experiment: Experiment, reference_stages):
     base = experiment.base
     surface_name = experiment.surface
     stage = experiment.stage
@@ -72,27 +79,29 @@ def _initialize_limbs_paths(experiment: Experiment,):
     if refence_limb_path is None:
         raise FileNotFoundError(f"No reference limb found for stage {reference_stage}")
 
-
     return surface_path, refence_limb_path
+
 
 def _rotate_limb(
     surface_path: str,
     reference_limb_path: str,
     renderer: Optional[Literal["pyqt"]] = None,
     outside_class: Optional[Any] = None,
-) -> str:
+) -> str | tuple[Any, Any, str]:
 
     # Get the Surfaces
     source = Mesh(surface_path).color(1)  # .scale(1.1)
     target = Mesh(reference_limb_path).cut_with_plane(origin=(1, 0, 0)).alpha(0.5).c(2)
 
     # Store the Transformation
-    T = source.apply_transform_from_actor() # type: ignore
+    T = source.apply_transform_from_actor()  # type: ignore
 
     params: dict[str, Any] = dict(shape="1|2", sharecam=False)
-    kwargs = generate_kwargs(params=params, renderer=renderer, outside_class=outside_class)
+    kwargs = generate_kwargs(
+        params=params, renderer=renderer, outside_class=outside_class
+    )
 
-    plt = Plotter(**kwargs) # type: ignore
+    plt = Plotter(**kwargs)  # type: ignore
 
     # Set the camera positions for the three views
     plt.at(2).camera = dict(
@@ -117,7 +126,7 @@ def _rotate_limb(
     plt.at(1).add(source.alpha(0.4), target.alpha(0.6))
     plt.at(0).add(source.alpha(0.4), target.alpha(0.6))
 
-    plt.verbose = False # type: ignore
+    plt.verbose = False  # type: ignore
 
     # Add instructions as Text2D instead of using plt.instructions.text()
     instructions = Text2D(
@@ -132,12 +141,16 @@ def _rotate_limb(
     )
 
     # Add instructions to the main plotter
-    plt += instructions
+    if renderer == "pyqt":
+        plt.show(axes=14, interactive=False)
+        return plt, source, surface_path
 
+    # Standalone behaviour (unchanged)
+    plt += instructions
     plt.show(axes=14).interactive()
     plt.close()
-    
-    T = source.transform # type: ignore
+
+    T = source.transform  # type: ignore
 
     return _store_transformation_matrix(T, surface_path)
 
@@ -146,13 +159,15 @@ def rotate_limb(
     experiment: Experiment,
     renderer: Optional[Literal["pyqt"]] = None,
     outside_class: Optional[Any] = None,
-) -> str:
+) -> str | tuple[Any, Any, str]:
     """
     Rotate the limb to a standard orientation.
     This function is a placeholder and should be implemented with the actual rotation logic.
     """
-
-    surface_path, refence_limb_path = _initialize_limbs_paths(experiment)
+    print("WE are here!")
+    surface_path, refence_limb_path = _initialize_limbs_paths(
+        experiment, reference_stages
+    )
 
     return _rotate_limb(surface_path, refence_limb_path, renderer, outside_class)
 
@@ -183,7 +198,6 @@ def rotate_limb(
 #     plt.close()
 
 #     return _store_transformation_matrix(wrap_transform, surface_path)
-
 
 
 # def morph_limb(experiment: Experiment, renderer: Optional[Literal["pyqt"]] = None, outside_class: Optional[Any] = None) -> str:

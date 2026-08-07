@@ -11,8 +11,11 @@ from limblab.utils import generate_kwargs
 from typing import Optional, Any, Literal
 
 
-
-def pick_isovalues(raw_volume_path: Path, renderer: Optional[Literal["pyqt"]] = None, outside_class: Optional[Any] = None) -> tuple[int, int]:
+def pick_isovalues(
+    raw_volume_path: Path,
+    renderer: Optional[Literal["pyqt"]] = None,
+    outside_class: Optional[Any] = None,
+) -> tuple[int, int]:
     """
     Opens the vedo IsosurfaceBrowser and lets the user pick lower/upper
     isovalues interactively. Returns (v0, v1).
@@ -20,10 +23,11 @@ def pick_isovalues(raw_volume_path: Path, renderer: Optional[Literal["pyqt"]] = 
     vol = Volume(str(raw_volume_path))
 
     params: dict[str, Any] = dict(use_gpu=True, bg="white", c="green", alpha=0.6)
-    kwargs = generate_kwargs(params=params, renderer=renderer, outside_class=outside_class)
+    kwargs = generate_kwargs(
+        params=params, renderer=renderer, outside_class=outside_class
+    )
 
-
-    plt = IsosurfaceBrowser(vol, **kwargs) 
+    plt = IsosurfaceBrowser(vol, **kwargs)
     txt = Text2D(pos="top-center", bg="yellow5", s=1.5)
     plt += txt
 
@@ -56,7 +60,9 @@ def clean(
     vol = Volume(str(raw_volume_path))
     vol.spacing(spacing)
     vol = vol.cmap("Purples", vmin=params.v0, vmax=params.v1)
-    vol.threshold(below=params.v0, replace=0).threshold(above=params.v1, replace=params.v1)
+    vol.threshold(below=params.v0, replace=0).threshold(
+        above=params.v1, replace=params.v1
+    )
     vol.resize(params.low_res_size)
 
     if experiment.side == "L":
