@@ -299,7 +299,7 @@ class MainWindow(QMainWindow, NavigationMixin):
         
         self.plt = Plotter(qt_widget=self.vtkWidget)
         # Create vedo renderer and add objects and callbacks
-        self.limb_home = Mesh("-Limb-rec_249.vtk")
+        self.limb_home = Mesh("Limb-rec_281.vtk")
                 
         container = QWidget()
         layout = QHBoxLayout(container)

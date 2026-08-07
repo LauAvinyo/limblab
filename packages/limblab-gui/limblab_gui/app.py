@@ -6,5 +6,7 @@ from main import MainWindow
 # Run the application
 app = QApplication([])
 window = MainWindow()
+
+print("LimbLab GUI is running. Version:", __import__('limblab').__version__)  # Print the version of limblab package
 window.show()
 app.exec()
