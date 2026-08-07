@@ -50,70 +50,10 @@ def delete_experiment(db_path: Path, experiment_id: str) -> bool:
         return False
 
 
-def create_test_database(db_path: Path, force: bool = False) -> None:
-    """Create test database with sample experiments."""
-
-    #just for TESTING!
-
-# 🔥 CHANGE THIS - Always delete and recreate if force=True
-    if force and db_path.exists():
-        db_path.unlink()
-        print(f"🗑️ Removed existing database: {db_path}")
-    
-    # 🔥 CHANGE THIS - Don't check for existing data if force=True
-    if not force and db_path.exists():
-        try:
-            existing = list_experiments(db_path)
-            if existing:
-                print(f"📂 Database already has {len(existing)} experiments: {existing}")
-                print("   Use force=True to regenerate.")
-                return
-        except:
-            db_path.unlink()
-
-    
-    # Initialize database
-    init_db(db_path)
-
-    # 1. CREATE test experiments
-    exp1 = Experiment(
-        experiment_id="HCR10_SHH_l3",
-        base="./HCR10_SHH_l3",
-        spacing_x=0.65,
-        spacing_y=0.65,
-        spacing_z=2.0,
-        side="L",
-        position="H",
-        channels=[
-            Channel(experiment_id="HCR10_SHH_l3", channel_name="DAPI", path="dapi.vti", v0=238.0, v1=463.0),
-            Channel(experiment_id="HCR10_SHH_l3", channel_name="SHH", path="shh.vti", v0=174.0, v1=335.0),
-            Channel(experiment_id="HCR10_SHH_l3", channel_name="SOX9", path="sox9.vti", v0=392.0, v1=418.0),
-        ],
-    )
-    save_experiment(db_path, exp1)
-
-    exp2 = Experiment(
-        experiment_id="HCR10_FGF_l3",
-        base="./HCR10_FGF_l3",
-        spacing_x=0.65,
-        spacing_y=0.65,
-        spacing_z=2.0,
-        side="R",
-        position="F",
-        channels=[
-            Channel(experiment_id="HCR10_FGF_l3", channel_name="DAPI", path="dapi.vti", v0=238.0, v1=463.0),
-            Channel(experiment_id="HCR10_FGF_l3", channel_name="FGF8", path="fgf8.vti", v0=100.0, v1=200.0),
-        ],
-    )
-    save_experiment(db_path, exp2)
-
-    print(f"✅ Created test database at: {db_path}")
-    print(f"   Experiments: {exp1.experiment_id}, {exp2.experiment_id}")
 
 # Keep the standalone script functionality for testing
 if __name__ == "__main__":
     DB_PATH = Path("experiments.db")
-    create_test_database(DB_PATH, force=True)
     
     # Test reading the data
     retrieved = get_experiment(DB_PATH, "HCR10_SHH_l3")

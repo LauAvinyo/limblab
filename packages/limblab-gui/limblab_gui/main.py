@@ -25,7 +25,7 @@ from limblab.database import *
 #database in limblab, not in the same folder!
 
 from limblab.limb import *##################TODO not loaded????????????????????????
-
+from limblab.models import *
 
 from NavigationMixin import NavigationMixin
 from pathlib import Path
@@ -36,6 +36,8 @@ from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 from vedo import *
 
 vtk.qt.QVTKRWIBase = "QGLWidget"
+
+from limblab.tools import clean
 
 
 class MainWindow(QMainWindow, NavigationMixin):
@@ -48,11 +50,14 @@ class MainWindow(QMainWindow, NavigationMixin):
         self.db_path = Path('experiments.db')
         #database!
 
-        create_test_database(self.db_path, force=True)  # Force=True is key
-        #reloads the dabase each time the program is created
-        #just for TESTING
+        if not self.db_path.exists():
+            init_db(self.db_path)  # Creates empty database with schema only
+            print(f"Created empty database: {self.db_path}")
 
-        self.viewer = Viewer3D()
+        else:
+            print(f"Using existing database: {self.db_path}")
+
+
         self.experiments = []
         self.experiment_names = {}
         self.pipeline_log = []
@@ -79,6 +84,8 @@ class MainWindow(QMainWindow, NavigationMixin):
             "align_done": False,
             "alignment_method": None,
         }
+
+        self._load_experiments_from_db()
 
         self.navigate_to(self.show_home)
 
@@ -214,7 +221,6 @@ class MainWindow(QMainWindow, NavigationMixin):
     def _build_workflow_container(self, next_label=None, next_callback=None,
                                    back_guard=None, action_widget=None):
         """Build the shared viewer + side-panel container used by every step screen."""
-        self.viewer.setParent(None)
 
         top_row = self._build_workflow_top_row(next_label, next_callback, back_guard)
 
@@ -222,7 +228,6 @@ class MainWindow(QMainWindow, NavigationMixin):
         left_layout = QVBoxLayout(left_container)
         left_layout.setContentsMargins(0, 0, 0, 0)
         left_layout.addLayout(top_row)
-        left_layout.addWidget(self.viewer, stretch=1)
         if action_widget is not None:
             left_layout.addWidget(action_widget)
 
@@ -241,7 +246,6 @@ class MainWindow(QMainWindow, NavigationMixin):
     # ------------------------------------------------------------------
     def show_home(self):
         self.reset_menu_bar()
-        self.viewer.setParent(None)
 
         menu_bar = self.menuBar()
         lb_action = QAction('LimbLab', self)
@@ -311,7 +315,6 @@ class MainWindow(QMainWindow, NavigationMixin):
 
     def show_first_screen(self):
         self.reset_menu_bar()
-        self.viewer.setParent(None)
 
         top_row = QHBoxLayout()
 
@@ -351,13 +354,13 @@ class MainWindow(QMainWindow, NavigationMixin):
 
     def show_exp(self):
         self.reset_menu_bar()
-        self.viewer.setParent(None)
+        
 
         if not self.db_path.exists():
             # Database doesn't exist, create it with test data
             init_db(self.db_path)
-            self._create_test_data()
-            print("Created new database with test data")
+            
+            print("Created new database with data")
 
         else:
             # Database exists, check if it has any experiments
@@ -461,13 +464,61 @@ class MainWindow(QMainWindow, NavigationMixin):
             self.update_viewer(self.filepath)
 
     def update_viewer(self, filepath):
-        """Load a PNG, turn it into a dummy 3D volume, and show it."""
+        """Load REAL limb object from database and display"""
         if not filepath:
             return
-        if not filepath.endswith('.png'):
-            filepath = filepath + '.png'
-        volume = self._png_to_dummy_volume(filepath)
-        self.viewer.show_volume(volume)
+        
+        # Get experiment data from database
+        exp_data = self.experiment_metadata.get(filepath)
+        if not exp_data:
+            print(f"Experiment not found in database: {filepath}")
+            return
+        
+        # Get the volume file path
+        if exp_data.get('channels') and len(exp_data['channels']) > 0:
+            # Use first channel
+            channel = exp_data['channels'][0]
+            channel_path = channel.get('path')
+            
+            if channel_path:
+                full_path = os.path.join(exp_data['base'], channel_path)
+                
+                # Check if file exists
+                if os.path.exists(full_path):
+                    print(f"Loading volume: {full_path}")
+
+                    self.show_basic_mesh(filepath)
+                    
+
+
+    def show_basic_mesh(self, path):
+        """Display a mesh in the vedo viewer"""
+        if not path or not os.path.exists(path):
+            print(f"File not found: {path}")
+            return None
+        
+        # Reuse existing widgets or create once
+        if not hasattr(self, 'frame'):
+            self.frame = QFrame()
+            self.vtkWidget = QVTKRenderWindowInteractor(self.frame)
+            self.plt = Plotter(qt_widget=self.vtkWidget)
+        
+        try:
+            # Load the mesh
+            self.limb_object = Mesh(path)
+            
+            # Clear previous objects and add new one
+            self.plt.clear()
+            self.plt.add(self.limb_object)
+            
+            # Render the scene
+            self.plt.render()
+            
+            return self.plt
+            
+        except Exception as e:
+            print(f"Error loading mesh: {e}")
+            return None
 
 
     def show_clean(self):
@@ -997,15 +1048,8 @@ class MainWindow(QMainWindow, NavigationMixin):
         return panel
 
     def _execute_clean(self, channel_name):
-        """Simulate the clean step for screen-navigation testing.
+        """Simulate the clean step for screen-navigation testing."""
  
-        NOTE: this intentionally does NOT call the real clean(...) pipeline
-        (experiment lookup, CleanParams, raw_volume_path, etc.) — the dummy
-        PNG-based experiments don't have the real file attributes that
-        function needs. This just marks the step complete so you can walk
-        through Viz -> Clean -> Surface -> Stage -> Align. Swap this back to
-        the block below (kept commented) once real volumes are wired in.
-        """
         QMessageBox.information(
             self, "Clean (simulated)",
             f"Clean step simulated for channel '{channel_name}'. No file was modified."
@@ -1015,47 +1059,47 @@ class MainWindow(QMainWindow, NavigationMixin):
         self.workflow_state["clean_done"] = True
         self.workflow_state["last_cleaned_channel"] = channel_name
  
-        # ---- Real implementation (needs real experiment volume files) ----
-        # if not hasattr(self, 'filepath') or not self.filepath:
-        #     QMessageBox.warning(self, "No experiment", "Please select an experiment first.")
-        #     return
-        # try:
-        #     exp_data = self.experiment_metadata.get(self.filepath)
-        #     if not exp_data:
-        #         QMessageBox.warning(self, "Error", "Experiment data not found.")
-        #         return
-        #     clean_params_ui = self.param_values.get("Clean", {})
-        #     params = CleanParams(
-        #         v0=clean_params_ui.get("v0", 100),
-        #         v1=clean_params_ui.get("v1", 400),
-        #         low_res_size=clean_params_ui.get("low_res_size", 256),
-        #         gaussian_sigma=clean_params_ui.get("gaussian_sigma", 1.5),
-        #         frequency_cutoff=clean_params_ui.get("frequency_cutoff", 0.3)
-        #     )
-        #     raw_volume_path = Path(exp_data.get("path", ""))
-        #     if not raw_volume_path.exists():
-        #         file_path, _ = QFileDialog.getOpenFileName(
-        #             parent=self, caption='Select raw volume file',
-        #             directory=os.getcwd(),
-        #             filter='Volume files (*.vti *.nii *.nii.gz *.tif *.tiff)'
-        #         )
-        #         if not file_path:
-        #             return
-        #         raw_volume_path = Path(file_path)
-        #     result_channel = clean(
-        #         experiment=exp_data, raw_volume_path=raw_volume_path,
-        #         channel_name=channel_name, params=params
-        #     )
-        #     QMessageBox.information(
-        #         self, "Success",
-        #         f"Cleaned volume saved for channel {channel_name}\nPath: {result_channel.path}"
-        #     )
-        #     self.log_pipeline(f"Volume cleaned successfully for channel {channel_name}")
-        #     self.workflow_state["clean_done"] = True
-        #     self.workflow_state["last_cleaned_channel"] = channel_name
-        # except Exception as e:
-        #     QMessageBox.critical(self, "Clean Error", f"Failed to clean volume: {str(e)}")
-        #     self.log_pipeline(f"Clean error: {str(e)}")
+        #Real implementation (needs real experiment volume files) ----
+        if not hasattr(self, 'filepath') or not self.filepath:
+             QMessageBox.warning(self, "No experiment", "Please select an experiment first.")
+             return
+        try:
+            exp_data = self.experiment_metadata.get(self.filepath)
+            if not exp_data:
+                 QMessageBox.warning(self, "Error", "Experiment data not found.")
+                 return
+            clean_params_ui = self.param_values.get("Clean", {})
+            params = CleanParams(
+                 v0=clean_params_ui.get("v0", 100),
+                 v1=clean_params_ui.get("v1", 400),
+                 low_res_size=clean_params_ui.get("low_res_size", 256),
+                 gaussian_sigma=clean_params_ui.get("gaussian_sigma", 1.5),
+                 frequency_cutoff=clean_params_ui.get("frequency_cutoff", 0.3)
+            )
+            raw_volume_path = Path(exp_data.get("path", ""))
+            if not raw_volume_path.exists():
+                file_path, _ = QFileDialog.getOpenFileName(
+                     parent=self, caption='Select raw volume file',
+                     directory=os.getcwd(),
+                     filter='Volume files (*.vti *.nii *.nii.gz *.tif *.tiff)'
+                 )
+                if not file_path:
+                     return
+            raw_volume_path = Path(file_path)
+            result_channel = clean(
+                 experiment=exp_data, raw_volume_path=raw_volume_path,
+                 channel_name=channel_name, params=params
+             )
+            QMessageBox.information(
+                 self, "Success",
+                 f"Cleaned volume saved for channel {channel_name}\nPath: {result_channel.path}"
+             )
+            self.log_pipeline(f"Volume cleaned successfully for channel {channel_name}")
+            self.workflow_state["clean_done"] = True
+            self.workflow_state["last_cleaned_channel"] = channel_name
+        except Exception as e:
+            QMessageBox.critical(self, "Clean Error", f"Failed to clean volume: {str(e)}")
+            self.log_pipeline(f"Clean error: {str(e)}")
 
 
     def _refresh_visualizer_list(self):
@@ -1325,8 +1369,9 @@ class MainWindow(QMainWindow, NavigationMixin):
                          symbolBrush="#E34A4A", symbolSize=6)
         layout.addWidget(plot)
 
-        start_btn.clicked.connect(self.viewer.aer_selector.start)
-        clear_btn.clicked.connect(self.viewer.aer_selector.clear)
+
+
+        
 
         def update_plot(points):
             if not points:
@@ -1335,12 +1380,13 @@ class MainWindow(QMainWindow, NavigationMixin):
             pts = np.array(points)
             curve.setData(pts[:, 0], pts[:, 2])
 
-        self.viewer.aer_selector.points_changed.connect(update_plot)
+       
         confirm_btn.clicked.connect(self._confirm_aer_selection)
 
+    ''''
     def _confirm_aer_selection(self):
         """Confirm AER selection."""
-        points = self.viewer.aer_selector.points
+        
         if not points:
             QMessageBox.warning(self, "No AER selected", "Please click points on the limb first.")
             return
@@ -1411,6 +1457,8 @@ class MainWindow(QMainWindow, NavigationMixin):
 
         self._probe_refresh_callbacks = getattr(self, '_probe_refresh_callbacks', {})
         self._probe_refresh_callbacks[viz_name] = refresh_histogram
+    '''
+
 
     def _add_limb_reference_param(self, layout, category, param, stored):
         """Add limb reference alignment controls."""
@@ -1532,29 +1580,6 @@ class MainWindow(QMainWindow, NavigationMixin):
                 self.workflow_state["align_done"] = True
                 self.workflow_state["alignment_method"] = reference
 
-    #database actions (mod. location?)
-    def _initialize_database(self):
-        """Initialize database and create test data if needed."""
-        if not self.db_path.exists():
-            # Database doesn't exist - create it with test data
-            init_db(self.db_path)
-            create_test_database(self.db_path)
-            print("✅ Created new database with test data")
-        else:
-            # Database exists - check if it has data
-            try:
-                experiments = list_experiments(self.db_path)
-                if not experiments:
-                    # Database exists but empty - add test data
-                    create_test_database(self.db_path)
-                    print("✅ Added test data to existing database")
-                else:
-                    print(f"📂 Found {len(experiments)} existing experiments")
-            except Exception as e:
-                print(f"⚠️ Error reading database: {e}")
-                # Recreate database with test data
-                create_test_database(self.db_path, force=True)
-                print("✅ Recreated database with test data")
 
     def _load_experiments_from_db(self):
         """Load all experiments from the database."""
@@ -1679,12 +1704,6 @@ class MainWindow(QMainWindow, NavigationMixin):
             else:
                 QMessageBox.warning(self, "Error", f"Experiment '{experiment_id}' not found in database.")
 
-    def _png_to_dummy_volume(self, filepath, depth=10, size=64):
-        """Convert PNG to dummy 3D volume for testing."""
-        img = Image.open(filepath).convert("L")
-        img = img.resize((size, size))
-        arr = np.array(img)
-        return np.stack([arr] * depth, axis=0)
 
     def ask_limbinfo(self):
         """Popup dialog asking for limb side, position, and spacing."""
@@ -1797,15 +1816,23 @@ class MainWindow(QMainWindow, NavigationMixin):
     def addexp_button_clicked(self, checked=False):
         """Add experiment button handler."""
         filepath, _ = QFileDialog.getOpenFileName(
-            parent=self, caption='Select an image!',
-            directory=os.getcwd(), filter='Images (*.png *.jpg *.jpeg)'
+            parent=self, 
+            caption='Select .tiff file!',
+            directory=os.getcwd(), 
+            filter='Volume files (*.tif *.tiff *.vti)'
         )
         if not filepath:
             return
 
-        if not filepath.lower().endswith((".png", ".jpg", ".jpeg")):
-            QMessageBox.warning(self, "Invalid file", "Please select an image file.")
+        if not filepath.lower().endswith((".tif", ".tiff", ".vti")):
+            QMessageBox.warning(self, "Invalid file", "Please select a valid volume file.")
             return
+
+
+        limb_info = self.ask_limbinfo()
+        if not limb_info:
+            return  # User cancelle
+        
 
         # Create new experiment from file
         try:
@@ -1816,45 +1843,45 @@ class MainWindow(QMainWindow, NavigationMixin):
                 QMessageBox.warning(self, "Duplicate", f"Experiment '{exp_id}' already exists.")
                 return
 
-            # Create a new experiment from the new added  experimetn
-            #JSUT TESTING
+            # Create a new experiment from the volume file
             new_exp = Experiment(
                 experiment_id=exp_id,
                 base=os.path.dirname(filepath),
-                spacing_x=0.65,
-                spacing_y=0.65,
-                spacing_z=2.0,
-                side="L",  # Default
-                position="H",  # Default
+                spacing_x=limb_info['spacing'][0],
+                spacing_y=limb_info['spacing'][1],
+                spacing_z=limb_info['spacing'][2],
+                side=limb_info['side'],
+                position=limb_info['position'],
                 channels=[
                     Channel(
                         experiment_id=f"{exp_id}",
                         channel_name="DAPI",
-                        path="dapi.vti",
+                        path=os.path.basename(filepath),
                         v0=238.0,
                         v1=463.0
                     ),
-                    Channel(
-                        experiment_id=f"{exp_id}",
-                        channel_name="SHH",
-                        path="shh.vti",
-                        v0=174.0,
-                        v1=335.0
-                    ),
+                    # Add more channels if needed TODO CHANGE THIS!!!
                 ]
             )
 
             save_experiment(self.db_path, new_exp)
-            #saves the added experiment into our DB!!!
-
+                        #saves the added experiment into our DB!!!
+            
             self._load_experiments_from_db()
             #diaply of the newly added experiment into the db
-            self.show_exp()
+            self.navigate_to(self.show_exp)
+
+
+            QMessageBox.information(
+            self, 
+            "Success", 
+            f"Successfully added experiment: {exp_id}\n"
+            f"File: {os.path.basename(filepath)}")
 
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Failed to add experiment: {e}")
 
-        self.navigate_to(self.show_exp)
+
 
     def saveexp_button_clicked(self):
         """Save experiment button handler."""
