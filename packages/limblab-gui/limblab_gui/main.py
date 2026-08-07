@@ -18,7 +18,7 @@ from PyQt6.QtWidgets import (
     QScrollArea, QComboBox, QDialog, QDoubleSpinBox, QGroupBox, QFrame
 )
 
-
+import traceback
 from utils import *
 from config import *
 from limblab.database import *
@@ -317,27 +317,47 @@ class MainWindow(QMainWindow, NavigationMixin):
         self.reset_menu_bar()
 
         top_row = QHBoxLayout()
-
         top_row.addWidget(create_back_button(self.go_back))
         top_row.addWidget(self._create_left_button())
-
         top_row.addStretch()
 
-        self.label_upload = create_label("Upload your limb data", "color: #ffffff; font-size: 40px;")
-        self.button_upload = create_styled_button("Create experiment")
-        self.button_upload.clicked.connect(self.addexp_button_clicked)
+        # ---- Create New Experiment ----
+        self.label_upload = create_label("Create New Experiment", "color: #ffffff; font-size: 40px;")
+        self.button_upload = create_styled_button("Upload TIF Volume", "#0D7C66", "#41B3A2")
+        self.button_upload.clicked.connect(self.create_new_experiment)
 
-        self.label_library = create_label("Load limb data", "color: #ffffff; font-size: 40px;")
-        self.button_library = create_styled_button("Access limb library")
-        self.button_library.clicked.connect(lambda: self.navigate_to(self.show_viz))
+        upload_desc = create_label(
+            "Upload a TIF volume to start a new experiment.\n"
+            "You can add more channels later.",
+            "color: #A0A0A0; font-size: 14px; text-align: center;"
+        )
+        upload_desc.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        upload_desc.setWordWrap(True)
 
+        
+        # ---- Library Access ----
+        self.label_library = create_label("Access Limb Library", "color: #ffffff; font-size: 40px;")
+        self.button_library = create_styled_button("View Experiments", "#41B3A2", "#5FBF9F")
+        self.button_library.clicked.connect(lambda: self.navigate_to(self.show_exp))
+
+        library_desc = create_label(
+            "View and manage your existing experiments\n"
+            "or load them for visualization.",
+            "color: #A0A0A0; font-size: 14px; text-align: center;"
+        )
+        library_desc.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        library_desc.setWordWrap(True)
+
+        # ---- Layout ----
         upload_column = QVBoxLayout()
         upload_column.addWidget(self.label_upload, alignment=Qt.AlignmentFlag.AlignHCenter)
         upload_column.addWidget(self.button_upload, alignment=Qt.AlignmentFlag.AlignHCenter)
+        upload_column.addWidget(upload_desc, alignment=Qt.AlignmentFlag.AlignHCenter)
 
         library_column = QVBoxLayout()
         library_column.addWidget(self.label_library, alignment=Qt.AlignmentFlag.AlignHCenter)
         library_column.addWidget(self.button_library, alignment=Qt.AlignmentFlag.AlignHCenter)
+        library_column.addWidget(library_desc, alignment=Qt.AlignmentFlag.AlignHCenter)
 
         buttons_row = QHBoxLayout()
         buttons_row.addLayout(upload_column)
@@ -351,6 +371,10 @@ class MainWindow(QMainWindow, NavigationMixin):
         layout.addLayout(buttons_row, stretch=0)
         layout.addStretch(2)
         self.setCentralWidget(container)
+
+
+
+
 
     def show_exp(self):
         self.reset_menu_bar()
@@ -385,19 +409,53 @@ class MainWindow(QMainWindow, NavigationMixin):
 
         for path in self.experiments:
             display_name = self.experiment_names.get(path, os.path.basename(path))
-            row = QHBoxLayout()
-            label = QLabel(display_name)
-            label.setStyleSheet("color: #ffffff; font-size: 18px;")
 
+
+
+            exp_data = self.experiment_metadata.get(path, {})
+            channels = exp_data.get('channels', [])
+            channel_names = [ch.get('channel_name', '') for ch in channels]
+        
+            # Check if experiment is complete (has DAPI + gene)
+            is_valid, status_message = self._validate_experiment_channels(path)
+            status_icon = "✅" if is_valid else "⚠️"
+            status_color = "#41B3A2" if is_valid else "#FF6B6B"
+
+
+            # Show channel info
+            channel_display = ""
+            if channels:
+                channel_display = f"[{', '.join(channel_names)}]"
+            else:
+                channel_display = "[No channels]"
+            
+            # Create row with status indicator
+            row = QHBoxLayout()
+            
+            # Experiment name with status
+            name_label = QLabel(f"{status_icon} {display_name}")
+            name_label.setStyleSheet(f"color: {status_color}; font-size: 18px;")
+            name_label.setToolTip(status_message if not is_valid else "Experiment is complete")
+            
+            # Show channel count
+            exp_data = self.experiment_metadata.get(path, {})
+            channels = exp_data.get('channels', [])
+            channel_count = len(channels)
+            channel_info = QLabel(f"({channel_count} channels)")
+            channel_info.setStyleSheet("color: #A0A0A0; font-size: 12px;")
+            
             threebutton = QToolButton()
             threebutton.setIcon(QIcon("threedots.png"))
             threebutton.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
             threebutton.clicked.connect(lambda checked, p=path, b=threebutton: self._click_threebuttons(p, b))
-            #path is the actual experiment id, so it gets passed by twice
-            # display name is the user friendly file name
 
             checkbox = QCheckBox()
-            row.addWidget(label)
+            checkbox.setEnabled(is_valid)  # Only enable checkbox for complete experiments
+            if not is_valid:
+                checkbox.setToolTip("Incomplete experiment - needs DAPI and at least one gene channel")
+            
+            row.addWidget(name_label)
+            row.addWidget(channel_info)
             row.addWidget(checkbox)
             row.addWidget(threebutton)
             row.addStretch()
@@ -413,7 +471,14 @@ class MainWindow(QMainWindow, NavigationMixin):
 
         self.add_btn = create_styled_button('+ Add Experiment', "#7C6FD6", "#8E7FD6")
         self.save_btn = create_styled_button('Save Experiment', "#4B2E83", "#5C3A9E")
-        self.view_btn = create_styled_button('View', "#41B3A2", "#5FBF9F")
+        self.view_btn = create_styled_button('View Experiment', "#41B3A2", "#5FBF9F")
+        self.refresh_btn = create_styled_button('↻ Refresh', "#4B2E83", "#5C3A9E")
+
+        self.view_btn.clicked.connect(self.viewexp_button_clicked)
+        self.refresh_btn.clicked.connect(self._refresh_experiments)
+
+        buttons_row = QVBoxLayout()
+        buttons_row.setContentsMargins(0, 20, 0, 20)
 
         self.add_btn.clicked.connect(self.addexp_button_clicked)
         self.save_btn.clicked.connect(self.saveexp_button_clicked)
@@ -428,8 +493,11 @@ class MainWindow(QMainWindow, NavigationMixin):
         buttons_row.addSpacing(10)  # Space between buttons
         buttons_row.addWidget(self.save_btn)
         buttons_row.addSpacing(10)  # Space between buttons
+        buttons_row.addStretch(1)
         buttons_row.addWidget(self.view_btn)
-        buttons_row.addStretch(1)  # Big stretch on right
+        buttons_row.addSpacing(10)
+        buttons_row.addWidget(self.refresh_btn)
+        buttons_row.addStretch(1)
 
         # Assemble everything
         container = QWidget()
@@ -446,6 +514,14 @@ class MainWindow(QMainWindow, NavigationMixin):
         self.setCentralWidget(container)
 
     # ---- Pipeline step screens (Viz -> Clean -> Surface -> Stage -> Align -> Viz) ----
+
+    def _refresh_experiments(self):
+        """Refresh the experiments list."""
+        self._load_experiments_from_db()
+        self.show_exp()
+        QMessageBox.information(self, "Refreshed", "Experiment list updated.")
+
+
 
     def show_viz(self):
         """Visualization screen. Top bar just shows the Clean button (the next step)."""
@@ -556,7 +632,7 @@ class MainWindow(QMainWindow, NavigationMixin):
         channel_row.addWidget(channel_label)
 
         channel_combo = QComboBox()
-        channel_combo.addItems(["DAPI", "SHH", "BMP2", "Sox9", "Hoxa11"])
+        channel_combo.addItems(["DAPI","BMP2", "Sox9", "Hoxa11"])
         channel_combo.setStyleSheet("""
             QComboBox { 
                 color: #ffffff; 
@@ -1705,10 +1781,242 @@ class MainWindow(QMainWindow, NavigationMixin):
                 QMessageBox.warning(self, "Error", f"Experiment '{experiment_id}' not found in database.")
 
 
-    def ask_limbinfo(self):
-        """Popup dialog asking for limb side, position, and spacing."""
+
+    def create_new_experiment(self):
+        """Create a new experiment from any TIF volume (DAPI or gene channel)."""
+        filepath, _ = QFileDialog.getOpenFileName(
+            parent=self,
+            caption='Select TIF volume file!',
+            directory=os.getcwd(),
+            filter='Volume files (*.tif *.tiff *.vti *.nii *.nii.gz)'
+        )
+        if not filepath:
+            return
+
+        if not filepath.lower().endswith((".tif", ".tiff", ".vti", ".nii", ".nii.gz")):
+            QMessageBox.warning(self, "Invalid file", "Please select a valid volume file.")
+            return
+
+        # Ask for limb info and channel type
+        limb_info = self.ask_limbinfo()
+        if not limb_info:
+            return
+
+        try:
+            exp_id = os.path.basename(filepath).split('.')[0]
+
+            # Check if experiment already exists
+            if exp_id in self.experiments:
+                reply = QMessageBox.question(
+                    self,
+                    "Experiment Exists",
+                    f"Experiment '{exp_id}' already exists.\n"
+                    "Do you want to add this channel to it instead?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                )
+                if reply == QMessageBox.StandardButton.Yes:
+                    self._add_channel_to_existing(exp_id)
+                return
+
+            # Get channel type
+            channel_name = limb_info['channel_type']
+            
+            # Set default isovalues based on channel type
+            if channel_name == "DAPI":
+                v0, v1 = 238.0, 463.0
+            else:  # Gene channels
+                v0, v1 = 174.0, 335.0
+
+            # Create experiment
+            new_exp = Experiment(
+                experiment_id=exp_id,
+                base=os.path.dirname(filepath),
+                spacing_x=limb_info['spacing'][0],
+                spacing_y=limb_info['spacing'][1],
+                spacing_z=limb_info['spacing'][2],
+                side=limb_info['side'],
+                position=limb_info['position'],
+                channels=[
+                    Channel(
+                        experiment_id=exp_id,
+                        channel_name=channel_name,
+                        path=os.path.basename(filepath),
+                        v0=v0,
+                        v1=v1
+                    )
+                ]
+            )
+
+            save_experiment(self.db_path, new_exp)
+            self._load_experiments_from_db()
+            self.navigate_to(self.show_exp)
+
+            # Show success message with next steps
+            next_steps = "Add more gene channels using the 'Add Channel' button."
+            if channel_name == "DAPI":
+                next_steps = "Add gene channels (Hoxa11, Sox9, BMP2, SHH) using the 'Add Channel' button."
+            else:
+                next_steps = "Add DAPI and other gene channels using the 'Add Channel' button."
+
+            QMessageBox.information(
+                self,
+                "Success",
+                f"✅ Experiment created: {exp_id}\n"
+                f"📁 File: {os.path.basename(filepath)}\n"
+                f"📊 Channel: {channel_name}\n\n"
+                f"💡 {next_steps}"
+            )
+
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to create experiment: {e}")
+            import traceback
+            traceback.print_exc()
+
+
+
+
+    def add_channel_to_existing(self, specific_exp_id=None):
+        """Add a channel to an existing experiment."""
+        # If no specific experiment provided, let user choose
+        if not specific_exp_id:
+            if not self.experiments:
+                QMessageBox.warning(
+                    self, 
+                    "No experiments", 
+                    "No existing experiments found.\n\n"
+                    "Please create a new experiment first using the 'Upload TIF Volume' button."
+                )
+                return
+            
+            # Ask which experiment to add channel to
+            exp_id, ok = QInputDialog.getItem(
+                self,
+                "Select Experiment",
+                "Select experiment to add channel to:",
+                self.experiments,
+                0,
+                False
+            )
+            
+            if not ok or not exp_id:
+                return
+        else:
+            exp_id = specific_exp_id
+        
+        # Get experiment data
+        exp_data = self.experiment_metadata.get(exp_id)
+        if not exp_data:
+            QMessageBox.warning(self, "Error", "Experiment not found.")
+            return
+        
+        # Show current channels
+        current_channels = [ch.get('channel_name', '') for ch in exp_data.get('channels', [])]
+        channel_info = f"Current channels: {', '.join(current_channels) if current_channels else 'None'}"
+        
+        # Get the file
+        filepath, _ = QFileDialog.getOpenFileName(
+            parent=self,
+            caption='Select gene channel TIF file!',
+            directory=os.getcwd(),
+            filter='Volume files (*.tif *.tiff *.vti *.nii *.nii.gz)'
+        )
+        if not filepath:
+            return
+        
+        if not filepath.lower().endswith((".tif", ".tiff", ".vti", ".nii", ".nii.gz")):
+            QMessageBox.warning(self, "Invalid file", "Please select a valid volume file.")
+            return
+        
+        # Ask for channel type (only gene channels for adding)
+        channel_type, ok = QInputDialog.getItem(
+            self,
+            "Channel Type",
+            f"Select channel type to add:\n\n{channel_info}",
+            ["Hoxa11", "Sox9", "BMP2", "SHH"],
+            0,
+            False
+        )
+        
+        if not ok or not channel_type:
+            return
+        
+        try:
+            # Check if channel already exists
+            for channel in exp_data.get('channels', []):
+                if channel.get('channel_name', '').upper() == channel_type.upper():
+                    QMessageBox.warning(
+                        self,
+                        "Duplicate Channel",
+                        f"Channel '{channel_type}' already exists in this experiment.\n"
+                        f"{channel_info}"
+                    )
+                    return
+            
+            # Add new channel (gene channel defaults)
+            new_channel = {
+                'experiment_id': exp_id,
+                'channel_name': channel_type,
+                'path': os.path.basename(filepath),
+                'v0': 174.0,
+                'v1': 335.0
+            }
+            
+            exp_data['channels'].append(new_channel)
+            
+            # Recreate experiment object
+            experiment_obj = Experiment(
+                experiment_id=exp_id,
+                base=exp_data['base'],
+                spacing_x=exp_data.get('spacing_x', 0.65),
+                spacing_y=exp_data.get('spacing_y', 0.65),
+                spacing_z=exp_data.get('spacing_z', 2.0),
+                side=exp_data.get('side', 'L'),
+                position=exp_data.get('position', 'H'),
+                channels=exp_data['channels']
+            )
+            
+            # Save to database
+            save_experiment(self.db_path, experiment_obj)
+            
+            # Reload and refresh
+            self._load_experiments_from_db()
+            self.show_exp()
+            
+            # Check if experiment is now complete
+            is_valid, status = self._validate_experiment_channels(exp_id)
+            
+            if is_valid:
+                QMessageBox.information(
+                    self,
+                    "Success",
+                    f"✅ Added {channel_type} channel to experiment: {exp_id}\n"
+                    f"📁 File: {os.path.basename(filepath)}\n\n"
+                    f"🎉 Experiment is now complete!\n"
+                    f"Channels: {', '.join([ch.get('channel_name', '') for ch in exp_data['channels']])}\n\n"
+                    f"You can now visualize this experiment."
+                )
+            else:
+                QMessageBox.information(
+                    self,
+                    "Success",
+                    f"✅ Added {channel_type} channel to experiment: {exp_id}\n"
+                    f"📁 File: {os.path.basename(filepath)}\n\n"
+                    f"⚠️ Experiment is still incomplete:\n{status}\n\n"
+                    f"Current channels: {', '.join([ch.get('channel_name', '') for ch in exp_data['channels']])}"
+                )
+            
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to add channel: {e}")
+            import traceback
+            traceback.print_exc()
+
+
+
+
+    def ask_limbinfo(self, channel_only=False):
+        """Popup dialog asking for limb side, position, spacing, and channel type."""
         dialog = QDialog()
-        dialog.setWindowTitle("Limb Options")
+        dialog.setWindowTitle("Limb Options" if not channel_only else "Channel Type")
         dialog.setModal(True)
         dialog.setFixedWidth(350)
 
@@ -1716,71 +2024,95 @@ class MainWindow(QMainWindow, NavigationMixin):
         layout.setSpacing(15)
         layout.setContentsMargins(20, 20, 20, 20)
 
-        side_layout = QHBoxLayout()
-        side_label = QLabel("Limb Side:")
-        side_label.setFixedWidth(100)
-        side_combo = QComboBox()
-        side_combo.addItems(["L", "R"])
-        side_combo.setCurrentIndex(0)
-        side_layout.addWidget(side_label)
-        side_layout.addWidget(side_combo)
-        layout.addLayout(side_layout)
+        # ---- Limb Side ----
+        if not channel_only:
+            side_layout = QHBoxLayout()
+            side_label = QLabel("Limb Side:")
+            side_label.setFixedWidth(100)
+            side_combo = QComboBox()
+            side_combo.addItems(["L", "R"])
+            side_combo.setCurrentIndex(0)
+            side_layout.addWidget(side_label)
+            side_layout.addWidget(side_combo)
+            layout.addLayout(side_layout)
 
-        # ---- Position ----
-        position_layout = QHBoxLayout()
-        position_label = QLabel("Position:")
-        position_label.setFixedWidth(100)
-        position_combo = QComboBox()
-        position_combo.addItems(["F", "H"])
-        position_combo.setCurrentIndex(0)
-        position_layout.addWidget(position_label)
-        position_layout.addWidget(position_combo)
-        layout.addLayout(position_layout)
 
-        # ---- Spacing ----
-        spacing_group = QGroupBox("Spacing")
-        spacing_layout = QVBoxLayout(spacing_group)
+            # ---- Position ----
+            position_layout = QHBoxLayout()
+            position_label = QLabel("Position:")
+            position_label.setFixedWidth(100)
+            position_combo = QComboBox()
+            position_combo.addItems(["F", "H"])
+            position_combo.setCurrentIndex(0)
+            position_layout.addWidget(position_label)
+            position_layout.addWidget(position_combo)
+            layout.addLayout(position_layout)
 
-        # X spacing
-        x_layout = QHBoxLayout()
-        x_label = QLabel("X:")
-        x_label.setFixedWidth(30)
-        x_spin = QDoubleSpinBox()
-        x_spin.setRange(0.01, 10.0)
-        x_spin.setSingleStep(0.01)
-        x_spin.setValue(0.65)
-        x_spin.setDecimals(2)
-        x_layout.addWidget(x_label)
-        x_layout.addWidget(x_spin)
-        spacing_layout.addLayout(x_layout)
+            # ---- Spacing ----
+            spacing_group = QGroupBox("Spacing")
+            spacing_layout = QVBoxLayout(spacing_group)
 
-        # Y spacing
-        y_layout = QHBoxLayout()
-        y_label = QLabel("Y:")
-        y_label.setFixedWidth(30)
-        y_spin = QDoubleSpinBox()
-        y_spin.setRange(0.01, 10.0)
-        y_spin.setSingleStep(0.01)
-        y_spin.setValue(0.65)
-        y_spin.setDecimals(2)
-        y_layout.addWidget(y_label)
-        y_layout.addWidget(y_spin)
-        spacing_layout.addLayout(y_layout)
+            # X spacing
+            x_layout = QHBoxLayout()
+            x_label = QLabel("X:")
+            x_label.setFixedWidth(30)
+            x_spin = QDoubleSpinBox()
+            x_spin.setRange(0.01, 10.0)
+            x_spin.setSingleStep(0.01)
+            x_spin.setValue(0.65)
+            x_spin.setDecimals(2)
+            x_layout.addWidget(x_label)
+            x_layout.addWidget(x_spin)
+            spacing_layout.addLayout(x_layout)
 
-        # Z spacing
-        z_layout = QHBoxLayout()
-        z_label = QLabel("Z:")
-        z_label.setFixedWidth(30)
-        z_spin = QDoubleSpinBox()
-        z_spin.setRange(0.01, 10.0)
-        z_spin.setSingleStep(0.01)
-        z_spin.setValue(2.0)
-        z_spin.setDecimals(2)
-        z_layout.addWidget(z_label)
-        z_layout.addWidget(z_spin)
-        spacing_layout.addLayout(z_layout)
+            # Y spacing
+            y_layout = QHBoxLayout()
+            y_label = QLabel("Y:")
+            y_label.setFixedWidth(30)
+            y_spin = QDoubleSpinBox()
+            y_spin.setRange(0.01, 10.0)
+            y_spin.setSingleStep(0.01)
+            y_spin.setValue(0.65)
+            y_spin.setDecimals(2)
+            y_layout.addWidget(y_label)
+            y_layout.addWidget(y_spin)
+            spacing_layout.addLayout(y_layout)
 
-        layout.addWidget(spacing_group)
+            # Z spacing
+            z_layout = QHBoxLayout()
+            z_label = QLabel("Z:")
+            z_label.setFixedWidth(30)
+            z_spin = QDoubleSpinBox()
+            z_spin.setRange(0.01, 10.0)
+            z_spin.setSingleStep(0.01)
+            z_spin.setValue(2.0)
+            z_spin.setDecimals(2)
+            z_layout.addWidget(z_label)
+            z_layout.addWidget(z_spin)
+            spacing_layout.addLayout(z_layout)
+
+            layout.addWidget(spacing_group)
+
+        # ---- Channel Type ----
+        channel_layout = QHBoxLayout()
+        channel_label = QLabel("Channel type:")
+        channel_label.setFixedWidth(100)
+        channel_combo = QComboBox()
+
+
+        if channel_only:
+            channel_combo.addItems(["Hoxa11", "Sox9", "BMP2"])
+            channel_label.setText("Gene channel:")
+        else:
+            channel_combo.addItems(["DAPI", "Hoxa11", "Sox9", "BMP2"])
+
+
+
+        #channel_combo.addItems(["DAPI", "Hoxa11", "Sox9", "BMP2", "SHH"])
+        channel_combo.setCurrentIndex(0)
+        channel_layout.addWidget(channel_label)  # FIXED: was position_label
+        channel_layout.addWidget(channel_combo)  # FIXED: was position_combo
+        layout.addLayout(channel_layout)
 
         # ---- Buttons ----
         button_layout = QHBoxLayout()
@@ -1801,24 +2133,55 @@ class MainWindow(QMainWindow, NavigationMixin):
         result = dialog.exec()
 
         if result == QDialog.DialogCode.Accepted:
-            side = side_combo.currentText()
-            position = position_combo.currentText()
-            spacing = (x_spin.value(), y_spin.value(), z_spin.value())
+            if channel_only:
+                # Only return channel type
+                return {
+                    'channel_type': channel_combo.currentText()
+                }
+            else:
+                # Return all info
+                side = side_combo.currentText()
+                position = position_combo.currentText()
+                spacing = (x_spin.value(), y_spin.value(), z_spin.value())
+                channel_type = channel_combo.currentText()
 
-            return {
-                'side': side,
-                'position': position,
-                'spacing': spacing
-            }
+                return {
+                    'side': side,
+                    'position': position,
+                    'spacing': spacing,
+                    'channel_type': channel_type
+                }
         else:
             return None
 
+
     def addexp_button_clicked(self, checked=False):
-        """Add experiment button handler."""
+        """Add experiment button handler - creates new experiment or adds channel to existing."""
+        # First, check if we have existing experiments
+        if self.experiments:
+            # Ask user if they want to create new experiment or add to existing
+            reply = QMessageBox.question(
+                self,
+                "Add to Existing?",
+                "Do you want to add this channel to an existing experiment?\n"
+                "• Yes: Add channel to existing experiment\n"
+                "• No: Create new experiment",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel
+            )
+            
+            if reply == QMessageBox.StandardButton.Cancel:
+                return
+            elif reply == QMessageBox.StandardButton.Yes:
+                # Add to existing experiment
+                self._add_channel_to_existing()
+                return
+            # else: No - create new experiment (continue below)
+        
+        # Create new experiment (Original flow)
         filepath, _ = QFileDialog.getOpenFileName(
-            parent=self, 
+            parent=self,
             caption='Select .tiff file!',
-            directory=os.getcwd(), 
+            directory=os.getcwd(),
             filter='Volume files (*.tif *.tiff *.vti)'
         )
         if not filepath:
@@ -1828,11 +2191,9 @@ class MainWindow(QMainWindow, NavigationMixin):
             QMessageBox.warning(self, "Invalid file", "Please select a valid volume file.")
             return
 
-
         limb_info = self.ask_limbinfo()
         if not limb_info:
-            return  # User cancelle
-        
+            return  # User cancelled
 
         # Create new experiment from file
         try:
@@ -1841,9 +2202,28 @@ class MainWindow(QMainWindow, NavigationMixin):
             # Check if experiment already exists
             if exp_id in self.experiments:
                 QMessageBox.warning(self, "Duplicate", f"Experiment '{exp_id}' already exists.")
+                # Ask if they want to add channel to existing experiment instead
+                reply = QMessageBox.question(
+                    self,
+                    "Add to Existing?",
+                    f"Experiment '{exp_id}' already exists.\n"
+                    "Do you want to add this channel to it?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                )
+                if reply == QMessageBox.StandardButton.Yes:
+                    self._add_channel_to_existing(exp_id)
                 return
 
-            # Create a new experiment from the volume file
+            # Get channel type from dialog
+            channel_name = limb_info['channel_type']
+            
+            # Set default isovalues based on channel type
+            if channel_name == "DAPI":
+                v0, v1 = 238.0, 463.0
+            else:  # Gene channels
+                v0, v1 = 174.0, 335.0
+
+            # Create a new experiment
             new_exp = Experiment(
                 experiment_id=exp_id,
                 base=os.path.dirname(filepath),
@@ -1854,34 +2234,32 @@ class MainWindow(QMainWindow, NavigationMixin):
                 position=limb_info['position'],
                 channels=[
                     Channel(
-                        experiment_id=f"{exp_id}",
-                        channel_name="DAPI",
+                        experiment_id=exp_id,
+                        channel_name=channel_name,
                         path=os.path.basename(filepath),
-                        v0=238.0,
-                        v1=463.0
-                    ),
-                    # Add more channels if needed TODO CHANGE THIS!!!
+                        v0=v0,
+                        v1=v1
+                    )
                 ]
             )
 
             save_experiment(self.db_path, new_exp)
-                        #saves the added experiment into our DB!!!
-            
             self._load_experiments_from_db()
-            #diaply of the newly added experiment into the db
-            self.navigate_to(self.show_exp)
-
+            self.show_exp()
 
             QMessageBox.information(
-            self, 
-            "Success", 
-            f"Successfully added experiment: {exp_id}\n"
-            f"File: {os.path.basename(filepath)}")
+                self, 
+                "Success", 
+                f"Successfully created experiment: {exp_id}\n"
+                f"File: {os.path.basename(filepath)}\n"
+                f"Channel: {channel_name}\n\n"
+                f"Add more gene channels using the 'Add Channel' option."
+            )
 
         except Exception as e:
-            QMessageBox.warning(self, "Error", f"Failed to add experiment: {e}")
-
-
+            QMessageBox.critical(self, "Error", f"Failed to add experiment: {e}")
+            
+            traceback.print_exc()
 
     def saveexp_button_clicked(self):
         """Save experiment button handler."""
@@ -1894,8 +2272,18 @@ class MainWindow(QMainWindow, NavigationMixin):
             QMessageBox.warning(self, "No experiment selected", "Please select an experiment to visualize.")
             return
 
-        self.filepath = selected[0]
-        # Starting a new experiment resets pipeline progress.
+        exp_id = selected[0]
+
+        is_valid, message = self._validate_experiment_channels(exp_id)
+    
+        if not is_valid:
+            QMessageBox.warning(self, "Incomplete Experiment", message)
+            return
+        
+        # If valid, proceed to visualization
+        self.filepath = exp_id
+        
+        # Reset workflow state for new experiment
         self.workflow_state = {
             "clean_done": False,
             "last_cleaned_channel": None,
@@ -1906,6 +2294,158 @@ class MainWindow(QMainWindow, NavigationMixin):
             "alignment_method": None,
         }
         self.navigate_to(self.show_viz)
+
+
+    def _add_channel_to_existing(self, specific_exp_id=None):
+        """Add a channel to an existing experiment."""
+        # If no specific experiment provided, let user choose
+        if not specific_exp_id:
+            if not self.experiments:
+                QMessageBox.warning(self, "No experiments", "No existing experiments found.")
+                return
+            
+            # Ask which experiment to add channel to
+            exp_id, ok = QInputDialog.getItem(
+                self,
+                "Select Experiment",
+                "Select experiment to add channel:",
+                self.experiments,
+                0,
+                False
+            )
+            
+            if not ok or not exp_id:
+                return
+        else:
+            exp_id = specific_exp_id
+        
+        # Get the file
+        filepath, _ = QFileDialog.getOpenFileName(
+            parent=self,
+            caption='Select gene channel .tiff file!',
+            directory=os.getcwd(),
+            filter='Volume files (*.tif *.tiff *.vti)'
+        )
+        if not filepath:
+            return
+        
+        if not filepath.lower().endswith((".tif", ".tiff", ".vti")):
+            QMessageBox.warning(self, "Invalid file", "Please select a valid volume file.")
+            return
+        
+        # Ask for channel type using the same limb info dialog
+        limb_info = self.ask_limbinfo(channel_only=True)
+        if not limb_info:
+            return
+        
+        channel_name = limb_info['channel_type']
+        
+        try:
+            # Get existing experiment data
+            exp_data = self.experiment_metadata.get(exp_id)
+            if not exp_data:
+                QMessageBox.warning(self, "Error", "Experiment not found.")
+                return
+            
+            # Check if channel already exists
+            for channel in exp_data.get('channels', []):
+                if channel.get('channel_name', '').upper() == channel_name.upper():
+                    QMessageBox.warning(
+                        self,
+                        "Duplicate Channel",
+                        f"Channel '{channel_name}' already exists in this experiment.\n"
+                        f"Current channels: {', '.join([ch.get('channel_name', '') for ch in exp_data.get('channels', [])])}"
+                    )
+                    return
+            
+            # Set default isovalues based on channel type
+            if channel_name == "DAPI":
+                v0, v1 = 238.0, 463.0
+            else:  # Gene channels
+                v0, v1 = 174.0, 335.0
+            
+            # Add new channel
+            new_channel = {
+                'experiment_id': exp_id,
+                'channel_name': channel_name,
+                'path': os.path.basename(filepath),
+                'v0': v0,
+                'v1': v1
+            }
+            
+            exp_data['channels'].append(new_channel)
+            
+            # Recreate experiment object
+            experiment_obj = Experiment(
+                experiment_id=exp_id,
+                base=exp_data['base'],
+                spacing_x=exp_data.get('spacing_x', 0.65),
+                spacing_y=exp_data.get('spacing_y', 0.65),
+                spacing_z=exp_data.get('spacing_z', 2.0),
+                side=exp_data.get('side', 'L'),
+                position=exp_data.get('position', 'H'),
+                channels=exp_data['channels']
+            )
+            
+            # Save to database
+            save_experiment(self.db_path, experiment_obj)
+            
+            # Reload and refresh
+            self._load_experiments_from_db()
+            self.show_exp()
+            
+            QMessageBox.information(
+                self,
+                "Success",
+                f"✅ Added {channel_name} channel to experiment: {exp_id}\n"
+                f"📁 File: {os.path.basename(filepath)}\n\n"
+                f"Current channels: {', '.join([ch.get('channel_name', '') for ch in exp_data['channels']])}"
+            )
+            
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to add channel: {e}")
+            import traceback
+            traceback.print_exc()
+
+
+
+    def _validate_experiment_channels(self, exp_id):
+        """Validate that experiment has DAPI and at least one gene channel."""
+        # Get experiment data from database
+        exp_data = self.experiment_metadata.get(exp_id)
+        if not exp_data:
+            return False, f"Experiment '{exp_id}' not found in database."
+        
+        # Get all channels
+        channels = exp_data.get('channels', [])
+        if not channels:
+            return False, "No channels found in this experiment.\nPlease upload at least DAPI and one gene channel."
+        
+        # Check for DAPI channel
+        has_dapi = False
+        gene_channels = []
+        
+        # Gene channel names (case insensitive)
+        gene_names = ['Hoxa11', 'Sox9', 'BMP2', 'SHH']
+        
+        for channel in channels:
+            channel_name = channel.get('channel_name', '').upper()
+            if channel_name == 'DAPI':
+                has_dapi = True
+            elif channel_name in [g.upper() for g in gene_names]:
+                gene_channels.append(channel.get('channel_name'))
+        
+        # Build validation result
+        if not has_dapi:
+            return False, "Missing required DAPI channel.\n\nPlease upload a DAPI .tiff file first."
+        
+        if len(gene_channels) == 0:
+            return False, "Missing gene channels.\n\nPlease upload at least one gene channel:\n- Hoxa11\n- Sox9\n- BMP2"
+        
+        # Success - has DAPI and at least one gene channel
+        return True, f"Experiment has DAPI and {len(gene_channels)} gene channel(s): {', '.join(gene_channels)}"
+
+
 
     def menu_button_clicked(self, s):
         """Placeholder for menu button clicks."""
