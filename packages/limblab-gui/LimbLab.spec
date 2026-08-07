@@ -9,14 +9,15 @@ block_cipher = None
 
 from PyInstaller.utils.hooks import collect_submodules
 vedo_hiddenimports = collect_submodules('vedo')
+vtk_hiddenimports = collect_submodules('vtk')
 
 a = Analysis(
     ['limblab_gui/app.py'],
     pathex=['limblab_gui'],
     binaries=[],
     datas=[
-        ('limblab_gui/left_icon.png', '.'),
-        ('limblab_gui/threedots.png', '.'),
+        ('limblab_gui/assets/icons/left_icon.png', '.'),
+        ('limblab_gui/assets/icons/threedots.png', '.'),
         ('limblab_gui/config.py', '.'),
     ] + vedo_datas,
     hiddenimports=[
@@ -24,7 +25,7 @@ a = Analysis(
         'config',
         'NavigationMixin',
         'utils',
-    ] + vedo_hiddenimports,
+    ] + vedo_hiddenimports + vtk_hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
