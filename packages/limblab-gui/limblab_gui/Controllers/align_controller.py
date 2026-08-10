@@ -127,4 +127,4 @@ class AlignController:
             )
             return
 
-        self.window.navigate_to(self.window.show_viz)
+        self.window.navigate_to(self.window.show_viz)#TODO next should be stage!

@@ -125,4 +125,5 @@ class SurfaceController:
                 )
                 return
             #plt.close()
-            self.window.navigate_to(self.show_stage)
+            #TODO SHOULD BE STAGE FIRST BUT NOT DEFINED YET!!!!!!!!!!!!
+            self.window.navigate_to(lambda: self.window.align.show(self.window.current_experiment))

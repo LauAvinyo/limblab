@@ -13,7 +13,7 @@ from .database import (
 )
 from .tools.align import _store_transformation_matrix, rotate_limb
 from .tools.clean import clean, pick_isovalues
-from .tools.stage import stage_limb
+from .tools.stage import stage_limb, check_connection, _stage_limb
 from .tools.surface import auto_isovalue, extract_surface, pick_isovalue, get_nuclei_channel_path
 from .tools.clean import pick_isovalues, clean, get_channel_path
 
@@ -38,5 +38,8 @@ __all__ = [
     "get_nuclei_channel_path", 
     'pick_isovalues',
     'clean',
-    'get_channel_path'
+    'get_channel_path',
+    'check_connection',
+    '_stage_connection'
 ]
+#les funcions privades s-haurien de poder ficar aqui????

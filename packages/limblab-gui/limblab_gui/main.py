@@ -9,6 +9,8 @@ import numpy as np
 import pyqtgraph as pg
 import vtk
 
+import traceback
+
 # from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 import vtkmodules
 from config import *
@@ -67,6 +69,7 @@ from Controllers.surface_controller import SurfaceController
 
 from Controllers.clean_controller import CleanController
 
+
 #laura
 #TEST_BASE_PATH = "/Users/laura/Desktop/Desktop-2026/sox9-fig-thesis"
 #TEST_SURFACE_PATH = "HCR11_MEIS2_l1_dapi_488_LF_surface.vtk"
@@ -94,13 +97,10 @@ experiment = Experiment(
         Channel(
             experiment_id="manual_test",
             channel_name="DAPI",
-            path=TEST_DAPI_FILENAME,
-            v0=238.0,
-            v1=463.0,
+            path=TEST_DAPI_FILENAME
         )
     ],
 )
-
 
 
 class MainWindow(QMainWindow, NavigationMixin):
@@ -114,13 +114,11 @@ class MainWindow(QMainWindow, NavigationMixin):
         # DATABASE
         self.db_path = Path("experiments.db")
 
-        if not self.db_path.exists():
-            init_db(self.db_path)  # Creates empty database with schema only
-            print(f"Created empty database: {self.db_path}")
+        #each time the app is loadde a new db is created TESTING!!!   
+        init_db(self.db_path)  # Creates empty database with schema only
+        print(f"Created empty database: {self.db_path}")
 
-        else:
-            print(f"Using existing database: {self.db_path}")
-
+    
         self._load_experiments_from_db()
         # DATABASE END
         ##############
@@ -149,6 +147,7 @@ class MainWindow(QMainWindow, NavigationMixin):
         # completed. This drives both forward-navigation guards (can't
         # jump ahead without finishing the current step) and back
         # navigation warnings (you're about to lose unsaved progress).
+
         self.workflow_state = {
             "clean_done": False,
             "last_cleaned_channel": None,
@@ -160,21 +159,38 @@ class MainWindow(QMainWindow, NavigationMixin):
         }
 
         self.align = AlignController(self)
-        self.current_experiment = experiment
-
-        # Initial
-        #self.navigate_to(lambda: self.align.show(experiment))
-
-
         self.surface = SurfaceController(self)
-        #self.navigate_to(lambda: self.surface.show(experiment))
-
         self.clean = CleanController(self)
-        self.navigate_to(lambda: self.clean.show(experiment))
+        #self.stage = StageController(self)   # see below
+
+        self.current_experiment = None   # set when the user picks a real experiment
 
 
-        #TODO : self navigate home as initial home screen
-       #self.navigate_to(lambda: self.show_home())
+        self.navigate_to(self.show_home)
+
+
+    def reset_database(self):
+        reply = QMessageBox.question(
+            self, "Reset database",
+            "This deletes all saved experiment records from the database.\n"
+            "Volume files on disk are NOT deleted.\n\nContinue?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+
+        if self.db_path.exists():
+            self.db_path.unlink()
+        init_db(self.db_path)
+
+        self.experiments = []
+        self.experiment_metadata = {}
+        self.experiment_names = {}
+        self.current_experiment = None
+        self.filepath = None
+
+        self._load_experiments_from_db()
+        self.show_exp()
 
 
     # ------------------------------------------------------------------
@@ -217,6 +233,7 @@ class MainWindow(QMainWindow, NavigationMixin):
             ("Import Limb", None),
             ("Add Channel to experiment", None),
             ("Import Reference Model", None),
+            ('Reset database', None),
             (None, None),  # Separator
             ("Export Cleaned Volume", None),
             ("Export Surface Mesh", None),
@@ -235,9 +252,11 @@ class MainWindow(QMainWindow, NavigationMixin):
                 action = QAction(text, self)
                 if shortcut:
                     action.setShortcut(shortcut)
-                action.triggered.connect(self.menu_button_clicked)
+                if text == "Reset Database":
+                    action.triggered.connect(self.reset_database)
+                else:
+                    action.triggered.connect(self.menu_button_clicked)
                 file_menu.addAction(action)
-        return file_menu
 
     def _build_view_menu(self, menu_bar):
         """Build the View menu."""
@@ -491,20 +510,16 @@ class MainWindow(QMainWindow, NavigationMixin):
 
     def show_exp(self):
         self.reset_menu_bar()
-
         if not self.db_path.exists():
             # Database doesn't exist, create it with test data
             init_db(self.db_path)
-
             print("Created new database with data")
-
         else:
             # Database exists, check if it has any experiments
             experiments = list_experiments(self.db_path)
             if not experiments:
                 # Database exists but empty, generate test data
                 init_db(self.db_path)
-                print("Generated test data in existing database")
             else:
                 print(f"Found {experiments} existing experiments")
 
@@ -520,19 +535,24 @@ class MainWindow(QMainWindow, NavigationMixin):
         self.experiment_checkboxes = []
 
         for path in self.experiments:
+            # Get the experiment object
+            exp_obj = self.experiment_metadata.get(path)
+            
+            # Handle case where experiment might not exist
+            if exp_obj is None:
+                continue
+                
+            # Access attributes directly from the Experiment object
             display_name = self.experiment_names.get(path, os.path.basename(path))
-
-
-
-            exp_data = self.experiment_metadata.get(path, {})
-            channels = exp_data.get('channels', [])
-            channel_names = [ch.get('channel_name', '') for ch in channels]
+            
+            # Access channels directly from the Experiment object
+            channels = exp_obj.channels if hasattr(exp_obj, 'channels') else []
+            channel_names = [ch.channel_name for ch in channels] if channels else []
         
             # Check if experiment is complete (has DAPI + gene)
             is_valid, status_message = self._validate_experiment_channels(path)
             status_icon = "✅" if is_valid else "⚠️"
             status_color = "#41B3A2" if is_valid else "#FF6B6B"
-
 
             # Show channel info
             channel_display = ""
@@ -549,9 +569,7 @@ class MainWindow(QMainWindow, NavigationMixin):
             name_label.setStyleSheet(f"color: {status_color}; font-size: 18px;")
             name_label.setToolTip(status_message if not is_valid else "Experiment is complete")
             
-            # Show channel count
-            exp_data = self.experiment_metadata.get(path, {})
-            channels = exp_data.get('channels', [])
+            # Show channel count - use the channels from the Experiment object directly
             channel_count = len(channels)
             channel_info = QLabel(f"({channel_count} channels)")
             channel_info.setStyleSheet("color: #A0A0A0; font-size: 12px;")
@@ -584,7 +602,6 @@ class MainWindow(QMainWindow, NavigationMixin):
         experiments_card.setMinimumHeight(250)
 
         self.add_btn = create_styled_button('+ Add Experiment', "#7C6FD6", "#8E7FD6")
-        self.save_btn = create_styled_button('Save Experiment', "#4B2E83", "#5C3A9E")
         self.view_btn = create_styled_button('View Experiment', "#41B3A2", "#5FBF9F")
         self.refresh_btn = create_styled_button('↻ Refresh', "#4B2E83", "#5C3A9E")
 
@@ -595,7 +612,6 @@ class MainWindow(QMainWindow, NavigationMixin):
         buttons_row.setContentsMargins(0, 20, 0, 20)
 
         self.add_btn.clicked.connect(self.addexp_button_clicked)
-        self.save_btn.clicked.connect(self.saveexp_button_clicked)
         self.view_btn.clicked.connect(self.viewexp_button_clicked)
 
         buttons_row = QVBoxLayout()
@@ -636,14 +652,12 @@ class MainWindow(QMainWindow, NavigationMixin):
         QMessageBox.information(self, "Refreshed", "Experiment list updated.")
 
 
-
     def show_viz(self):
-        """Visualization screen. Top bar just shows the Clean button (the next step)."""
         container = self._build_workflow_container(
-            next_label="Clean",
-            next_callback=lambda: self.navigate_to(self.show_clean),
-            back_guard=None,  # nothing to lose by leaving the visualizer
-        )
+        next_label="Clean",
+        next_callback=lambda: self.navigate_to(lambda: self.clean.show(self.current_experiment)),
+        back_guard=None,
+    )
         self.setCentralWidget(container)
 
         menu_bar = self._reset_top_menu_bar()
@@ -652,6 +666,7 @@ class MainWindow(QMainWindow, NavigationMixin):
 
         if self.filepath:
             self.update_viewer(self.filepath)
+
 
     def update_viewer(self, filepath):
         """Load REAL limb object from database and display"""
@@ -679,11 +694,16 @@ class MainWindow(QMainWindow, NavigationMixin):
 
                     self.show_basic_mesh(filepath)
 
+
+
     def show_basic_mesh(self, path):
         """Display a mesh in the vedo viewer"""
         if not path or not os.path.exists(path):
             print(f"File not found: {path}")
             return None
+
+
+
 
         # Reuse existing widgets or create once
         if not hasattr(self, "frame"):
@@ -708,401 +728,8 @@ class MainWindow(QMainWindow, NavigationMixin):
             print(f"Error loading mesh: {e}")
             return None
 
-
-    ''''
-    def show_clean(self):
-        """Clean screen. Top bar shows the Extract Surface button (the next step)."""
-        container = self._build_workflow_container(
-            next_label="Extract Surface",
-            next_callback=self._go_next_from_clean,
-            back_guard=lambda: (
-                self.workflow_state["clean_done"],
-                "You haven't cleaned any volume yet.",
-            ),
-            action_widget=self._build_clean_action_bar(),
-        )
-        self.setCentralWidget(container)
-
-        menu_bar = self._reset_top_menu_bar()
-        self._build_file_menu(menu_bar)
-        self._build_view_menu(menu_bar)
-
-    def _build_clean_action_bar(self):
-        """Build the clean action bar with all CleanParams widgets."""
-        bar = QWidget()
-        bar.setStyleSheet("background-color: #1E1E1E;")
-        layout = QVBoxLayout(bar)  # Changed to VBox for more widgets
-        layout.setContentsMargins(20, 15, 20, 15)
-        layout.setSpacing(12)
-
-        # Store widgets for parameter access
-        self.clean_widgets = {}
-
-        # === Channel Selection ===
-        channel_row = QHBoxLayout()
-        channel_label = create_label(
-            "Channel:", "color: #ffffff; font-size: 13px; font-weight: bold;"
-        )
-        channel_row.addWidget(channel_label)
-
-        channel_combo = QComboBox()
-        channel_combo.addItems(["DAPI","BMP2", "Sox9", "Hoxa11"])
-        channel_combo.setStyleSheet("""
-            QComboBox { 
-                color: #ffffff; 
-                background-color: #2A2A2A; 
-                border: 1px solid #41B3A2;
-                border-radius: 6px; 
-                padding: 4px 8px; 
-                font-size: 12px; 
-                min-width: 120px;
-            }
-            QComboBox::drop-down { border: none; }
-            QComboBox QAbstractItemView { 
-                background-color: #2A2A2A; 
-                color: #ffffff;
-                selection-background-color: #41B3A2; 
-            }
-        """)
-        channel_row.addWidget(channel_combo)
-        channel_row.addStretch()
-        layout.addLayout(channel_row)
-        self.clean_widgets["channel"] = channel_combo
-
-        # === Isovalue Parameters (v0 and v1) ===
-        isovalue_group = QGroupBox("Isovalue Thresholds")
-        isovalue_group.setStyleSheet("""
-            QGroupBox {
-                color: #A0A0A0;
-                border: 1px solid #2A2A2A;
-                border-radius: 6px;
-                margin-top: 8px;
-                padding-top: 8px;
-                font-size: 12px;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 5px 0 5px;
-            }
-        """)
-        isovalue_layout = QVBoxLayout(isovalue_group)
-        isovalue_layout.setSpacing(8)
-
-        # Lower isovalue (v0)
-        v0_row = QHBoxLayout()
-        v0_label = create_label("Lower (v0):", "color: #ffffff; font-size: 12px;")
-        v0_label.setFixedWidth(100)
-        v0_spin = QDoubleSpinBox()
-        v0_spin.setRange(0, 1000)
-        v0_spin.setSingleStep(10)
-        v0_spin.setValue(100)
-        v0_spin.setDecimals(1)
-        v0_spin.setStyleSheet("""
-            QDoubleSpinBox {
-                color: #ffffff;
-                background-color: #2A2A2A;
-                border: 1px solid #41B3A2;
-                border-radius: 4px;
-                padding: 4px;
-                min-width: 80px;
-            }
-        """)
-        v0_row.addWidget(v0_label)
-        v0_row.addWidget(v0_spin)
-        v0_row.addStretch()
-        isovalue_layout.addLayout(v0_row)
-        self.clean_widgets["v0"] = v0_spin
-
-        # Upper isovalue (v1)
-        v1_row = QHBoxLayout()
-        v1_label = create_label("Upper (v1):", "color: #ffffff; font-size: 12px;")
-        v1_label.setFixedWidth(100)
-        v1_spin = QDoubleSpinBox()
-        v1_spin.setRange(0, 1000)
-        v1_spin.setSingleStep(10)
-        v1_spin.setValue(400)
-        v1_spin.setDecimals(1)
-        v1_spin.setStyleSheet("""
-            QDoubleSpinBox {
-                color: #ffffff;
-                background-color: #2A2A2A;
-                border: 1px solid #41B3A2;
-                border-radius: 4px;
-                padding: 4px;
-                min-width: 80px;
-            }
-        """)
-        v1_row.addWidget(v1_label)
-        v1_row.addWidget(v1_spin)
-        v1_row.addStretch()
-        isovalue_layout.addLayout(v1_row)
-        self.clean_widgets["v1"] = v1_spin
-
-        layout.addWidget(isovalue_group)
-
-        # === Gaussian Sigma ===
-        sigma_row = QHBoxLayout()
-        sigma_label = create_label(
-            "Gaussian Sigma:", "color: #ffffff; font-size: 12px;"
-        )
-        sigma_label.setFixedWidth(120)
-        sigma_spin = QDoubleSpinBox()
-        sigma_spin.setRange(0.1, 10.0)
-        sigma_spin.setSingleStep(0.1)
-        sigma_spin.setValue(1.5)
-        sigma_spin.setDecimals(1)
-        sigma_spin.setStyleSheet("""
-            QDoubleSpinBox {
-                color: #ffffff;
-                background-color: #2A2A2A;
-                border: 1px solid #41B3A2;
-                border-radius: 4px;
-                padding: 4px;
-                min-width: 80px;
-            }
-        """)
-        sigma_row.addWidget(sigma_label)
-        sigma_row.addWidget(sigma_spin)
-        sigma_row.addStretch()
-        layout.addLayout(sigma_row)
-        self.clean_widgets["gaussian_sigma"] = sigma_spin
-
-        # === Frequency Cutoff ===
-        freq_row = QHBoxLayout()
-        freq_label = create_label(
-            "Frequency Cutoff:", "color: #ffffff; font-size: 12px;"
-        )
-        freq_label.setFixedWidth(120)
-        freq_spin = QDoubleSpinBox()
-        freq_spin.setRange(0.01, 1.0)
-        freq_spin.setSingleStep(0.05)
-        freq_spin.setValue(0.3)
-        freq_spin.setDecimals(2)
-        freq_spin.setStyleSheet("""
-            QDoubleSpinBox {
-                color: #ffffff;
-                background-color: #2A2A2A;
-                border: 1px solid #41B3A2;
-                border-radius: 4px;
-                padding: 4px;
-                min-width: 80px;
-            }
-        """)
-        freq_row.addWidget(freq_label)
-        freq_row.addWidget(freq_spin)
-        freq_row.addStretch()
-        layout.addLayout(freq_row)
-        self.clean_widgets["frequency_cutoff"] = freq_spin
-
-        # === Low Res Size ===
-        res_row = QHBoxLayout()
-        res_label = create_label("Low Res Size:", "color: #ffffff; font-size: 12px;")
-        res_label.setFixedWidth(120)
-        res_spin = QSpinBox()
-        res_spin.setRange(64, 512)
-        res_spin.setSingleStep(16)
-        res_spin.setValue(256)
-        res_spin.setStyleSheet("""
-            QSpinBox {
-                color: #ffffff;
-                background-color: #2A2A2A;
-                border: 1px solid #41B3A2;
-                border-radius: 4px;
-                padding: 4px;
-                min-width: 80px;
-            }
-        """)
-        res_row.addWidget(res_label)
-        res_row.addWidget(res_spin)
-        res_row.addStretch()
-        layout.addLayout(res_row)
-        self.clean_widgets["low_res_size"] = res_spin
-
-        # === Execute Button ===
-        btn_row = QHBoxLayout()
-        btn_row.addStretch()
-
-        execute_btn = create_styled_button("Clean Volume", "#0D7C66", "#41B3A2")
-        execute_btn.setFixedHeight(40)
-        execute_btn.setFixedWidth(200)
-        execute_btn.clicked.connect(self._execute_clean)
-        btn_row.addWidget(execute_btn)
-        btn_row.addStretch()
-
-        layout.addLayout(btn_row)
-
-        return bar
-
-
-
-
-    def _go_next_from_clean(self):
-
-        self.navigate_to(self.show_surface)
-
-
-        '''
-
-
-    ''''
-        """Guard for Clean -> Surface: must have cleaned, and specifically cleaned DAPI."""
-        if not self.workflow_state["clean_done"]:
-            QMessageBox.warning(
-                self, "Clean required",
-                "Please clean a channel before extracting the surface."
-            )
-            return
-        if self.workflow_state["last_cleaned_channel"] != "DAPI":
-            QMessageBox.information(
-                self, "DAPI channel required",
-                "Surface extraction can only be performed on DAPI channel data.\n"
-                "Please clean the DAPI channel before continuing."
-            )
-            return
-        '''
-
-
-    ''''
-    def show_surface(self):
-        """Surface screen. Top bar shows the Stage button (the next step)."""
-        container = self._build_workflow_container(
-            next_label="Stage",
-            next_callback=self._go_next_from_surface,
-            back_guard=lambda: (
-                self.workflow_state["surface_done"],
-                "You haven't extracted a surface yet.",
-            ),
-            action_widget=self._build_surface_action_bar(),
-        )
-        self.setCentralWidget(container)
-
-        menu_bar = self._reset_top_menu_bar()
-        self._build_file_menu(menu_bar)
-        self._build_view_menu(menu_bar)
-
-
-    '''
-
-
-    ''''
-    def _execute_surface(self):
-        """Run surface extraction. DAPI-only, same restriction shown again defensively."""
-        if self.workflow_state.get("last_cleaned_channel") != "DAPI":
-            QMessageBox.information(
-                self,
-                "DAPI channel required",
-                "Surface extraction can only be performed on DAPI channel data.",
-            )
-            return
-
-        try:
-            # TODO: replace this with your real surface-extraction call, e.g.:
-            #   result = extract_surface(experiment=exp_data, channel_name="DAPI", params=...)
-            self.workflow_state["surface_done"] = True
-            self.log_pipeline("Surface extracted from DAPI channel.")
-            QMessageBox.information(self, "Success", "Surface extraction completed.")
-        except Exception as e:
-            QMessageBox.critical(
-                self, "Surface Error", f"Failed to extract surface: {str(e)}"
-            )
-            self.log_pipeline(f"Surface extraction error: {str(e)}")
-
-    def _go_next_from_surface(self):
-        """Guard for Surface -> Stage: must have extracted a surface."""
-        if not self.workflow_state["surface_done"]:
-            QMessageBox.warning(
-                self,
-                "Surface required",
-                "Please extract a surface before proceeding to Stage.",
-            )
-            return
-        self.navigate_to(self.show_stage)
-
-
-
-    '''
     ######################################################################################################
-    ''''
-    def show_stage(self):
-        """Stage screen. Top bar shows the Align button (the next step)."""
-        container = self._build_workflow_container(
-            next_label="Align",
-            next_callback=self._go_next_from_stage,
-            back_guard=lambda: (
-                self.workflow_state["stage_done"],
-                "You haven't selected and confirmed a stage yet.",
-            ),
-            action_widget=self._build_stage_action_bar(),
-        )
-        self.setCentralWidget(container)
-
-        menu_bar = self._reset_top_menu_bar()
-
-        self._build_file_menu(menu_bar)
-        self._build_view_menu(menu_bar)
-
-
-
-    def _build_stage_action_bar(self):
-        """Stage picker + Confirm Stage button, shown under the viewer on the Stage screen."""
-        bar = QWidget()
-        bar.setStyleSheet("background-color: #1E1E1E;")
-        layout = QHBoxLayout(bar)
-        layout.setContentsMargins(20, 10, 20, 10)
-
-        label = create_label("Stage:", "color: #ffffff; font-size: 13px;")
-
-        stage_combo = QComboBox()
-        stage_combo.addItems(
-            [
-                "Stage 20 - E10.5",
-                "Stage 22 - E11.5",
-                "Stage 24 - E12.5",
-                "Stage 26 - E13.5",
-            ]
-        )
-        if self.workflow_state.get("selected_stage") in [
-            stage_combo.itemText(i) for i in range(stage_combo.count())
-        ]:
-            stage_combo.setCurrentText(self.workflow_state["selected_stage"])
-        stage_combo.setStyleSheet("""
-            QComboBox { color: #ffffff; background-color: #2A2A2A; border: 1px solid #41B3A2;
-                        border-radius: 6px; padding: 4px 8px; font-size: 12px; }
-            QComboBox::drop-down { border: none; }
-            QComboBox QAbstractItemView { background-color: #2A2A2A; color: #ffffff;
-                        selection-background-color: #41B3A2; }
-        """)
-
-        confirm_btn = create_styled_button("Confirm Stage", "#0D7C66", "#41B3A2")
-        confirm_btn.clicked.connect(
-            lambda: self._confirm_stage(stage_combo.currentText())
-        )
-
-        layout.addWidget(label)
-        layout.addWidget(stage_combo)
-        layout.addStretch()
-        layout.addWidget(confirm_btn)
-        return bar
-
-    def _confirm_stage(self, stage_text):
-        self.workflow_state["stage_done"] = True
-        self.workflow_state["selected_stage"] = stage_text
-        self.log_pipeline(f"Stage confirmed: {stage_text}")
-        QMessageBox.information(self, "Stage confirmed", f"Stage set to {stage_text}.")
-
-    def _go_next_from_stage(self):
-        """Guard for Stage -> Align: must have confirmed a stage."""
-        if not self.workflow_state["stage_done"]:
-            QMessageBox.warning(
-                self,
-                "Stage required",
-                "Please select and confirm a stage before proceeding to Alignment.",
-            )
-            return
-        self.navigate_to(self.align)
-
-        '''
+  
 
     # ------------------------------------------------------------------
     # Side Panel Methods
@@ -1196,71 +823,6 @@ class MainWindow(QMainWindow, NavigationMixin):
         return panel
 
 
-    ''''
-    def _execute_clean(self, channel_name):
-        """Simulate the clean step for screen-navigation testing."""
-
-        QMessageBox.information(
-            self,
-            "Clean (simulated)",
-            f"Clean step simulated for channel '{channel_name}'. No file was modified.",
-        )
-        self.log_pipeline(f"[simulated] Clean run on channel {channel_name}")
-
-        self.workflow_state["clean_done"] = True
-        self.workflow_state["last_cleaned_channel"] = channel_name
-
-        # Real implementation (needs real experiment volume files) ----
-        if not hasattr(self, "filepath") or not self.filepath:
-            QMessageBox.warning(
-                self, "No experiment", "Please select an experiment first."
-            )
-            return
-        try:
-            exp_data = self.experiment_metadata.get(self.filepath)
-            if not exp_data:
-                QMessageBox.warning(self, "Error", "Experiment data not found.")
-                return
-            clean_params_ui = self.param_values.get("Clean", {})
-            params = CleanParams(
-                v0=clean_params_ui.get("v0", 100),
-                v1=clean_params_ui.get("v1", 400),
-                low_res_size=clean_params_ui.get("low_res_size", 256),
-                gaussian_sigma=clean_params_ui.get("gaussian_sigma", 1.5),
-                frequency_cutoff=clean_params_ui.get("frequency_cutoff", 0.3),
-            )
-            raw_volume_path = Path(exp_data.get("path", ""))
-            if not raw_volume_path.exists():
-                file_path, _ = QFileDialog.getOpenFileName(
-                    parent=self,
-                    caption="Select raw volume file",
-                    directory=os.getcwd(),
-                    filter="Volume files (*.vti *.nii *.nii.gz *.tif *.tiff)",
-                )
-                if not file_path:
-                    return
-            raw_volume_path = Path(file_path)
-            result_channel = clean(
-                experiment=exp_data,
-                raw_volume_path=raw_volume_path,
-                channel_name=channel_name,
-                params=params,
-            )
-            QMessageBox.information(
-                self,
-                "Success",
-                f"Cleaned volume saved for channel {channel_name}\nPath: {result_channel.path}",
-            )
-            self.log_pipeline(f"Volume cleaned successfully for channel {channel_name}")
-            self.workflow_state["clean_done"] = True
-            self.workflow_state["last_cleaned_channel"] = channel_name
-        except Exception as e:
-            QMessageBox.critical(
-                self, "Clean Error", f"Failed to clean volume: {str(e)}"
-            )
-            self.log_pipeline(f"Clean error: {str(e)}")
-
-    '''
     
     
     def _refresh_visualizer_list(self):
@@ -1559,81 +1121,6 @@ class MainWindow(QMainWindow, NavigationMixin):
 
         confirm_btn.clicked.connect(self._confirm_aer_selection) # type: ignore
 
-    ''''
-    def _confirm_aer_selection(self):
-        """Confirm AER selection."""
-        
-        if not points:
-            QMessageBox.warning(self, "No AER selected", "Please click points on the limb first.")
-            return
-
-        reply = QMessageBox.question(
-            self, "Confirm AER selection",
-            f"The following AER will be selected ({len(points)} points).",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel
-        )
-        if reply == QMessageBox.StandardButton.Yes:
-            self.viewer.aer_selector.stop()
-            self.log_pipeline(f"AER confirmed with {len(points)} points.")
-
-    def _add_probe_line_param(self, layout, viz_name, param, stored):
-        """Add probe line selection controls."""
-        btn_row = QHBoxLayout()
-        draw_btn = create_styled_button("Draw line", "#0D7C66", "#41B3A2")
-        clear_btn = create_styled_button("Clear", "#2A2A2A", "#41B3A2")
-
-        btn_row.addWidget(draw_btn)
-        btn_row.addWidget(clear_btn)
-        layout.addLayout(btn_row)
-
-        plot = pg.PlotWidget()
-        plot.setBackground("#181818")
-        plot.setFixedHeight(160)
-        plot.showGrid(x=True, y=True, alpha=0.2)
-        plot.setLabel('bottom', 'Position along line')
-        plot.setLabel('left', 'Intensity')
-        layout.addWidget(plot)
-
-        empty_msg = create_label("", "color: #E34A4A; font-size: 11px; font-style: italic;")
-        empty_msg.setWordWrap(True)
-        empty_msg.setVisible(False)
-        layout.addWidget(empty_msg)
-
-        gene_colors = {'Hoxa11': '#41B3A2', 'Sox9': '#54278F', 'BMP2': '#756BB1'}
-
-        def refresh_histogram():
-            plot.clear()
-            points = self.viewer.probe_selector.points
-            channels = self.param_values.setdefault(viz_name, {}).setdefault("channels", {})
-            active_genes = [g for g, checked in channels.items() if checked]
-
-            if len(points) < 2:
-                empty_msg.setVisible(False)
-                return
-
-            if not active_genes:
-                empty_msg.setText("Display at least one gene channel to see its intensity along this line.")
-                empty_msg.setVisible(True)
-                return
-
-            empty_msg.setVisible(False)
-            n_samples = 50
-            x_axis = np.linspace(0, 1, n_samples)
-            for gene in active_genes:
-                rng = np.random.default_rng(abs(hash((viz_name, gene))) % (2**32))
-                profile = np.abs(np.sin(x_axis * np.pi * rng.uniform(0.8, 1.4))) * rng.uniform(0.6, 1.0)
-                profile += rng.normal(0, 0.03, n_samples)
-                color = gene_colors.get(gene, "#F2A93B")
-                plot.plot(x_axis, profile, pen=pg.mkPen(color, width=2), name=gene)
-
-        draw_btn.clicked.connect(self.viewer.probe_selector.start)
-        clear_btn.clicked.connect(self.viewer.probe_selector.clear)
-
-        self.viewer.probe_selector.points_changed.connect(lambda pts: refresh_histogram())
-
-        self._probe_refresh_callbacks = getattr(self, '_probe_refresh_callbacks', {})
-        self._probe_refresh_callbacks[viz_name] = refresh_histogram
-    '''
 
     def _add_limb_reference_param(self, layout, category, param, stored):
         """Add limb reference alignment controls."""
@@ -1987,7 +1474,6 @@ class MainWindow(QMainWindow, NavigationMixin):
 
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to create experiment: {e}")
-            import traceback
             traceback.print_exc()
 
 
@@ -2389,143 +1875,109 @@ class MainWindow(QMainWindow, NavigationMixin):
         """View experiment button handler."""
         selected = [path for path, cb in self.experiment_checkboxes if cb.isChecked()]
         if not selected:
-            QMessageBox.warning(
-                self,
-                "No experiment selected",
-                "Please select an experiment to visualize.",
-            )
+            QMessageBox.warning(self, "No experiment selected", "Please select an experiment to visualize.")
             return
 
         exp_id = selected[0]
-
         is_valid, message = self._validate_experiment_channels(exp_id)
-    
         if not is_valid:
             QMessageBox.warning(self, "Incomplete Experiment", message)
             return
-        
-        # If valid, proceed to visualization
+
         self.filepath = exp_id
-        
-        # Reset workflow state for new experiment
+        self.current_experiment = get_experiment(self.db_path, exp_id)   # <- real Experiment, not a dict
+
         self.workflow_state = {
-            "clean_done": False,
-            "last_cleaned_channel": None,
-            "surface_done": False,
-            "stage_done": False,
-            "selected_stage": None,
-            "align_done": False,
-            "alignment_method": None,
+            "clean_done": False, "last_cleaned_channel": None,
+            "surface_done": False, "stage_done": False, "selected_stage": None,
+            "align_done": False, "alignment_method": None,
         }
         self.navigate_to(self.show_viz)
 
 
     def _add_channel_to_existing(self, specific_exp_id=None):
-        """Add a channel to an existing experiment."""
-        # If no specific experiment provided, let user choose
         if not specific_exp_id:
             if not self.experiments:
                 QMessageBox.warning(self, "No experiments", "No existing experiments found.")
                 return
-            
-            # Ask which experiment to add channel to
             exp_id, ok = QInputDialog.getItem(
-                self,
-                "Select Experiment",
-                "Select experiment to add channel:",
-                self.experiments,
-                0,
-                False
+                self, "Select Experiment", "Select experiment to add channel to:",
+                self.experiments, 0, False
             )
-            
             if not ok or not exp_id:
                 return
         else:
             exp_id = specific_exp_id
-        
-        # Get the file
+
+        exp_data = self.experiment_metadata.get(exp_id)
+        if not exp_data:
+            QMessageBox.warning(self, "Error", "Experiment not found.")
+            return
+
+        current_channels = [ch.channel_name for ch in (exp_data.channels or [])]
+        channel_info = f"Current channels: {', '.join(current_channels) if current_channels else 'None'}"
+
         filepath, _ = QFileDialog.getOpenFileName(
-            parent=self,
-            caption='Select gene channel .tiff file!',
+            parent=self, caption='Select gene channel TIF file!',
             directory=os.getcwd(),
-            filter='Volume files (*.tif *.tiff *.vti)'
+            filter='Volume files (*.tif *.tiff *.vti *.nii *.nii.gz)'
         )
         if not filepath:
             return
-        
-        if not filepath.lower().endswith((".tif", ".tiff", ".vti")):
+        if not filepath.lower().endswith((".tif", ".tiff", ".vti", ".nii", ".nii.gz")):
             QMessageBox.warning(self, "Invalid file", "Please select a valid volume file.")
             return
-        
-        # Ask for channel type using the same limb info dialog
-        limb_info = self.ask_limbinfo(channel_only=True)
-        if not limb_info:
+
+        channel_type, ok = QInputDialog.getItem(
+            self, "Channel Type", f"Select channel type to add:\n\n{channel_info}",
+            ["Hoxa11", "Sox9", "BMP2", "SHH"], 0, False
+        )
+        if not ok or not channel_type:
             return
-        
-        channel_name = limb_info['channel_type']
-        
+
         try:
-            # Get existing experiment data
-            exp_data = self.experiment_metadata.get(exp_id)
-            if not exp_data:
-                QMessageBox.warning(self, "Error", "Experiment not found.")
-                return
-            
-            # Check if channel already exists
-            for channel in exp_data.get('channels', []):
-                if channel.get('channel_name', '').upper() == channel_name.upper():
+            for channel in exp_data.channels or []:
+                if channel.channel_name.upper() == channel_type.upper():
                     QMessageBox.warning(
-                        self,
-                        "Duplicate Channel",
-                        f"Channel '{channel_name}' already exists in this experiment.\n"
-                        f"Current channels: {', '.join([ch.get('channel_name', '') for ch in exp_data.get('channels', [])])}"
+                        self, "Duplicate Channel",
+                        f"Channel '{channel_type}' already exists in this experiment.\n{channel_info}"
                     )
                     return
-            
-            # Set default isovalues based on channel type
-            if channel_name == "DAPI":
-                v0, v1 = 238.0, 463.0
-            else:  # Gene channels
-                v0, v1 = 174.0, 335.0
-            
-            # Add new channel
-            new_channel = {
-                'experiment_id': exp_id,
-                'channel_name': channel_name,
-                'path': os.path.basename(filepath),
-                'v0': v0,
-                'v1': v1
-            }
-            
-            exp_data['channels'].append(new_channel)
-            
-            # Recreate experiment object
-            experiment_obj = Experiment(
+
+            new_channel = Channel(
                 experiment_id=exp_id,
-                base=exp_data['base'],
-                spacing_x=exp_data.get('spacing_x', 0.65),
-                spacing_y=exp_data.get('spacing_y', 0.65),
-                spacing_z=exp_data.get('spacing_z', 2.0),
-                side=exp_data.get('side', 'L'),
-                position=exp_data.get('position', 'H'),
-                channels=exp_data['channels']
+                channel_name=channel_type,
+                path=os.path.basename(filepath),
+                v0=174.0,
+                v1=335.0,
             )
-            
-            # Save to database
-            save_experiment(self.db_path, experiment_obj)
-            
-            # Reload and refresh
+
+            exp_data.channels.append(new_channel)
+            save_experiment(self.db_path, exp_data)   # exp_data is already a real Experiment — no need to rebuild it
+
             self._load_experiments_from_db()
             self.show_exp()
-            
-            QMessageBox.information(
-                self,
-                "Success",
-                f"✅ Added {channel_name} channel to experiment: {exp_id}\n"
-                f"📁 File: {os.path.basename(filepath)}\n\n"
-                f"Current channels: {', '.join([ch.get('channel_name', '') for ch in exp_data['channels']])}"
-            )
-            
+
+            is_valid, status = self._validate_experiment_channels(exp_id)
+            channel_list = ', '.join(ch.channel_name for ch in exp_data.channels)
+
+            if is_valid:
+                QMessageBox.information(
+                    self, "Success",
+                    f"✅ Added {channel_type} channel to experiment: {exp_id}\n"
+                    f"📁 File: {os.path.basename(filepath)}\n\n"
+                    f"🎉 Experiment is now complete!\nChannels: {channel_list}\n\n"
+                    f"You can now visualize this experiment."
+                )
+            else:
+                QMessageBox.information(
+                    self, "Success",
+                    f"✅ Added {channel_type} channel to experiment: {exp_id}\n"
+                    f"📁 File: {os.path.basename(filepath)}\n\n"
+                    f"⚠️ Experiment is still incomplete:\n{status}\n\n"
+                    f"Current channels: {channel_list}"
+                )
+
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to add channel: {e}")
             import traceback
@@ -2534,46 +1986,38 @@ class MainWindow(QMainWindow, NavigationMixin):
 
 
     def _validate_experiment_channels(self, exp_id):
-        """Validate that experiment has DAPI and at least one gene channel."""
-        # Get experiment data from database
         exp_data = self.experiment_metadata.get(exp_id)
         if not exp_data:
             return False, f"Experiment '{exp_id}' not found in database."
-        
-        # Get all channels
-        channels = exp_data.get('channels', [])
+
+        channels = exp_data.channels or []
         if not channels:
             return False, "No channels found in this experiment.\nPlease upload at least DAPI and one gene channel."
-        
-        # Check for DAPI channel
+
         has_dapi = False
         gene_channels = []
-        
-        # Gene channel names (case insensitive)
         gene_names = ['Hoxa11', 'Sox9', 'BMP2', 'SHH']
-        
+
         for channel in channels:
-            channel_name = channel.get('channel_name', '').upper()
+            channel_name = channel.channel_name.upper()
             if channel_name == 'DAPI':
                 has_dapi = True
             elif channel_name in [g.upper() for g in gene_names]:
-                gene_channels.append(channel.get('channel_name'))
-        
-        # Build validation result
+                gene_channels.append(channel.channel_name)
+
         if not has_dapi:
             return False, "Missing required DAPI channel.\n\nPlease upload a DAPI .tiff file first."
-        
         if len(gene_channels) == 0:
             return False, "Missing gene channels.\n\nPlease upload at least one gene channel:\n- Hoxa11\n- Sox9\n- BMP2"
-        
-        # Success - has DAPI and at least one gene channel
+
         return True, f"Experiment has DAPI and {len(gene_channels)} gene channel(s): {', '.join(gene_channels)}"
 
 
-
+    #helper function -> TODO DELETE when everything is done!
     def menu_button_clicked(self, s):
         """Placeholder for menu button clicks."""
         print("click", s)
+
 
     def log_pipeline(self, message):
         """Add a message to the pipeline log."""

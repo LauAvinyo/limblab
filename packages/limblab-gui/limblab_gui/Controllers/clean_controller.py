@@ -161,8 +161,6 @@ class CleanController:
 
 
 
-
-
     def _set_v0(self):
         if self.plotter is None:
             QMessageBox.warning(self.window, "No volume loaded", "Click 'Load Volume' first.")
@@ -238,4 +236,4 @@ class CleanController:
                 "Please clean the DAPI channel before continuing.",
             )
             return
-        self.window.navigate_to(self.window.show_surface)
+        self.window.navigate_to(lambda: self.window.surface.show(self.window.current_experiment))
