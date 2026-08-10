@@ -62,12 +62,24 @@ import traceback
 from types import SimpleNamespace
 
 from Controllers.align_controller import AlignController
+
+from Controllers.surface_controller import SurfaceController
+
 from limblab import clean
 
-TEST_BASE_PATH = "/Users/laura/Desktop/Desktop-2026/sox9-fig-thesis/"
-TEST_SURFACE_PATH = "HCR11_MEIS2_l1_dapi_488_LF_surface.vtk"
 
+#laura
+#TEST_BASE_PATH = "/Users/laura/Desktop/Desktop-2026/sox9-fig-thesis"
+#TEST_SURFACE_PATH = "HCR11_MEIS2_l1_dapi_488_LF_surface.vtk"
 
+#gemma
+TEST_BASE_PATH = "C:\\Users\\millan\\Desktop\\test"
+TEST_SURFACE_PATH = "HCR12_HOXA11_l1_dapi_405_LF_surface.vtk"
+
+#this is for the SURFACE test! the direct .tiff is required (DAPI)
+TEST_DAPI_FILENAME = "HCR12_HOXA11_l1_dapi_405_LF.tif" 
+
+#for the test experiment i added the channels manually 
 experiment = Experiment(
     experiment_id="manual_test",
     base=TEST_BASE_PATH,
@@ -79,7 +91,17 @@ experiment = Experiment(
     species="mouse",
     surface=TEST_SURFACE_PATH,
     stage=260,
+    channels=[
+        Channel(
+            experiment_id="manual_test",
+            channel_name="DAPI",
+            path=TEST_DAPI_FILENAME,
+            v0=238.0,
+            v1=463.0,
+        )
+    ],
 )
+
 
 
 class MainWindow(QMainWindow, NavigationMixin):
@@ -142,7 +164,16 @@ class MainWindow(QMainWindow, NavigationMixin):
         self.current_experiment = experiment
 
         # Initial
-        self.navigate_to(lambda: self.align.show(experiment))
+        #self.navigate_to(lambda: self.align.show(experiment))
+
+
+        self.surface = SurfaceController(self)
+        self.navigate_to(lambda: self.surface.show(experiment))
+
+
+        #TODO : self navigate home as initial home screen
+       #self.navigate_to(lambda: self.show_home())
+
 
     # ------------------------------------------------------------------
     # Menu Building Methods
@@ -454,9 +485,6 @@ class MainWindow(QMainWindow, NavigationMixin):
         layout.addLayout(buttons_row, stretch=0)
         layout.addStretch(2)
         self.setCentralWidget(container)
-
-
-
 
 
     def show_exp(self):
@@ -902,9 +930,17 @@ class MainWindow(QMainWindow, NavigationMixin):
 
         return bar
 
+
+
+
     def _go_next_from_clean(self):
 
         self.navigate_to(self.show_surface)
+
+
+
+
+
         ''''
         """Guard for Clean -> Surface: must have cleaned, and specifically cleaned DAPI."""
         if not self.workflow_state["clean_done"]:
@@ -922,6 +958,8 @@ class MainWindow(QMainWindow, NavigationMixin):
             return
         '''
 
+
+    ''''
     def show_surface(self):
         """Surface screen. Top bar shows the Stage button (the next step)."""
         container = self._build_workflow_container(
@@ -939,27 +977,11 @@ class MainWindow(QMainWindow, NavigationMixin):
         self._build_file_menu(menu_bar)
         self._build_view_menu(menu_bar)
 
-    def _build_surface_action_bar(self):
-        """Execute Surface Extraction button, shown under the viewer on the Surface screen."""
-        bar = QWidget()
-        bar.setStyleSheet("background-color: #1E1E1E;")
-        layout = QHBoxLayout(bar)
-        layout.setContentsMargins(20, 10, 20, 10)
 
-        info = create_label(
-            "Surface extraction runs on the cleaned DAPI channel.",
-            "color: #A0A0A0; font-size: 12px; font-style: italic;",
-        )
-        execute_btn = create_styled_button(
-            "Execute Surface Extraction", "#0D7C66", "#41B3A2"
-        )
-        execute_btn.clicked.connect(self._execute_surface)
+    '''
 
-        layout.addWidget(info)
-        layout.addStretch()
-        layout.addWidget(execute_btn)
-        return bar
 
+    ''''
     def _execute_surface(self):
         """Run surface extraction. DAPI-only, same restriction shown again defensively."""
         if self.workflow_state.get("last_cleaned_channel") != "DAPI":
@@ -993,6 +1015,11 @@ class MainWindow(QMainWindow, NavigationMixin):
             return
         self.navigate_to(self.show_stage)
 
+
+
+    '''
+    ######################################################################################################
+    ''''
     def show_stage(self):
         """Stage screen. Top bar shows the Align button (the next step)."""
         container = self._build_workflow_container(
@@ -1010,6 +1037,8 @@ class MainWindow(QMainWindow, NavigationMixin):
 
         self._build_file_menu(menu_bar)
         self._build_view_menu(menu_bar)
+
+
 
     def _build_stage_action_bar(self):
         """Stage picker + Confirm Stage button, shown under the viewer on the Stage screen."""
@@ -1068,6 +1097,8 @@ class MainWindow(QMainWindow, NavigationMixin):
             )
             return
         self.navigate_to(self.align)
+
+        '''
 
     # ------------------------------------------------------------------
     # Side Panel Methods

@@ -1,7 +1,6 @@
 # pyright: reportOptionalMemberAccess=false
 # pyright: ignore[reportAttributeAccessIssue]
 
-
 from limblab import _store_transformation_matrix, rotate_limb
 from PyQt6.QtWidgets import (
     QHBoxLayout,

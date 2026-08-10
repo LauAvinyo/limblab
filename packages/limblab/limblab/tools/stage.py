@@ -12,6 +12,24 @@ from vedo import vector, Points, LinearTransform, fit_plane
 from vedo.applications import SplinePlotter
 from vedo import Mesh, Axes, Text2D
 
+
+CURRENT_PATH = os.path.abspath(__file__)
+CURRENT_DIR = os.path.dirname(CURRENT_PATH)
+REFERENCE_LIMB_FOLDER = os.path.join(os.path.dirname(CURRENT_DIR), "limb")
+REFERENCE_LIMB_FOLDER = "C:\\Users\\millan\\Desktop\\limblab\\packages\\limblab\\limblab\\limb"
+# TODO: FIX THIS!
+
+files = [
+    file
+    for file in os.listdir(REFERENCE_LIMB_FOLDER)
+    if os.path.isfile(os.path.join(REFERENCE_LIMB_FOLDER, file))
+    and not file.startswith(".DS")
+    or file.startswith("-")
+]
+reference_stages = [int(file.split(".")[0].split("_")[1]) for file in files]
+# DE-COMMENT -> i don't have the files yet!
+
+
 MESSAGE = "Could not connect to the staging system. Try again, if the problem persists, contact support."
 STAGING_URL = "https://limbstaging.embl.es/api"
 

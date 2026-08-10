@@ -15,7 +15,7 @@ from vedo import Mesh, Axes, Text2D
 CURRENT_PATH = os.path.abspath(__file__)
 CURRENT_DIR = os.path.dirname(CURRENT_PATH)
 REFERENCE_LIMB_FOLDER = os.path.join(os.path.dirname(CURRENT_DIR), "limb")
-REFERENCE_LIMB_FOLDER = "/Users/laura/limblab/packages/limblab/limblab/limb"
+REFERENCE_LIMB_FOLDER = "C:\\Users\\millan\\Desktop\\limblab\\packages\\limblab\\limblab\\limb"
 # TODO: FIX THIS!
 
 files = [
@@ -164,7 +164,7 @@ def rotate_limb(
     Rotate the limb to a standard orientation.
     This function is a placeholder and should be implemented with the actual rotation logic.
     """
-    print("WE are here!")
+    #print("WE are here!")
     surface_path, refence_limb_path = _initialize_limbs_paths(
         experiment, reference_stages
     )
