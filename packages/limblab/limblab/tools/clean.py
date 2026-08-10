@@ -15,11 +15,14 @@ def pick_isovalues(
     raw_volume_path: Path,
     renderer: Optional[Literal["pyqt"]] = None,
     outside_class: Optional[Any] = None,
-) -> tuple[int, int]:
-    """
+    ) -> tuple[int, int] | Any:
+    vol = Volume(str(raw_volume_path))
+
+    ''''
     Opens the vedo IsosurfaceBrowser and lets the user pick lower/upper
     isovalues interactively. Returns (v0, v1).
-    """
+    '''
+
     vol = Volume(str(raw_volume_path))
 
     params: dict[str, Any] = dict(use_gpu=True, bg="white", c="green", alpha=0.6)
@@ -28,15 +31,21 @@ def pick_isovalues(
     )
 
     plt = IsosurfaceBrowser(vol, **kwargs)
+
+    if renderer == "pyqt":
+        plt.show(interactive=False)
+        return plt  # caller reads plt.sliders[0][0].value on demand
+
+    # Standalone behaviour (unchanged)
     txt = Text2D(pos="top-center", bg="yellow5", s=1.5)
     plt += txt
 
     txt.text("Select the lower isovalue, then press 'q' to confirm")
-    plt.show()
+    plt.show().interactive()
     v0 = int(plt.sliders[0][0].value)
 
     txt.text("Select the upper isovalue, then press 'q' to confirm")
-    plt.show()
+    plt.show().interactive()
     v1 = int(plt.sliders[0][0].value)
 
     plt.close()
@@ -45,6 +54,14 @@ def pick_isovalues(
         v1 += 1
 
     return v0, v1
+
+
+def get_channel_path(experiment: Experiment, channel_name: str) -> Path:
+    channel_name = channel_name.lower()
+    for channel in experiment.channels:
+        if channel.channel_name.lower() == channel_name:
+            return Path(experiment.base) / channel.path
+    raise VolumeProcessingError(f"No '{channel_name}' channel found on experiment.")
 
 
 def clean(
@@ -63,7 +80,7 @@ def clean(
     vol.threshold(below=params.v0, replace=0).threshold(
         above=params.v1, replace=params.v1
     )
-    vol.resize(params.low_res_size)
+    vol.resize([params.low_res_size] * 3)
 
     if experiment.side == "L":
         vol.mirror()

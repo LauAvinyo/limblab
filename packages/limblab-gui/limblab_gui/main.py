@@ -65,8 +65,7 @@ from Controllers.align_controller import AlignController
 
 from Controllers.surface_controller import SurfaceController
 
-from limblab import clean
-
+from Controllers.clean_controller import CleanController
 
 #laura
 #TEST_BASE_PATH = "/Users/laura/Desktop/Desktop-2026/sox9-fig-thesis"
@@ -76,7 +75,7 @@ from limblab import clean
 TEST_BASE_PATH = "C:\\Users\\millan\\Desktop\\test"
 TEST_SURFACE_PATH = "HCR12_HOXA11_l1_dapi_405_LF_surface.vtk"
 
-#this is for the SURFACE test! the direct .tiff is required (DAPI)
+#this is for the SURFACE and CLEAN test! the direct .tiff is required (DAPI)
 TEST_DAPI_FILENAME = "HCR12_HOXA11_l1_dapi_405_LF.tif" 
 
 #for the test experiment i added the channels manually 
@@ -168,7 +167,10 @@ class MainWindow(QMainWindow, NavigationMixin):
 
 
         self.surface = SurfaceController(self)
-        self.navigate_to(lambda: self.surface.show(experiment))
+        #self.navigate_to(lambda: self.surface.show(experiment))
+
+        self.clean = CleanController(self)
+        self.navigate_to(lambda: self.clean.show(experiment))
 
 
         #TODO : self navigate home as initial home screen
@@ -279,7 +281,7 @@ class MainWindow(QMainWindow, NavigationMixin):
         top_row.addStretch()
 
         if next_label and next_callback:
-            next_btn = create_styled_button(next_label, "#0D7C66", "#41B3A2")
+            next_btn = create_styled_button(next_label, "#54278F", "#756BB1")
             next_btn.clicked.connect(next_callback)
             top_row.addWidget(next_btn)
 
@@ -706,6 +708,8 @@ class MainWindow(QMainWindow, NavigationMixin):
             print(f"Error loading mesh: {e}")
             return None
 
+
+    ''''
     def show_clean(self):
         """Clean screen. Top bar shows the Extract Surface button (the next step)."""
         container = self._build_workflow_container(
@@ -938,10 +942,10 @@ class MainWindow(QMainWindow, NavigationMixin):
         self.navigate_to(self.show_surface)
 
 
+        '''
 
 
-
-        ''''
+    ''''
         """Guard for Clean -> Surface: must have cleaned, and specifically cleaned DAPI."""
         if not self.workflow_state["clean_done"]:
             QMessageBox.warning(
@@ -1191,6 +1195,8 @@ class MainWindow(QMainWindow, NavigationMixin):
         self._refresh_visualizer_list()
         return panel
 
+
+    ''''
     def _execute_clean(self, channel_name):
         """Simulate the clean step for screen-navigation testing."""
 
@@ -1254,6 +1260,9 @@ class MainWindow(QMainWindow, NavigationMixin):
             )
             self.log_pipeline(f"Clean error: {str(e)}")
 
+    '''
+    
+    
     def _refresh_visualizer_list(self):
         """Refresh the visualizer experiment list."""
         while self.visualizer_list.count():
@@ -1283,6 +1292,8 @@ class MainWindow(QMainWindow, NavigationMixin):
                 item.widget().deleteLater()
             elif item.layout():
                 self._clear_layout(item.layout())
+
+        
 
     # ------------------------------------------------------------------
     # Category and Viz Section Builders

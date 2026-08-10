@@ -8,7 +8,6 @@ from PyQt6.QtWidgets import (
 from utils import create_styled_button, create_label
 
 from PyQt6.QtCore import QThread, pyqtSignal
-from Mixin.NavigationMixin import navigate_to
 
 
 
@@ -126,4 +125,4 @@ class SurfaceController:
                 )
                 return
             #plt.close()
-            navigate_to(self.show_stage)
+            self.window.navigate_to(self.show_stage)

@@ -15,6 +15,7 @@ from .tools.align import _store_transformation_matrix, rotate_limb
 from .tools.clean import clean, pick_isovalues
 from .tools.stage import stage_limb
 from .tools.surface import auto_isovalue, extract_surface, pick_isovalue, get_nuclei_channel_path
+from .tools.clean import pick_isovalues, clean, get_channel_path
 
 __all__ = [
     "_store_transformation_matrix",
@@ -34,5 +35,8 @@ __all__ = [
     "save_experiment",
     "stage_limb",
     "update_experiment",
-    "get_nuclei_channel_path"
+    "get_nuclei_channel_path", 
+    'pick_isovalues',
+    'clean',
+    'get_channel_path'
 ]
