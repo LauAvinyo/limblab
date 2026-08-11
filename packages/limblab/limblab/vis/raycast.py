@@ -3,7 +3,7 @@
 from typing import Any, Literal, Optional
 
 import numpy as np
-from limblab.models import Experiment
+from limblab.models import Channel, Experiment
 from vedo import Volume
 from vedo.applications import (
     RayCastPlotter,
@@ -52,7 +52,7 @@ def raycast(
     for i in channels:
         if i.channel_name == channel_name:
             print(i)
-            channel = i
+            channel: Channel= i 
 
     volume_path = channel.path
     _raycast(volume_path, renderer, outside_class)

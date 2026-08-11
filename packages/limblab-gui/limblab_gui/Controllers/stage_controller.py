@@ -1,14 +1,13 @@
-from limblab import _stage_limb, check_connection, stage_limb
+from limblab import stage_limb_embedded, save_experiment
 from PyQt6.QtWidgets import QHBoxLayout, QMessageBox, QWidget, QComboBox
 from utils import create_styled_button, create_label
 
 
-
-#######################################################UNFINISHED, NOT LINKED TO ANY stage.py functions!!!
 class StageController:
     def __init__(self, window):
         self.window = window
         self.experiment = None
+        self.plotter = None
 
     def show(self, experiment):
         self.experiment = experiment
@@ -28,38 +27,60 @@ class StageController:
         self.window._build_file_menu(menu_bar)
         self.window._build_view_menu(menu_bar)
 
+        try:
+            self.plotter = stage_limb_embedded(
+                experiment=experiment,
+                renderer="pyqt",
+                outside_class=self.window,
+            )
+        except ConnectionError as e:
+            QMessageBox.critical(self.window, "Staging server error", str(e))
+        except ValueError as e:
+            QMessageBox.critical(self.window, "Missing data", str(e))
+
+
     def _build_stage_action_bar(self):
         bar = QWidget()
         bar.setStyleSheet("background-color: #1E1E1E;")
         layout = QHBoxLayout(bar)
         layout.setContentsMargins(20, 10, 20, 10)
 
-        label = create_label("Stage:", "color: #ffffff; font-size: 13px;")
-        stage_combo = QComboBox()
-        stage_combo.addItems([
-            "Stage 20 - E10.5", "Stage 22 - E11.5",
-            "Stage 24 - E12.5", "Stage 26 - E13.5",
-        ])
-        if self.window.workflow_state.get("selected_stage") in [
-            stage_combo.itemText(i) for i in range(stage_combo.count())
-        ]:
-            stage_combo.setCurrentText(self.window.workflow_state["selected_stage"])
+        current = self.window.workflow_state.get("selected_stage")
+        label_text = f"Stage: {current}" if current is not None else "Stage: not staged"
+        self.stage_label = create_label(label_text, "color: #ffffff; font-size: 13px;")
 
-        confirm_btn = create_styled_button("Confirm Stage", "#0D7C66", "#41B3A2")
-        confirm_btn.clicked.connect(lambda: self._confirm_stage(stage_combo.currentText()))
+        stage_btn = create_styled_button("Confirm Stage", "#0D7C66", "#41B3A2")
+        stage_btn.clicked.connect(self._confirm_stage)
 
-        layout.addWidget(label)
-        layout.addWidget(stage_combo)
+        layout.addWidget(self.stage_label)
         layout.addStretch()
-        layout.addWidget(confirm_btn)
+        layout.addWidget(stage_btn)
         return bar
 
+    def _confirm_stage(self):
+        if self.plotter is None or not hasattr(self.plotter, "stage_result"):
+            QMessageBox.warning(self.window, "Not staged", "Press 's' in the 3D view to stage the limb first.")
+            return
 
+        stage = self.plotter.stage_result.get("stage")
+        if stage is None:
+            QMessageBox.warning(self.window, "Not staged", "Press 's' in the 3D view to stage the limb first.")
+            return
 
-    def _confirm_stage(self, stage_text):
+        try:
+            stage = int(stage)
+        except (TypeError, ValueError):
+            QMessageBox.critical(self.window, "Staging error", f"Server returned an invalid stage value: {stage!r}")
+            return
+
+        self.experiment.stage = stage
+        
+        save_experiment(self.window.db_path, self.experiment)
+
         self.window.workflow_state["stage_done"] = True
-        self.window.workflow_state["selected_stage"] = stage_text
-        self.window.log_pipeline(f"Stage confirmed: {stage_text}")
+        self.window.workflow_state["selected_stage"] = stage
+        self.stage_label.setText(f"Stage: {stage}")
+        self.window.log_pipeline(f"Stage confirmed: {stage}")
 
     def _go_next_from_stage(self):
         if not self.window.workflow_state["stage_done"]:
