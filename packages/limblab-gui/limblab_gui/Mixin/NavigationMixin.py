@@ -37,3 +37,92 @@ class NavigationMixin:
             old_corner.deleteLater()
         menu_bar.clear()
         menu_bar.setStyleSheet("")
+
+
+    PIPELINE_STEPS = ["Clean", "Surface", "Stage", "Align", "Visualize"]
+
+    STEP_CONTROLLERS = {
+    "Clean": lambda self: lambda: self.clean.show(self.current_experiment),
+    "Surface": lambda self: lambda: self.surface.show(self.current_experiment),
+    "Stage": lambda self: lambda: self.stage.show(self.current_experiment),
+    "Align": lambda self: lambda: self.align.show(self.current_experiment),
+    "Visualize": lambda self: lambda: self.show_viz(),  # <-- Changed to match others
+}
+
+    STEP_DONE_FLAG = {
+        "Clean": "clean_done",
+        "Surface": "surface_done",
+        "Stage": "stage_done",
+        "Align": "align_done",
+    }
+
+    def _navigate_to_step(self, target_step, current_step):
+        steps = self.PIPELINE_STEPS
+        target_idx = steps.index(target_step)
+        current_idx = steps.index(current_step)
+
+        if target_idx == current_idx:
+            return
+
+        if target_idx < current_idx:
+            self._navigate_backward_to_step(target_step, target_idx, current_idx)
+        else:
+            self._navigate_forward_to_step(target_step, target_idx, current_idx)
+
+    def _navigate_backward_to_step(self, target_step, target_idx, current_idx):
+        steps = self.PIPELINE_STEPS
+        affected = [
+            s for s in steps[target_idx:current_idx + 1]
+            if s in self.STEP_DONE_FLAG and self.workflow_state.get(self.STEP_DONE_FLAG[s])
+        ]
+
+        if affected:
+            reply = QMessageBox.question(
+                self,
+                "Reset progress?",
+                f"Going back to {target_step} will reset progress on: {', '.join(affected)}.\n"
+                "You'll need to redo these steps. Continue?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            )
+            if reply != QMessageBox.StandardButton.Yes:
+                return
+
+            for s in affected:
+                self.workflow_state[self.STEP_DONE_FLAG[s]] = False
+            if target_step == "Clean":
+                self.workflow_state["last_cleaned_channel"] = None
+            if target_step in ("Clean", "Surface"):
+                self.workflow_state["selected_stage"] = None
+            if target_step in ("Clean", "Surface", "Stage"):
+                self.workflow_state["alignment_method"] = None
+
+        self.navigate_to(self.STEP_CONTROLLERS[target_step](self))
+
+    def _navigate_forward_to_step(self, target_step, target_idx, current_idx):
+        steps = self.PIPELINE_STEPS
+        for s in steps[current_idx:target_idx]:
+            flag = self.STEP_DONE_FLAG.get(s)
+            if flag and not self.workflow_state.get(flag):
+                QMessageBox.warning(
+                    self, "Step required",
+                    f"Please complete '{s}' before jumping ahead to '{target_step}'.",
+                )
+                return
+
+        if target_step in ("Surface", "Stage", "Align"):
+    # Check if DAPI has been cleaned
+            dapi_cleaned = False
+            for ch in self.current_experiment.channels or []:
+                if ch.channel_name.upper() == "DAPI" and self.workflow_state.get("clean_done"):
+                    dapi_cleaned = True
+                    break
+        
+            if not dapi_cleaned:
+                QMessageBox.warning(
+                self, "DAPI required",
+                f"'{target_step}' requires a cleaned DAPI channel (.vti). "
+                "Please clean the DAPI channel first.",
+            )
+                return
+
+        self.navigate_to(self.STEP_CONTROLLERS[target_step](self))

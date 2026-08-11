@@ -6,6 +6,7 @@ from PyQt6.QtWidgets import (
     QSpinBox, QDoubleSpinBox, QComboBox, QGroupBox,
 )
 from utils import create_styled_button, create_label
+from limblab.params import CleanParams
 
 
 class CleanController:
@@ -21,22 +22,20 @@ class CleanController:
 
 
     def show(self,experiment):
+        self.window._show_busy('Loading clean...')
+
         self.experiment = experiment
 
         container = self.window._build_workflow_container(
-            next_label="Extract Surface",
-            next_callback=self._go_next_from_clean,
-            back_guard=lambda: (
-                self.window.workflow_state["clean_done"],
-                "You haven't cleaned any volume yet.",
-            ),
-            action_widget=self._build_clean_action_bar(),
-        )
+        next_label="Extract Surface",
+        next_callback=self._go_next_from_clean,
+        back_guard=lambda: (
+            self.window.workflow_state["clean_done"],
+            "You haven't cleaned any volume yet.",
+        ),
+        action_widget=self._build_clean_action_bar(),
+    )
         self.window.setCentralWidget(container)
-
-        menu_bar = self.window._reset_top_menu_bar()
-        self.window._build_file_menu(menu_bar)
-        self.window._build_view_menu(menu_bar)
 
         # If the experiment already has a DAPI channel (e.g. loaded from DB,
         # or your test experiment), auto-select it and load it into the
@@ -51,6 +50,9 @@ class CleanController:
         if has_dapi:
             self.clean_widgets["channel"].setCurrentText("DAPI")
             self._load_volume_for_picking()
+
+
+        self.window._hide_busy()
 
 
     def _build_clean_action_bar(self):
@@ -178,6 +180,9 @@ class CleanController:
 
 
     def _execute_clean(self):
+
+        self.window._show_busy('Cleaning volume with the selected isovalues...')
+
         try:
             if self.raw_volume_path is None:
                 raise RuntimeError("Load a volume (.tiff) before cleaning.")
@@ -219,6 +224,8 @@ class CleanController:
             f"Cleaned {new_channel.channel_name} (v0={new_channel.v0}, v1={new_channel.v1}).\n"
             f"Written to:\n{new_channel.path}"
         )
+
+        self.window._hide_busy()
 
 
     def _go_next_from_clean(self):

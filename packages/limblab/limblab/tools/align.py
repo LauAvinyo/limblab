@@ -1,7 +1,7 @@
 import os
 from typing import Any, Literal, Optional
 
-from vedo import Mesh, Plotter, Text2D
+from vedo import Mesh, Plotter, Text2D, settings
 
 from limblab.models import Experiment
 from limblab.utils import generate_kwargs
@@ -9,8 +9,8 @@ from limblab.utils import generate_kwargs
 CURRENT_PATH = os.path.abspath(__file__)
 CURRENT_DIR = os.path.dirname(CURRENT_PATH)
 REFERENCE_LIMB_FOLDER = os.path.join(os.path.dirname(CURRENT_DIR), "limb")
-# REFERENCE_LIMB_FOLDER = "C:\\Users\\millan\\Desktop\\limblab\\packages\\limblab\\limblab\\limb"
-REFERENCE_LIMB_FOLDER = "/Users/laura/limblab/packages/limblab/limblab/limb"
+REFERENCE_LIMB_FOLDER = "C:\\Users\\millan\\Desktop\\limblab\\packages\\limblab\\limblab\\limb"
+#REFERENCE_LIMB_FOLDER = "/Users/laura/limblab/packages/limblab/limblab/limb"
 
 # TODO: FIX THIS!
 

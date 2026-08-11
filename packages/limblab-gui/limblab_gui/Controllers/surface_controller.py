@@ -102,6 +102,9 @@ class SurfaceController:
 
     #from main
     def _execute_surface(self):
+
+        self.window._show_busy('Extracting surface with the selected isovalue...')
+
         if self.plotter is None:
             QMessageBox.critical(self.window, "Surface extraction error", "No isosurface preview available.")
             return
@@ -112,6 +115,8 @@ class SurfaceController:
         self._worker.finished.connect(lambda path: self._on_extraction_done(path, isovalue))
         self._worker.failed.connect(lambda msg: QMessageBox.critical(self.window, "Surface extraction error", msg))
         self._worker.start()
+
+        self.window._hide_busy()
 
 
     def _on_extraction_done(self, surface_path, isovalue):
@@ -131,4 +136,6 @@ class SurfaceController:
                     "Please extract a surface before proceeding to Stage.",
                 )
                 return
+
+
         self.window.navigate_to(lambda: self.window.stage.show(self.window.current_experiment))

@@ -157,6 +157,7 @@ class MainWindow(QMainWindow, NavigationMixin):
             "align_done": False,
             "alignment_method": None,
         }
+        
 
         
         self.surface = SurfaceController(self)
@@ -284,6 +285,8 @@ class MainWindow(QMainWindow, NavigationMixin):
     # This is what keeps the layout visually identical as the user moves
     # through the pipeline.
     # ------------------------------------------------------------------
+    
+    ''''
     def _build_workflow_top_row(
         self, next_label=None, next_callback=None, back_guard=None
     ):
@@ -296,9 +299,7 @@ class MainWindow(QMainWindow, NavigationMixin):
         """
         top_row = QHBoxLayout()
 
-        back_btn = create_back_button(lambda: self._handle_back(back_guard))
-        top_row.addWidget(back_btn)
-        top_row.addWidget(self._create_left_button())
+        
         top_row.addStretch()
 
         if next_label and next_callback:
@@ -307,6 +308,8 @@ class MainWindow(QMainWindow, NavigationMixin):
             top_row.addWidget(next_btn)
 
         return top_row
+        '''
+
 
     def _handle_back(self, guard=None):
         """Go back, warning the user first if the current step isn't finished."""
@@ -323,62 +326,85 @@ class MainWindow(QMainWindow, NavigationMixin):
                     return
         self.go_back()
 
-    def _reset_top_menu_bar(self):
-        """Clear the QMainWindow menu bar back to its plain (non-home) state."""
+    def _reset_top_menu_bar(self, current_step=None):
+        """Clear the QMainWindow menu bar and rebuild it with pipeline steps."""
         menu_bar = self.menuBar()
         menu_bar.setVisible(True)
-        menu_bar.setStyleSheet("")
+        menu_bar.setStyleSheet("""
+            QMenuBar {
+                background-color: #141414;
+                color: #A0A0A0;
+                border: none;
+                padding: 0px;
+            }
+            QMenuBar::item {
+                background-color: transparent;
+                color: #A0A0A0;
+                padding: 8px 15px;
+                spacing: 0px;
+                border: none;
+            }
+            QMenuBar::item:selected {
+                background-color: #2A2A2A;
+                color: #FFFFFF;
+                border-radius: 4px;
+            }
+            QMenuBar::item:disabled {
+                color: #3A3A3A;
+            }
+        """)
         old_corner = menu_bar.cornerWidget(Qt.Corner.TopRightCorner)
         menu_bar.setCornerWidget(None)
         if old_corner is not None:
             old_corner.deleteLater()
         menu_bar.clear()
+        
+        # Add pipeline steps first if we have a current step
+        if current_step is not None:
+            # Add pipeline steps as top-level menu items
+            for idx, step in enumerate(self.PIPELINE_STEPS):
+                flag = self.STEP_DONE_FLAG.get(step)
+                is_done = bool(flag and self.workflow_state.get(flag))
+                is_reachable = all(
+                    self.workflow_state.get(self.STEP_DONE_FLAG[s])
+                    for s in self.PIPELINE_STEPS[:idx]
+                    if s in self.STEP_DONE_FLAG
+                )
+                is_current = step == current_step
+                
+                if is_current:
+                    label = f"● {step}"
+                elif is_done:
+                    label = f"✓ {step}"
+                elif is_reachable:
+                    label = step
+                else:
+                    label = f"🔒 {step}"
+                
+                action = QAction(label, self)
+                action.setEnabled(is_reachable and not is_current)
+                if action.isEnabled():
+                    action.triggered.connect(
+                        lambda checked=False, s=step: self._navigate_to_step(s, current_step)
+                    )
+                menu_bar.addAction(action)
+                
+                # Add separator between steps
+                if idx < len(self.PIPELINE_STEPS) - 1:
+                    menu_bar.addSeparator()
+            
+            # Add a separator before File menu
+            menu_bar.addSeparator()
+        
         return menu_bar
 
-    def _build_workflow_container(
-        self,
-        next_label=None,
-        next_callback=None,
-        back_guard=None,
-        action_widget=None,
-    ):
-        """Build the shared viewer + side-panel container used by every step screen."""
+   
 
-        top_row = self._build_workflow_top_row(
-            next_label,
-            next_callback,
-            back_guard,
-        )
-
-        left_container = QWidget()
-        left_layout = QVBoxLayout(left_container)
-        left_layout.setContentsMargins(0, 0, 0, 0)
-
-        left_layout.addLayout(top_row)
-
-        self.vtk_widget = QVTKRenderWindowInteractor(self)
-        left_layout.addWidget(self.vtk_widget, stretch=1)
-
-        if action_widget is not None:
-            left_layout.addWidget(action_widget)
-
-        # ------------------------------------------------------------------
-        # Create the VTK widget that vedo will render into
-        # ------------------------------------------------------------------
-        self.vtk_widget = QVTKRenderWindowInteractor(self)
-        left_layout.addWidget(self.vtk_widget, stretch=1)
-
-        side_panel = self._build_side_panel()
-
-        container = QWidget()
-        main_layout = QHBoxLayout(container)
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.setSpacing(0)
-
-        main_layout.addWidget(left_container, stretch=1)
-        main_layout.addWidget(side_panel, stretch=0)
-
-        return container
+    def setup_workflow_menu(self, current_step):
+        """Build the main menu bar with File, View, and pipeline steps."""
+        menu_bar = self._reset_top_menu_bar(current_step=current_step)
+        self._build_file_menu(menu_bar)
+        self._build_view_menu(menu_bar)
 
     # ------------------------------------------------------------------
     # Screen Methods
@@ -665,18 +691,15 @@ class MainWindow(QMainWindow, NavigationMixin):
 
     def show_viz(self):
         container = self._build_workflow_container(
-            next_label="Clean",
-            next_callback=lambda: self.navigate_to(lambda: self.clean.show(self.current_experiment)),
-            back_guard=None,
-        )
+        next_label="Clean",
+        next_callback=lambda: self.navigate_to(lambda: self.clean.show(self.current_experiment)),
+        back_guard=None,
+        current_step="Visualize"
+    )
         self.setCentralWidget(container)
 
-        menu_bar = self._reset_top_menu_bar()
-        self._build_file_menu(menu_bar)
-        self._build_view_menu(menu_bar)
-
-        if self.current_experiment is None:
-            return
+        # Use the helper
+        self.setup_workflow_menu("Visualize")
 
         if (
             self.workflow_state.get("align_done")
@@ -795,10 +818,6 @@ class MainWindow(QMainWindow, NavigationMixin):
         if not path or not os.path.exists(path):
             print(f"File not found: {path}")
             return None
-
-
-
-
         # Reuse existing widgets or create once
         if not hasattr(self, "frame"):
             self.frame = QFrame()
@@ -824,6 +843,26 @@ class MainWindow(QMainWindow, NavigationMixin):
 
     ######################################################################################################
   
+
+    def _show_busy(self, message):
+            self._busy_dialog = QDialog(self)
+            self._busy_dialog.setWindowTitle("Please wait")
+            self._busy_dialog.setModal(True)
+            self._busy_dialog.setStyleSheet("background-color: #1E1E1E; color: white;")
+            layout = QVBoxLayout(self._busy_dialog)
+            layout.addWidget(create_label(message, "color: #ffffff; font-size: 13px;"))
+            self._busy_dialog.setFixedSize(320, 100)
+            self._busy_dialog.show()
+            from PyQt6.QtWidgets import QApplication
+            QApplication.processEvents()
+
+    def _hide_busy(self):
+        if getattr(self, "_busy_dialog", None) is not None:
+            self._busy_dialog.close()
+            self._busy_dialog = None
+
+
+
 
     # ------------------------------------------------------------------
     # Side Panel Methods
@@ -1008,346 +1047,10 @@ class MainWindow(QMainWindow, NavigationMixin):
 
         return create_collapsible_section(category, content, expanded=True)
 
-    def add_viz_section(self, viz_name):
-        """Add a visualization section to the side panel."""
-        if viz_name not in self.active_viz_sections:
-            self.active_viz_sections.append(viz_name)
-            self.log_pipeline(f"{viz_name} visualization parameters added.")
-
-        if not hasattr(self, "viz_sections_layout"):
-            return
-
-        if viz_name in getattr(self, "_current_viz_section_widgets", {}):
-            return
-
-        section = self._build_viz_section(viz_name)
-        self.viz_sections_layout.addWidget(section)
-        self._current_viz_section_widgets[viz_name] = section
-
-    def _build_viz_section(self, viz_name):
-        """Build a visualization section from VIZ_PARAMS."""
-        params = VIZ_PARAMS.get(viz_name, [])
-        stored = self.param_values.setdefault(viz_name, {})
-
-        content = QWidget()
-        content_layout = QVBoxLayout(content)
-        content_layout.setContentsMargins(12, 8, 12, 12)
-        content_layout.setSpacing(8)
-
-        param_builders = {
-            "slider": self._add_slider_param,
-            "spinbox": self._add_spinbox_param,
-            "probe_line": self._add_probe_line_param, # type: ignore
-        }
-
-        for param in params:
-            if param.get("type") == "text":
-                is_bold = viz_name == "2D Projection Slab"
-                style = (
-                    "color: #ffffff; font-size: 13px; font-weight: bold; padding: 5px 0px; border-top: 1px solid #2A2A2A;"
-                    if is_bold
-                    else "color: #A0A0A0; font-size: 12px; font-style: italic; padding: 5px 0px; border-top: 1px solid #2A2A2A;"
-                )
-                info_label = create_label(
-                    param.get("default", ""), style, Qt.AlignmentFlag.AlignLeft
-                )
-                info_label.setWordWrap(True)
-                content_layout.addWidget(info_label)
-            else:
-                builder = param_builders.get(param.get("type", "slider"))
-                if builder:
-                    builder(content_layout, viz_name, param, stored)
-
-        self._show_genes_viz(content_layout, viz_name)
-        return create_collapsible_section(viz_name, content, expanded=False)
-
-    def _show_genes_viz(self, layout, viz_name):
-        """Show gene channel checkboxes for a visualization mode."""
-        channels_label = create_label(
-            "Channels overlaid",
-            "color: #A0A0A0; font-size: 12px; font-style: italic; padding: 5px 0px; border-top: 1px solid #2A2A2A;",
-        )
-        layout.addWidget(channels_label)
-
-        colors = ["#41B3A2", "#54278F", "#756BB1"]
-        stored_channels = self.param_values.setdefault(viz_name, {}).setdefault(
-            "channels", {}
-        )
-
-        for gene, color in zip(self.check_genes_viz, colors):
-            checkbox = QCheckBox(gene)
-            checkbox.setChecked(stored_channels.get(gene, False))
-            stored_channels[gene] = checkbox.isChecked()
-
-            checkbox.setStyleSheet(f"""
-                QCheckBox {{
-                    color: #ffffff; font-size: 12px; spacing: 8px;
-                }}
-                QCheckBox::indicator {{
-                    width: 16px; height: 16px; border-radius: 4px;
-                    border: 1px solid {color}; background-color: #2A2A2A;
-                }}
-                QCheckBox::indicator:checked {{
-                    background-color: {color}; border: 1px solid {color};
-                }}
-                QCheckBox::indicator:hover {{ border: 1px solid #ffffff; }}
-            """)
-
-            checkbox.stateChanged.connect(
-                lambda state, v=viz_name, g=gene: self._on_gene_channel_changed(
-                    v, g, state
-                )
-            )
-            layout.addWidget(checkbox)
-
-    def _on_gene_channel_changed(self, viz_name, gene, state):
-        """Handle gene channel checkbox changes."""
-        checked = bool(state)
-        self.param_values.setdefault(viz_name, {}).setdefault("channels", {})[gene] = (
-            checked
-        )
-        self.log_pipeline(f"{viz_name} - {gene} channel: {'on' if checked else 'off'}")
-
-        refresh_callbacks = getattr(self, "_probe_refresh_callbacks", {})
-        if viz_name in refresh_callbacks:
-            refresh_callbacks[viz_name]()
-
-    # ------------------------------------------------------------------
-    # Parameter Builders
-    # ------------------------------------------------------------------
-    def _add_slider_param(self, layout, category, param, stored):
-        """Add a slider parameter row."""
-        name = param["name"]
-        current_value = stored.get(name, param["default"])
-        stored[name] = current_value
-
-        row_label = create_label(name, "color: #ffffff; font-size: 12px;")
-        slider = create_slider(param["min"], param["max"], current_value)
-
-        value_label = QLabel(str(current_value))
-        value_label.setStyleSheet("color: #A0A0A0; font-size: 11px;")
-
-        slider.valueChanged.connect(
-            lambda val, cat=category, pname=name, vlabel=value_label: (
-                self._on_param_changed(cat, pname, val, vlabel)
-            )
-        )
-
-        layout.addWidget(row_label)
-        layout.addWidget(slider)
-        layout.addWidget(value_label)
-
-    def _add_spinbox_param(self, layout, category, param, stored):
-        """Add a spinbox parameter row."""
-        name = param["name"]
-        current_value = stored.get(name, param["default"])
-        stored[name] = current_value
-
-        row_label = create_label(name, "color: #ffffff; font-size: 12px;")
-
-        spinbox = QSpinBox()
-        spinbox.setMinimum(param["min"])
-        spinbox.setMaximum(param["max"])
-        spinbox.setValue(current_value)
-        spinbox.setStyleSheet("""
-            QSpinBox {
-                color: #ffffff; background-color: #2A2A2A;
-                border: 1px solid #41B3A2; border-radius: 4px; padding: 2px 4px;
-            }
-        """)
-
-        spinbox.valueChanged.connect(
-            lambda val, cat=category, pname=name: self._on_param_changed(
-                cat, pname, val, None
-            )
-        )
-
-        layout.addWidget(row_label)
-        layout.addWidget(spinbox)
-
-    def _on_param_changed(self, category, param_name, value, value_label):
-        """Handle parameter changes."""
-        if value_label is not None:
-            value_label.setText(str(value))
-        self.param_values.setdefault(category, {})[param_name] = value
-        self.log_pipeline(f"{category} - {param_name}: {value}")
-
-    def _add_aer_line_param(self, layout, category, param, stored):
-        """Add AER selection controls."""
-        info = create_label(
-            "Click points on the 3D limb to mark the AER line.",
-            "color: #A0A0A0; font-size: 11px;",
-        )
-        info.setWordWrap(True)
-        layout.addWidget(info)
-
-        btn_row = QHBoxLayout()
-        start_btn = create_styled_button("Select AER", "#0D7C66", "#41B3A2")
-        clear_btn = create_styled_button("Clear", "#2A2A2A", "#41B3A2")
-        confirm_btn = create_styled_button("✓", "#41B3A2", "#5FBF9F")
-        confirm_btn.setFixedWidth(36)
-
-        btn_row.addWidget(start_btn)
-        btn_row.addWidget(clear_btn)
-        btn_row.addWidget(confirm_btn)
-        layout.addLayout(btn_row)
-
-        plot = pg.PlotWidget()
-        plot.setBackground("#181818")
-        plot.setFixedHeight(160)
-        plot.showGrid(x=True, y=True, alpha=0.2)
-        curve = plot.plot(
-            [],
-            [],
-            pen=pg.mkPen("#F2A93B", width=2),
-            symbol="o",
-            symbolBrush="#E34A4A",
-            symbolSize=6,
-        )
-        layout.addWidget(plot)
-
-        def update_plot(points):
-            if not points:
-                curve.setData([], [])
-                return
-            pts = np.array(points)
-            curve.setData(pts[:, 0], pts[:, 2])
-
-        confirm_btn.clicked.connect(self._confirm_aer_selection) # type: ignore
 
 
-    def _add_limb_reference_param(self, layout, category, param, stored):
-        """Add limb reference alignment controls."""
-        stored.setdefault("reference_choice", None)
-        stored.setdefault("apply_all_channels", False)
-        stored.setdefault("show_reference", False)
+    
 
-        ref_label = create_label(
-            "Chosen stage reference",
-            "color: #A0A0A0; font-size: 12px; font-style: italic; padding: 5px 0px; border-top: 1px solid #2A2A2A;",
-        )
-        layout.addWidget(ref_label)
-
-        reference_combo = QComboBox()
-        reference_options = [
-            "Stage 20 - E10.5 reference",
-            "Stage 22 - E11.5 reference",
-            "Stage 24 - E12.5 reference",
-            "Stage 26 - E13.5 reference",
-        ]
-        reference_combo.addItems(reference_options)
-        if stored["reference_choice"] in reference_options:
-            reference_combo.setCurrentText(stored["reference_choice"])
-        else:
-            stored["reference_choice"] = reference_combo.currentText()
-
-        reference_combo.setStyleSheet("""
-            QComboBox { color: #ffffff; background-color: #2A2A2A; border: 1px solid #41B3A2; border-radius: 6px; padding: 4px 8px; font-size: 12px; }
-            QComboBox::drop-down { border: none; }
-            QComboBox QAbstractItemView { background-color: #2A2A2A; color: #ffffff; selection-background-color: #41B3A2; }
-        """)
-        reference_combo.currentTextChanged.connect(
-            lambda text, cat=category: self._on_reference_changed(cat, text)
-        )
-        layout.addWidget(reference_combo)
-
-        apply_all_btn = QPushButton("Apply to all channels")
-        apply_all_btn.setCheckable(True)
-        apply_all_btn.setChecked(stored["apply_all_channels"])
-
-        def style_apply_btn(checked):
-            bg = "#0D7C66" if checked else "#2A2A2A"
-            apply_all_btn.setStyleSheet(f"""
-                QPushButton {{
-                    background-color: {bg}; color: white; font-weight: bold; font-size: 12px;
-                    border-radius: 10px; padding: 8px 10px;
-                }}
-                QPushButton:hover {{ background-color: #9CCC65; }}
-            """)
-
-        style_apply_btn(apply_all_btn.isChecked())
-        apply_all_btn.toggled.connect(
-            lambda checked, cat=category: self._on_apply_all_toggled(
-                cat, checked, style_apply_btn
-            )
-        )
-        layout.addWidget(apply_all_btn)
-
-        reset_btn = create_styled_button("Reset", "#4B2E83", "#5C3A9E")
-        reset_btn.clicked.connect(
-            lambda: self._reset_reference_alignment(
-                category, reference_combo, apply_all_btn, style_apply_btn
-            )
-        )
-        layout.addWidget(reset_btn)
-
-        bottom_row = QHBoxLayout()
-        show_ref_checkbox = QCheckBox("Show reference in limb visualization")
-        show_ref_checkbox.setChecked(stored["show_reference"])
-        show_ref_checkbox.setStyleSheet("""
-            QCheckBox { color: #ffffff; font-size: 12px; spacing: 8px; }
-            QCheckBox::indicator { width: 16px; height: 16px; border-radius: 4px; border: 1px solid #41B3A2; background-color: #2A2A2A; }
-            QCheckBox::indicator:checked { background-color: #41B3A2; border: 1px solid #41B3A2; }
-            QCheckBox::indicator:hover { border: 1px solid #ffffff; }
-        """)
-        show_ref_checkbox.stateChanged.connect(
-            lambda state, cat=category: self._on_show_reference_toggled(cat, state)
-        )
-
-        confirm_btn = create_styled_button("✓", "#41B3A2", "#5FBF9F")
-        confirm_btn.setFixedWidth(36)
-        confirm_btn.clicked.connect(lambda: self._confirm_reference_alignment(category))
-
-        bottom_row.addWidget(show_ref_checkbox)
-        bottom_row.addWidget(confirm_btn)
-        layout.addLayout(bottom_row)
-
-    def _on_reference_changed(self, category, text):
-        self.param_values.setdefault(category, {})["reference_choice"] = text
-        self.log_pipeline(f"{category} - reference set to: {text}")
-
-    def _on_apply_all_toggled(self, category, checked, style_fn):
-        self.param_values.setdefault(category, {})["apply_all_channels"] = checked
-        style_fn(checked)
-        self.log_pipeline(
-            f"{category} - apply to all channels: {'on' if checked else 'off'}"
-        )
-
-    def _on_show_reference_toggled(self, category, state):
-        checked = bool(state)
-        self.param_values.setdefault(category, {})["show_reference"] = checked
-        self.log_pipeline(
-            f"{category} - show reference in viz: {'on' if checked else 'off'}"
-        )
-
-    def _reset_reference_alignment(self, category, combo, apply_btn, style_fn):
-        combo.setCurrentIndex(0)
-        apply_btn.setChecked(False)
-        style_fn(False)
-        stored = self.param_values.setdefault(category, {})
-        stored["reference_choice"] = combo.currentText()
-        stored["apply_all_channels"] = False
-        self.log_pipeline(f"{category} - reference alignment reset.")
-
-    def _confirm_reference_alignment(self, category):
-        stored = self.param_values.get(category, {})
-        reference = stored.get("reference_choice", "None")
-
-        reply = QMessageBox.question(
-            self,
-            "Confirm alignment",
-            f"Confirm manual alignment with reference '{reference}'?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
-        )
-        if reply == QMessageBox.StandardButton.Yes:
-            self.log_pipeline(
-                f"{category} - alignment confirmed against '{reference}'."
-            )
-            # If this reference-alignment section happens to live under the
-            # Align category, treat it as satisfying the Align step's guard too.
-            if category == "Align":
-                self.workflow_state["align_done"] = True
-                self.workflow_state["alignment_method"] = reference
 
     def _load_experiments_from_db(self):
         """Load all experiments from the database."""
@@ -1953,6 +1656,8 @@ class MainWindow(QMainWindow, NavigationMixin):
 
     def viewexp_button_clicked(self):
         """View experiment button handler."""
+        self._show_busy('Loading volume...')
+
         selected = [path for path, cb in self.experiment_checkboxes if cb.isChecked()]
         if not selected:
             QMessageBox.warning(self, "No experiment selected", "Please select an experiment to visualize.")
@@ -1968,6 +1673,9 @@ class MainWindow(QMainWindow, NavigationMixin):
             "surface_done": False, "stage_done": False, "selected_stage": None,
             "align_done": False, "alignment_method": None,
         }
+
+        self._hide_busy()
+
         self.navigate_to(self.show_viz)
 
 
@@ -2060,10 +1768,9 @@ class MainWindow(QMainWindow, NavigationMixin):
             traceback.print_exc()
 
 
-
     def _validate_experiment_channels(self, exp_id):
         exp_data = self.experiment_metadata.get(exp_id)
-        if not exp_data:
+        if not exp_data: 
             return False, f"Experiment '{exp_id}' not found in database."
 
         channels = exp_data.channels or []
