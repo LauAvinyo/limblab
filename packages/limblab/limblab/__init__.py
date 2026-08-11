@@ -13,9 +13,10 @@ from .database import (
 )
 from .tools.align import _store_transformation_matrix, rotate_limb
 from .tools.clean import clean, pick_isovalues
-from .tools.stage import stage_limb, check_connection, _stage_limb
+from .tools.stage import stage_limb_embedded
 from .tools.surface import auto_isovalue, extract_surface, pick_isovalue, get_nuclei_channel_path
 from .tools.clean import pick_isovalues, clean, get_channel_path
+from .tools.show_tiff import preview_volume
 
 __all__ = [
     "_store_transformation_matrix",
@@ -40,6 +41,9 @@ __all__ = [
     'clean',
     'get_channel_path',
     'check_connection',
-    '_stage_connection'
+    '_stage_connection',
+    'stage_limb_embedded',
+    'preview_volume'
+    
 ]
 #les funcions privades s-haurien de poder ficar aqui????

@@ -12,7 +12,7 @@ from vedo import vector, Points, LinearTransform, fit_plane
 from vedo.applications import SplinePlotter
 from vedo import Mesh, Axes, Text2D
 
-
+''''      
 CURRENT_PATH = os.path.abspath(__file__)
 CURRENT_DIR = os.path.dirname(CURRENT_PATH)
 REFERENCE_LIMB_FOLDER = os.path.join(os.path.dirname(CURRENT_DIR), "limb")
@@ -29,6 +29,7 @@ files = [
 reference_stages = [int(file.split(".")[0].split("_")[1]) for file in files]
 # DE-COMMENT -> i don't have the files yet!
 
+'''
 
 MESSAGE = "Could not connect to the staging system. Try again, if the problem persists, contact support."
 STAGING_URL = "https://limbstaging.embl.es/api"
@@ -85,6 +86,7 @@ def _stage_limb(
 
                 txt.text(f"Limb staged as {stage}")
                 plt.at(0).render()
+                return stage
 
         elif event.keypress == "r":
             plt.reset_camera().render()
@@ -114,11 +116,20 @@ def _stage_limb(
     plt.add_callback("on keypress", kfunc)
     plt.at(0).add(Axes(msh, c="k", xygrid=False, ztitle=" "))
     plt.at(1).add(txt)
-    plt.at(0).show(interactive=True)
-    plt.close()
 
-    return result["stage"]
+    # Expose the result container so embedding code can read it after
+    # the user presses 's' inside the embedded widget.
+    plt.stage_result = result
 
+    if renderer == "pyqt":
+        # Embedded mode: host Qt app owns the event loop, don't block.
+        plt.at(0).show(interactive=False)
+        return plt
+    else:
+        # Standalone mode: original blocking behavior.
+        plt.at(0).show(interactive=True)
+        plt.close()
+        return result["stage"]
 
 def check_connection(url: str) -> None:
     # Test the Limbstaging Server
@@ -131,6 +142,24 @@ def check_connection(url: str) -> None:
             raise ConnectionError(MESSAGE)
     else:
         raise ConnectionError(MESSAGE)
+
+#helper function for the stage_limb -> allows us to have the 3D stager in our limblab windown, following the workflow of the pages!
+def stage_limb_embedded(experiment: Experiment, renderer: str = "pyqt", outside_class: Optional[Any] = None):
+    """Non-blocking variant of stage_limb() for embedding the 3D Stager in a Qt widget."""
+    settings.use_depth_peeling = True
+    settings.enable_default_keyboard_callbacks = False
+
+    check_connection(STAGING_URL)
+
+    surface_name = experiment.surface
+    base = experiment.base
+    if surface_name is None or base is None:
+        raise ValueError(
+            "Surface name and base path must be provided in the experiment object."
+        )
+
+    surface = os.path.join(base, surface_name)
+    return _stage_limb(surface, renderer=renderer, outside_class=outside_class)
 
 
 def stage_limb(experiment: Experiment) -> int:
@@ -151,5 +180,5 @@ def stage_limb(experiment: Experiment) -> int:
     surface = os.path.join(base, surface_name)
 
     stage = _stage_limb(surface)
-
+    print(settings.enable_default_keyboard_callbacks)
     return stage

@@ -26,7 +26,6 @@ files = [
     or file.startswith("-")
 ]
 reference_stages = [int(file.split(".")[0].split("_")[1]) for file in files]
-# DE-COMMENT -> i don't have the files yet!
 
 
 def closest_value(input_list: list, target: int) -> int:
@@ -165,6 +164,7 @@ def rotate_limb(
     This function is a placeholder and should be implemented with the actual rotation logic.
     """
     #print("WE are here!")
+    settings.enable_default_keyboard_callbacks = True
     surface_path, refence_limb_path = _initialize_limbs_paths(
         experiment, reference_stages
     )

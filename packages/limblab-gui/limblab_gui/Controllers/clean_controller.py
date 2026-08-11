@@ -221,19 +221,15 @@ class CleanController:
         )
 
 
-####TODO can be modified later as the user can clean a gene channel volume but not the dapi, so they can skip to the last step: viz!
     def _go_next_from_clean(self):
         if not self.window.workflow_state["clean_done"]:
             QMessageBox.warning(
                 self.window, "Clean required",
-                "Please clean a channel before extracting the surface.",
+                "Please clean a channel before continuing.",
             )
             return
-        if self.window.workflow_state["last_cleaned_channel"] != "DAPI":
-            QMessageBox.information(
-                self.window, "DAPI channel required",
-                "Surface extraction can only be performed on DAPI channel data.\n"
-                "Please clean the DAPI channel before continuing.",
-            )
-            return
-        self.window.navigate_to(lambda: self.window.surface.show(self.window.current_experiment))
+
+        if self.window.workflow_state["last_cleaned_channel"] == "DAPI":
+            self.window.navigate_to(lambda: self.window.surface.show(self.window.current_experiment))
+        else:
+            self.window.navigate_to(self.window.show_viz)

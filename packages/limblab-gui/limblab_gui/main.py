@@ -171,10 +171,11 @@ class MainWindow(QMainWindow, NavigationMixin):
         self.align = AlignController(self)
         self.stage = StageController(self) 
 
-        self.current_experiment = experiment   # set when the user picks a real experiment
+        #self.current_experiment = experiment   # set when the user picks a real experiment
+        self.current_experiment = None
 
-
-        self.navigate_to(lambda:self.surface.show(self.current_experiment))
+        #self.navigate_to(lambda:self.surface.show(self.current_experiment))
+        self.navigate_to(self.show_home)
 
 
     def reset_database(self):
@@ -671,18 +672,74 @@ class MainWindow(QMainWindow, NavigationMixin):
 
     def show_viz(self):
         container = self._build_workflow_container(
-        next_label="Clean",
-        next_callback=lambda: self.navigate_to(lambda: self.clean.show(self.current_experiment)),
-        back_guard=None,
-    )
+            next_label="Clean",
+            next_callback=lambda: self.navigate_to(lambda: self.clean.show(self.current_experiment)),
+            back_guard=None,
+        )
         self.setCentralWidget(container)
 
         menu_bar = self._reset_top_menu_bar()
         self._build_file_menu(menu_bar)
         self._build_view_menu(menu_bar)
 
-        if self.current_experiment is not None:
+        if self.current_experiment is None:
+            return
+
+        if (
+            self.workflow_state.get("align_done")
+            and self.align.source is not None
+            and self.align.surface_path is not None
+        ):
+            self._show_final_aligned_mesh()
+        elif (
+            self.workflow_state.get("clean_done")
+            and self.workflow_state.get("last_cleaned_channel")
+            and self.workflow_state["last_cleaned_channel"] != "DAPI"
+        ):
+            self._show_cleaned_channel_preview()
+        else:
             self._show_raw_volume_preview(self.current_experiment)
+
+
+    def _show_final_aligned_mesh(self):
+        """Show the fully processed (aligned) limb mesh — final pipeline output."""
+        try:
+            mesh = Mesh(str(self.align.surface_path))
+            T = self.align.source.transform
+            mesh.apply_transform(T)
+
+            self.viz_plotter = Plotter(qt_widget=self.vtk_widget)
+            self.viz_plotter.show(mesh)
+        except Exception as e:
+            print(f"Error loading final aligned mesh: {e}")
+
+
+    def _show_cleaned_channel_preview(self):
+        """Show the cleaned (final) volume for a gene-only workflow."""
+        channel_name = self.workflow_state["last_cleaned_channel"]
+        channel = next(
+            (ch for ch in (self.current_experiment.channels or [])
+             if ch.channel_name.upper() == channel_name.upper()),
+            None,
+        )
+        if channel is None:
+            print(f"Cleaned channel '{channel_name}' not found on experiment.")
+            self._show_raw_volume_preview(self.current_experiment)
+            return
+
+        full_path = os.path.join(self.current_experiment.base, channel.path)
+        if not os.path.exists(full_path):
+            print(f"File not found: {full_path}")
+            return
+
+        try:
+            self.viz_plotter = preview_volume(
+                raw_volume_path=full_path,
+                renderer="pyqt",
+                outside_class=self,
+            )
+        except Exception as e:
+            print(f"Error loading cleaned channel preview: {e}")
 
 
     def _show_raw_volume_preview(self, experiment):
