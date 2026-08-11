@@ -1,21 +1,17 @@
-from typing import Optional, Any, Literal
 import os
+from typing import Any, Literal, Optional
+
+from vedo import Mesh, Plotter, Text2D
 
 from limblab.models import Experiment
-from limblab.tools import stage
 from limblab.utils import generate_kwargs
-from colorama import Fore as c
-
-from vedo import settings
-from vedo import Plotter, Mesh, Axes, Text2D
-from vedo.applications import IsosurfaceBrowser, MorphPlotter, SplinePlotter
-from vedo import Mesh, Axes, Text2D
-
 
 CURRENT_PATH = os.path.abspath(__file__)
 CURRENT_DIR = os.path.dirname(CURRENT_PATH)
 REFERENCE_LIMB_FOLDER = os.path.join(os.path.dirname(CURRENT_DIR), "limb")
-REFERENCE_LIMB_FOLDER = "C:\\Users\\millan\\Desktop\\limblab\\packages\\limblab\\limblab\\limb"
+# REFERENCE_LIMB_FOLDER = "C:\\Users\\millan\\Desktop\\limblab\\packages\\limblab\\limblab\\limb"
+REFERENCE_LIMB_FOLDER = "/Users/laura/limblab/packages/limblab/limblab/limb"
+
 # TODO: FIX THIS!
 
 files = [
@@ -103,23 +99,23 @@ def _rotate_limb(
     plt = Plotter(**kwargs)  # type: ignore
 
     # Set the camera positions for the three views
-    plt.at(2).camera = dict(
-        position=(727.482, -9177.46, 178.073),
-        focal_point=(727.482, 387.830, 178.073),
-        viewup=(2.82523e-34, -2.37707e-17, 1.00000),
-        roll=1.61874e-32,
-        distance=9565.29,
-        clipping_range=(7962.46, 11606.0),
-    )
+    plt.at(2).camera = {
+        "position": (727.482, -9177.46, 178.073),
+        "focal_point": (727.482, 387.830, 178.073),
+        "viewup": (2.82523e-34, -2.37707e-17, 1.00000),
+        "roll": 1.61874e-32,
+        "distance": 9565.29,
+        "clipping_range": (7962.46, 11606.0),
+    }
 
-    plt.at(1).camera = dict(
-        position=(727.482, 387.830, 9725.70),
-        focal_point=(727.482, 387.830, 178.073),
-        viewup=(0, 1.00000, 0),
-        roll=0,
-        distance=9547.62,
-        clipping_range=(8305.31, 11134.5),
-    )
+    plt.at(1).camera = {
+        "position": (727.482, 387.830, 9725.70),
+        "focal_point": (727.482, 387.830, 178.073),
+        "viewup": (0, 1.00000, 0),
+        "roll": 0,
+        "distance": 9547.62,
+        "clipping_range": (8305.31, 11134.5),
+    }
 
     plt.at(2).add(source.alpha(0.4), target.alpha(0.6))
     plt.at(1).add(source.alpha(0.4), target.alpha(0.6))
@@ -156,8 +152,8 @@ def _rotate_limb(
 
 def rotate_limb(
     experiment: Experiment,
-    renderer: Optional[Literal["pyqt"]] = None,
-    outside_class: Optional[Any] = None,
+    renderer: Literal["pyqt"] | None = None,
+    outside_class: Any | None = None,
 ) -> str | tuple[Any, Any, str]:
     """
     Rotate the limb to a standard orientation.

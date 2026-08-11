@@ -2,14 +2,13 @@
 # pyright: ignore[reportAttributeAccessIssue]
 
 import os
+import traceback
 import webbrowser
 from pathlib import Path
 
 import numpy as np
 import pyqtgraph as pg
 import vtk
-
-import traceback
 
 # from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 import vtkmodules
@@ -64,16 +63,10 @@ import traceback
 from types import SimpleNamespace
 
 from Controllers.align_controller import AlignController
-
-from Controllers.surface_controller import SurfaceController
-
 from Controllers.clean_controller import CleanController
-
 from Controllers.stage_controller import StageController
-
-from limblab import pick_isovalues
-
-from limblab import preview_volume
+from Controllers.surface_controller import SurfaceController
+from limblab import pick_isovalues, preview_volume
 
 #laura
 #TEST_BASE_PATH = "/Users/laura/Desktop/Desktop-2026/sox9-fig-thesis"

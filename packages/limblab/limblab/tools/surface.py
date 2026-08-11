@@ -1,31 +1,15 @@
 # limblab/tools/surface.py
+import os
 from pathlib import Path
 from typing import Any, Literal, Optional
+
 from vedo import Volume
-from vedo.pyplot import histogram
 from vedo.applications import IsosurfaceBrowser
+from vedo.pyplot import histogram
 
-from limblab.models import Experiment, Channel
 from limblab.exceptions import VolumeProcessingError
+from limblab.models import Channel, Experiment
 from limblab.utils import generate_kwargs
-import os
-
-
-CURRENT_PATH = os.path.abspath(__file__)
-CURRENT_DIR = os.path.dirname(CURRENT_PATH)
-REFERENCE_LIMB_FOLDER = os.path.join(os.path.dirname(CURRENT_DIR), "limb")
-REFERENCE_LIMB_FOLDER = "C:\\Users\\millan\\Desktop\\limblab\\packages\\limblab\\limblab\\limb"
-# TODO: FIX THIS!
-
-files = [
-    file
-    for file in os.listdir(REFERENCE_LIMB_FOLDER)
-    if os.path.isfile(os.path.join(REFERENCE_LIMB_FOLDER, file))
-    and not file.startswith(".DS")
-    or file.startswith("-")
-]
-reference_stages = [int(file.split(".")[0].split("_")[1]) for file in files]
-# DE-COMMENT -> i don't have the files yet!
 
 
 def auto_isovalue(raw_volume_path: Path) -> float:
@@ -101,43 +85,5 @@ def extract_surface(
     return out_path
 
 
-def closest_value(input_list: list, target: int) -> int:
-    """ "Get the closest value of the list to our target."""
-    closest = input_list[0]  # Assume the first value is the closest initially
-    min_diff = abs(target - closest)  # Initialize minimum difference
-
-    for value in input_list:
-        diff = abs(target - value)
-        if diff < min_diff:
-            min_diff = diff
-            closest = value
-
-    return closest
 
 
-def get_reference_limb(stage: int) -> str | None:
-    """From the stage, get the reference limb path"""
-    file = os.path.join(REFERENCE_LIMB_FOLDER, "Limb-rec_" + str(stage) + ".vtk")
-    if os.path.isfile(file):
-        return file
-    return None
-
-
-def _initialize_limbs_paths(experiment: Experiment, reference_stages):
-    base = experiment.base
-    surface_name = experiment.surface
-    stage = experiment.stage
-
-    if surface_name is None or stage is None or base is None:
-        raise ValueError("Experiment must have base, surface, and stage defined.")
-
-    surface_path = os.path.join(base, surface_name)
-
-    # Get the target stage
-    reference_stage = closest_value(reference_stages, stage)
-    refence_limb_path = get_reference_limb(reference_stage)
-
-    if refence_limb_path is None:
-        raise FileNotFoundError(f"No reference limb found for stage {reference_stage}")
-
-    return surface_path, refence_limb_path
