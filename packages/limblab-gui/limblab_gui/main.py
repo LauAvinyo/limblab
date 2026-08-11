@@ -2,14 +2,13 @@
 # pyright: ignore[reportAttributeAccessIssue]
 
 import os
+import traceback
 import webbrowser
 from pathlib import Path
 
 import numpy as np
 import pyqtgraph as pg
 import vtk
-
-import traceback
 
 # from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 import vtkmodules
@@ -64,11 +63,8 @@ import traceback
 from types import SimpleNamespace
 
 from Controllers.align_controller import AlignController
-
-from Controllers.surface_controller import SurfaceController
-
 from Controllers.clean_controller import CleanController
-
+from Controllers.surface_controller import SurfaceController
 
 #laura
 #TEST_BASE_PATH = "/Users/laura/Desktop/Desktop-2026/sox9-fig-thesis"
@@ -98,7 +94,7 @@ experiment = Experiment(
             experiment_id="manual_test",
             channel_name="DAPI",
             path=TEST_DAPI_FILENAME
-        )
+        ) # type: ignore
     ],
 )
 
