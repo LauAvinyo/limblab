@@ -48,18 +48,20 @@ class AlignController:
         self.window._build_file_menu(menu_bar)
 
         # Start alignment viewer
-        self.plotter, self.source, self.surface_path = rotate_limb(
-            experiment=experiment,
-            renderer="pyqt",
-            outside_class=self.window,
-        )
+        try:
+            self.plotter, self.source, self.surface_path = rotate_limb(
+                experiment=experiment,
+                renderer="pyqt",
+                outside_class=self.window,
+            )
+        except Exception as e:
+            QMessageBox.critical(self.window, "Alignment error", str(e))
 
     # -------------------------------------------------------
     # UI
     # -------------------------------------------------------
 
     def _build_align_action_bar(self):
-
         bar = QWidget()
         bar.setStyleSheet("background-color: #1E1E1E;")
 
@@ -118,7 +120,6 @@ class AlignController:
         )
 
     def _go_next_from_align(self):
-
         if not self.window.workflow_state["align_done"]:
             QMessageBox.warning(
                 self.window,
@@ -127,4 +128,4 @@ class AlignController:
             )
             return
 
-        self.window.navigate_to(self.window.show_viz)#TODO next should be stage!
+        self.window.navigate_to(self.window.show_viz)

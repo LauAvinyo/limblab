@@ -1,4 +1,4 @@
-from limblab import extract_surface, pick_isovalue, get_nuclei_channel_path
+from limblab import extract_surface, pick_isovalue, get_nuclei_channel_path, save_experiment
 
 from PyQt6.QtWidgets import (
     QHBoxLayout,
@@ -9,7 +9,7 @@ from utils import create_styled_button, create_label
 
 from PyQt6.QtCore import QThread, pyqtSignal
 
-
+import os
 
 class SurfaceExtractionWorker(QThread):
     finished = pyqtSignal(object)   # Path on success
@@ -57,21 +57,26 @@ class SurfaceController:
         self.window._build_file_menu(menu_bar)
         self.window._build_view_menu(menu_bar)
 
-        nuclei_path = get_nuclei_channel_path(experiment)
-        print("DEBUG raw_volume_path:", nuclei_path, "exists:", nuclei_path.is_file())
+        dapi_channel = next(
+            (ch for ch in (experiment.channels or []) if ch.channel_name.upper() == "DAPI"),
+            None,
+        )
+        if dapi_channel is None:
+            QMessageBox.critical(self.window, "Surface extraction error", "No DAPI channel found.")
+            return
+        if not dapi_channel.path.lower().endswith(".vti"):
+            QMessageBox.critical(
+                self.window, "Surface extraction error",
+                "DAPI channel hasn't been cleaned yet. Clean it first to generate the .vti volume."
+            )
+            return
+
+        nuclei_path = os.path.join(experiment.base, dapi_channel.path)
         self.plotter = pick_isovalue(
             raw_volume_path=nuclei_path,
             renderer="pyqt",
             outside_class=self.window,
         )
-
-        #interactive plotter through surface.py pick_isovalue function!
-        self.plotter = pick_isovalue(
-            raw_volume_path=nuclei_path,
-            renderer="pyqt",
-            outside_class=self.window,
-        )
-
 
     #from main
     def _build_surface_action_bar(self):
@@ -100,7 +105,6 @@ class SurfaceController:
         if self.plotter is None:
             QMessageBox.critical(self.window, "Surface extraction error", "No isosurface preview available.")
             return
-
             #isovalue gets extracted from the vedo renderer se4lected value (slider)
            
         isovalue = float(self.plotter.sliders[0][0].value)
@@ -111,19 +115,20 @@ class SurfaceController:
 
 
     def _on_extraction_done(self, surface_path, isovalue):
+        self.experiment.surface = os.path.basename(str(surface_path))
+        save_experiment(self.window.db_path, self.experiment)
+
         self.window.workflow_state["surface_done"] = True
         self.window.log_pipeline(f"Surface extracted (isovalue={isovalue:.3f}).\nWritten to:\n{surface_path}")
 
     #from main
     def _go_next_from_surface(self):
-            """Guard for Surface -> Stage: must have extracted a surface."""
-            if not self.window.workflow_state["surface_done"]:
+        """Guard for Surface -> Stage: must have extracted a surface."""
+        if not self.window.workflow_state["surface_done"]:
                 QMessageBox.warning(
                     self,
                     "Surface required",
                     "Please extract a surface before proceeding to Stage.",
                 )
                 return
-            #plt.close()
-            #TODO SHOULD BE STAGE FIRST BUT NOT DEFINED YET!!!!!!!!!!!!
-            self.window.navigate_to(lambda: self.window.align.show(self.window.current_experiment))
+        self.window.navigate_to(lambda: self.window.stage.show(self.window.current_experiment))

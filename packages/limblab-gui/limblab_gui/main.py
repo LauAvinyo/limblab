@@ -69,6 +69,11 @@ from Controllers.surface_controller import SurfaceController
 
 from Controllers.clean_controller import CleanController
 
+from Controllers.stage_controller import StageController
+
+from limblab import pick_isovalues
+
+from limblab import preview_volume
 
 #laura
 #TEST_BASE_PATH = "/Users/laura/Desktop/Desktop-2026/sox9-fig-thesis"
@@ -79,7 +84,7 @@ TEST_BASE_PATH = "C:\\Users\\millan\\Desktop\\test"
 TEST_SURFACE_PATH = "HCR12_HOXA11_l1_dapi_405_LF_surface.vtk"
 
 #this is for the SURFACE and CLEAN test! the direct .tiff is required (DAPI)
-TEST_DAPI_FILENAME = "HCR12_HOXA11_l1_dapi_405_LF.tif" 
+TEST_DAPI_FILENAME = "HCR12_HOXA11_l1_dapi_405_LF.vti" 
 
 #for the test experiment i added the channels manually 
 experiment = Experiment(
@@ -97,7 +102,9 @@ experiment = Experiment(
         Channel(
             experiment_id="manual_test",
             channel_name="DAPI",
-            path=TEST_DAPI_FILENAME
+            path=TEST_DAPI_FILENAME,
+            v0 = 0,
+            v1 = 54
         )
     ],
 )
@@ -158,15 +165,16 @@ class MainWindow(QMainWindow, NavigationMixin):
             "alignment_method": None,
         }
 
-        self.align = AlignController(self)
+        
         self.surface = SurfaceController(self)
         self.clean = CleanController(self)
-        #self.stage = StageController(self)   # see below
+        self.align = AlignController(self)
+        self.stage = StageController(self) 
 
-        self.current_experiment = None   # set when the user picks a real experiment
+        self.current_experiment = experiment   # set when the user picks a real experiment
 
 
-        self.navigate_to(self.show_home)
+        self.navigate_to(lambda:self.surface.show(self.current_experiment))
 
 
     def reset_database(self):
@@ -354,6 +362,9 @@ class MainWindow(QMainWindow, NavigationMixin):
 
         left_layout.addLayout(top_row)
 
+        self.vtk_widget = QVTKRenderWindowInteractor(self)
+        left_layout.addWidget(self.vtk_widget, stretch=1)
+
         if action_widget is not None:
             left_layout.addWidget(action_widget)
 
@@ -472,7 +483,7 @@ class MainWindow(QMainWindow, NavigationMixin):
         
         # ---- Library Access ----
         self.label_library = create_label("Access Limb Library", "color: #ffffff; font-size: 40px;")
-        self.button_library = create_styled_button("View Experiments", "#41B3A2", "#5FBF9F")
+        self.button_library = create_styled_button("View Experiments", "#0D7C66", "#41B3A2")
         self.button_library.clicked.connect(lambda: self.navigate_to(self.show_exp))
 
         library_desc = create_label(
@@ -548,11 +559,16 @@ class MainWindow(QMainWindow, NavigationMixin):
             # Access channels directly from the Experiment object
             channels = exp_obj.channels if hasattr(exp_obj, 'channels') else []
             channel_names = [ch.channel_name for ch in channels] if channels else []
+
+            ''''
         
             # Check if experiment is complete (has DAPI + gene)
             is_valid, status_message = self._validate_experiment_channels(path)
             status_icon = "✅" if is_valid else "⚠️"
             status_color = "#41B3A2" if is_valid else "#FF6B6B"
+
+            
+            '''
 
             # Show channel info
             channel_display = ""
@@ -565,9 +581,9 @@ class MainWindow(QMainWindow, NavigationMixin):
             row = QHBoxLayout()
             
             # Experiment name with status
-            name_label = QLabel(f"{status_icon} {display_name}")
-            name_label.setStyleSheet(f"color: {status_color}; font-size: 18px;")
-            name_label.setToolTip(status_message if not is_valid else "Experiment is complete")
+            name_label = QLabel(f"{display_name}")
+            name_label.setStyleSheet(f"color: white; font-size: 18px;")
+            #name_label.setToolTip(status_message if not is_valid else "Experiment is complete")
             
             # Show channel count - use the channels from the Experiment object directly
             channel_count = len(channels)
@@ -580,10 +596,8 @@ class MainWindow(QMainWindow, NavigationMixin):
             threebutton.clicked.connect(lambda checked, p=path, b=threebutton: self._click_threebuttons(p, b))
 
             checkbox = QCheckBox()
-            checkbox.setEnabled(is_valid)  # Only enable checkbox for complete experiments
-            if not is_valid:
-                checkbox.setToolTip("Incomplete experiment - needs DAPI and at least one gene channel")
-            
+            checkbox.setEnabled(True)   
+
             row.addWidget(name_label)
             row.addWidget(channel_info)
             row.addWidget(checkbox)
@@ -601,18 +615,15 @@ class MainWindow(QMainWindow, NavigationMixin):
         experiments_card.setLayout(card_layout)
         experiments_card.setMinimumHeight(250)
 
-        self.add_btn = create_styled_button('+ Add Experiment', "#7C6FD6", "#8E7FD6")
-        self.view_btn = create_styled_button('View Experiment', "#41B3A2", "#5FBF9F")
-        self.refresh_btn = create_styled_button('↻ Refresh', "#4B2E83", "#5C3A9E")
-
-        self.view_btn.clicked.connect(self.viewexp_button_clicked)
-        self.refresh_btn.clicked.connect(self._refresh_experiments)
-
-        buttons_row = QVBoxLayout()
-        buttons_row.setContentsMargins(0, 20, 0, 20)
+        self.add_btn = create_styled_button('+ Add Experiment', "#54278F", "#514591")
+        self.add_channel_btn = create_styled_button('+ Add Channel', "#7C6FD6", "#8E7FD6")
+        self.view_btn = create_styled_button('View Experiment', "#0D7C66", "#41B3A2")
+        self.refresh_btn = create_styled_button('↻ Refresh', "#212121", "#383838")
 
         self.add_btn.clicked.connect(self.addexp_button_clicked)
+        self.add_channel_btn.clicked.connect(self.addchannel_button_clicked)
         self.view_btn.clicked.connect(self.viewexp_button_clicked)
+        self.refresh_btn.clicked.connect(self._refresh_experiments)
 
         buttons_row = QVBoxLayout()
         buttons_row.setContentsMargins(0, 20, 0, 20)  # Add vertical padding
@@ -620,9 +631,9 @@ class MainWindow(QMainWindow, NavigationMixin):
         # Add stretch before and after to center the group, but with big spacing
         buttons_row.addStretch(1)  # Big stretch on left
         buttons_row.addWidget(self.add_btn)
-        buttons_row.addSpacing(10)  # Space between buttons
-        buttons_row.addWidget(self.save_btn)
-        buttons_row.addSpacing(10)  # Space between buttons
+        buttons_row.addSpacing(10)
+        buttons_row.addWidget(self.add_channel_btn)
+        buttons_row.addSpacing(10)
         buttons_row.addStretch(1)
         buttons_row.addWidget(self.view_btn)
         buttons_row.addSpacing(10)
@@ -645,6 +656,12 @@ class MainWindow(QMainWindow, NavigationMixin):
 
     # ---- Pipeline step screens (Viz -> Clean -> Surface -> Stage -> Align -> Viz) ----
 
+    def addchannel_button_clicked(self, checked=False):
+        """Add channel button handler - adds a channel to an existing experiment."""
+        self._add_channel_to_existing()
+
+
+
     def _refresh_experiments(self):
         """Refresh the experiments list."""
         self._load_experiments_from_db()
@@ -664,8 +681,35 @@ class MainWindow(QMainWindow, NavigationMixin):
         self._build_file_menu(menu_bar)
         self._build_view_menu(menu_bar)
 
-        if self.filepath:
-            self.update_viewer(self.filepath)
+        if self.current_experiment is not None:
+            self._show_raw_volume_preview(self.current_experiment)
+
+
+    def _show_raw_volume_preview(self, experiment):
+        """First-look, non-processed view of the experiment's raw volume."""
+        channels = experiment.channels or []
+        if not channels:
+            print(f"No channels found for experiment: {experiment.experiment_id}")
+            return
+
+        dapi_channel = next(
+            (ch for ch in channels if ch.channel_name.upper() == "DAPI"), None
+        )
+        channel = dapi_channel or channels[0]
+
+        full_path = os.path.join(experiment.base, channel.path)
+        if not os.path.exists(full_path):
+            print(f"File not found: {full_path}")
+            return
+
+        try:
+            self.viz_plotter = preview_volume(
+                raw_volume_path=full_path,
+                renderer="pyqt",
+                outside_class=self,
+            )
+        except Exception as e:
+            print(f"Error loading volume preview: {e}")
 
 
     def update_viewer(self, filepath):
@@ -1807,27 +1851,15 @@ class MainWindow(QMainWindow, NavigationMixin):
 
             # Check if experiment already exists
             if exp_id in self.experiments:
-                QMessageBox.warning(self, "Duplicate", f"Experiment '{exp_id}' already exists.")
-                # Ask if they want to add channel to existing experiment instead
-                reply = QMessageBox.question(
-                    self,
-                    "Add to Existing?",
-                    f"Experiment '{exp_id}' already exists.\n"
-                    "Do you want to add this channel to it?",
-                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                QMessageBox.warning(
+                    self, "Duplicate",
+                    f"Experiment '{exp_id}' already exists. Use '+ Add Channel' instead."
                 )
-                if reply == QMessageBox.StandardButton.Yes:
-                    self._add_channel_to_existing(exp_id)
                 return
 
             # Get channel type from dialog
             channel_name = limb_info['channel_type']
-            
-            # Set default isovalues based on channel type
-            if channel_name == "DAPI":
-                v0, v1 = 238.0, 463.0
-            else:  # Gene channels
-                v0, v1 = 174.0, 335.0
+          
 
             # Create a new experiment
             new_exp = Experiment(
@@ -1842,9 +1874,7 @@ class MainWindow(QMainWindow, NavigationMixin):
                     Channel(
                         experiment_id=exp_id,
                         channel_name=channel_name,
-                        path=os.path.basename(filepath),
-                        v0=v0,
-                        v1=v1
+                        path=os.path.basename(filepath)
                     )
                 ]
             )
@@ -1879,12 +1909,8 @@ class MainWindow(QMainWindow, NavigationMixin):
             return
 
         exp_id = selected[0]
-        is_valid, message = self._validate_experiment_channels(exp_id)
-        if not is_valid:
-            QMessageBox.warning(self, "Incomplete Experiment", message)
-            return
-
         self.filepath = exp_id
+
         self.current_experiment = get_experiment(self.db_path, exp_id)   # <- real Experiment, not a dict
 
         self.workflow_state = {
