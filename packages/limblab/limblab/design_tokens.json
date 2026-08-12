@@ -27,7 +27,7 @@
     "fontSizeBase": 14,
     "fontSizeLarge": 18,
     "fontSizeXLarge": 20,
-    "fontSizeHero": 80,
+    "fontSizeHero": 40,
     "fontWeightBold": "bold"
   },
   "shape": {

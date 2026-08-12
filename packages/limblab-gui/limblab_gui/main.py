@@ -1,19 +1,20 @@
 # pyright: reportOptionalMemberAccess=false
 # pyright: ignore[reportAttributeAccessIssue]
 
-import math
 import os
 import traceback
 import webbrowser
 from pathlib import Path
+from types import SimpleNamespace
 
-import numpy as np
-import pyqtgraph as pg
-import vtk
-
-# from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 import vtkmodules
+from components.animation_gradients import AnimatedGradientLabel, AnimatedGradientWidget
 from config import *
+from controllers.align_controller import AlignController
+from controllers.clean_controller import CleanController
+from controllers.stage_controller import StageController
+from controllers.surface_controller import SurfaceController
+from limblab import preview_volume
 from limblab.database import (
     delete_experiment,
     get_experiment,
@@ -23,18 +24,11 @@ from limblab.database import (
 )
 from limblab.design_tokens import theme
 from limblab.models import Channel, Experiment
-from limblab.params import CleanParams
-from Mixin.NavigationMixin import NavigationMixin
-from PyQt6.QtCore import QPointF, Qt, QTimer
+from mixin.NavigationMixin import NavigationMixin
+from PyQt6.QtCore import Qt
 from PyQt6.QtGui import (
     QAction,
-    QBrush,
-    QColor,
-    QFont,
     QIcon,
-    QLinearGradient,
-    QPainter,
-    QPen,
 )
 from PyQt6.QtWidgets import (
     QCheckBox,
@@ -53,7 +47,6 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QScrollArea,
-    QSpinBox,
     QStatusBar,
     QToolButton,
     QVBoxLayout,
@@ -69,107 +62,6 @@ from vedo import Mesh, Plotter
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 
 vtkmodules.qt.QVTKRWIBase = "QGLWidget"
-
-import traceback
-from types import SimpleNamespace
-
-from Controllers.align_controller import AlignController
-from Controllers.clean_controller import CleanController
-from Controllers.stage_controller import StageController
-from Controllers.surface_controller import SurfaceController
-from limblab import pick_isovalues, preview_volume
-
-
-class AnimatedGradientWidget(QWidget):
-    """A QWidget that paints an animated linear gradient background."""
-
-    def __init__(self, parent=None, speed: float = 0.03):
-        super().__init__(parent)
-        self.phase = 0.0
-        self.speed = speed
-        self._timer = QTimer(self)
-        self._timer.timeout.connect(self._on_timer)
-        self._timer.start(30)
-
-    def _on_timer(self):
-        self.phase += self.speed
-        if self.phase > 2 * math.pi:
-            self.phase -= 2 * math.pi
-        self.update()
-
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        r = self.rect()
-        cx = r.center().x()
-        cy = r.center().y()
-        dx = math.cos(self.phase) * r.width() / 2
-        dy = math.sin(self.phase) * r.height() / 2
-
-        grad = QLinearGradient(QPointF(cx - dx, cy - dy), QPointF(cx + dx, cy + dy))
-        c1 = QColor(theme("palette.primary", "#0D7C66"))
-        c2 = QColor(theme("palette.secondary", "#8E7FD6"))
-        c3 = QColor(theme("palette.accent", "#5FBF9F"))
-
-        grad.setColorAt(0.0, c1)
-        grad.setColorAt(0.5, c2)
-        grad.setColorAt(1.0, c3)
-
-        painter.fillRect(r, grad)
-        painter.end()
-
-
-class AnimatedGradientLabel(QLabel):
-    """A QLabel that paints its text filled with an animated linear gradient."""
-
-    def __init__(self, text: str = "", parent=None, speed: float = 0.03):
-        super().__init__(text, parent)
-        self.phase = 0.0
-        self.speed = speed
-        self._timer = QTimer(self)
-        self._timer.timeout.connect(self._on_timer)
-        self._timer.start(30)
-        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-    def _on_timer(self):
-        self.phase += self.speed
-        if self.phase > 2 * math.pi:
-            self.phase -= 2 * math.pi
-        self.update()
-
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        r = self.rect()
-        cx = r.center().x()
-        cy = r.center().y()
-        dx = math.cos(self.phase) * r.width() / 2
-        dy = math.sin(self.phase) * r.height() / 2
-
-        grad = QLinearGradient(QPointF(cx - dx, cy - dy), QPointF(cx + dx, cy + dy))
-        c1 = QColor(theme("palette.primary", "#0D7C66"))
-        c2 = QColor(theme("palette.secondary", "#8E7FD6"))
-        c3 = QColor(theme("palette.accent", "#5FBF9F"))
-        grad.setColorAt(0.0, c1)
-        grad.setColorAt(0.5, c2)
-        grad.setColorAt(1.0, c3)
-
-        pen = QPen(QBrush(grad), 0)
-        painter.setPen(pen)
-
-        # Apply themed font size if available
-        font = self.font()
-        try:
-            size = int(theme("typography.fontSizeHero", 100))
-        except Exception:
-            size = 100
-        font.setPointSize(size)
-        font.setBold(True)
-        painter.setFont(font)
-
-        painter.drawText(r, Qt.AlignmentFlag.AlignCenter, self.text())
-        painter.end()
-
 
 #laura
 #TEST_BASE_PATH = "/Users/laura/Desktop/Desktop-2026/sox9-fig-thesis"
@@ -620,12 +512,17 @@ class MainWindow(QMainWindow, NavigationMixin):
         """)
 
         left_panel = QWidget()
-        get_started_btn = create_styled_button("Get Started", size=50)
+        get_started_btn = create_styled_button(
+            "Get Started",
+            color=theme("palette.primary", "#fb8f00"),
+            hover_color=theme("palette.primaryHover", "#41B3A2"),
+            size=50,
+        )
         get_started_btn.clicked.connect(
             lambda: self.navigate_to(self.show_first_screen)
         )
 
-        label_main = AnimatedGradientLabel("LimbLab")
+        label_main = QLabel("LimbLab")
         try:
             hero_size = int(theme("typography.fontSizeHero", 100))
         except Exception:
@@ -644,8 +541,72 @@ class MainWindow(QMainWindow, NavigationMixin):
         left_layout.addStretch(1)
         left_layout.addWidget(label_main, alignment=Qt.AlignmentFlag.AlignHCenter)
         left_layout.addWidget(sublabel_main, alignment=Qt.AlignmentFlag.AlignHCenter)
-        left_layout.addSpacing(20)
+        left_layout.addSpacing(12)
         left_layout.addWidget(get_started_btn, alignment=Qt.AlignmentFlag.AlignHCenter)
+
+        paper = QFrame()
+        paper.setStyleSheet("""
+            QFrame {
+                color: #E8EDF3;
+            }
+        """)
+        paper.setFixedWidth(520)
+        paper.setMinimumHeight(220)
+
+        paper_inner = QVBoxLayout(paper)
+        paper_inner.setContentsMargins(0, 0, 0, 0)
+        paper_inner.setSpacing(0)
+
+        titlebar = QWidget()
+        titlebar.setFixedHeight(30)
+        titlebar.setStyleSheet("QWidget { background: rgba(255, 255, 255, 0.02); border: none; }")
+        titlebar_layout = QHBoxLayout(titlebar)
+        titlebar_layout.setContentsMargins(14, 8, 14, 8)
+        titlebar_layout.setSpacing(8)
+
+        dot_red = QLabel("●")
+        dot_red.setStyleSheet("color: #ff6b5f; font-size: 12px; background: transparent;")
+        dot_yellow = QLabel("●")
+        dot_yellow.setStyleSheet("color: #f5c76e; font-size: 12px; background: transparent;")
+        dot_green = QLabel("●")
+        dot_green.setStyleSheet("color: #67d77d; font-size: 12px; background: transparent;")
+
+        titlebar_layout.addWidget(dot_red)
+        titlebar_layout.addWidget(dot_yellow)
+        titlebar_layout.addWidget(dot_green)
+        titlebar_layout.addStretch()
+
+        paper_inner.addWidget(titlebar)
+
+        terminal_body = QWidget()
+        terminal_body.setStyleSheet("QWidget { background: transparent; }")
+        terminal_body_layout = QVBoxLayout(terminal_body)
+        terminal_body_layout.setContentsMargins(20, 12, 20, 18)
+        terminal_body_layout.setSpacing(4)
+
+        terminal_text = QLabel(
+            "<- ->    use arrows to reduce/increase opacity\n"
+            "x        toggle mesh visibility\n"
+            "w        toggle wireframe/surface style\n"
+            "l        toggle surface edges visibility\n"
+            "1-3      cycle surface color\n"
+            "k        cycle available lighting styles\n"
+            "r        reset camera position\n"
+            "shift    pan\n"
+            "ctl/cmd  rotate over an axis"
+        )
+        terminal_text.setWordWrap(True)
+        terminal_text.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        terminal_text.setStyleSheet(
+            "font-family: 'Menlo', 'Monaco', 'Consolas', 'Courier New', monospace; "
+            "font-size: 12px; line-height: 1.6; color: #dfe7ef;"
+        )
+        terminal_body_layout.addWidget(terminal_text)
+
+        paper_inner.addWidget(terminal_body)
+
+        left_layout.addWidget(paper, alignment=Qt.AlignmentFlag.AlignHCenter)
+        left_layout.addSpacing(8)
         left_layout.addStretch(2)
         left_layout.setContentsMargins(40, 0, 40, 0)
 
@@ -654,9 +615,13 @@ class MainWindow(QMainWindow, NavigationMixin):
 
         self.plt = Plotter(qt_widget=self.vtkWidget)
         # Create vedo renderer and add objects and callbacks
-        self.limb_home = Mesh("Limb-rec_281.vtk")
+        self.limb_home = Mesh("Limb-rec_281.vtk").c(theme("palette.primary"))
+        
 
-        container = AnimatedGradientWidget()
+        container = QWidget()
+        container.setStyleSheet(
+            f"background-color: {theme('palette.background', '#141414')};"
+        )
         layout = QHBoxLayout(container)
         layout.addWidget(left_panel, stretch=3)
         layout.addWidget(self.vtkWidget, stretch=2)
@@ -674,7 +639,11 @@ class MainWindow(QMainWindow, NavigationMixin):
 
         # ---- Create New Experiment ----
         self.label_upload = create_label("Create New Experiment", f"color: {theme('palette.textPrimary', '#FFFFFF')}; font-size: {theme('typography.fontSizeHero', 40)}px;")
-        self.button_upload = create_styled_button("Upload TIF Volume")
+        self.button_upload = create_styled_button(
+            "Upload TIF Volume",
+            color=theme("palette.secondary", "#54278F"),
+            hover_color=theme("palette.secondaryHover", "#756BB1"),
+        )
         self.button_upload.clicked.connect(self.create_new_experiment)
 
         upload_desc = create_label(
@@ -688,7 +657,11 @@ class MainWindow(QMainWindow, NavigationMixin):
         
         # ---- Library Access ----
         self.label_library = create_label("Access Limb Library", f"color: {theme('palette.textPrimary', '#FFFFFF')}; font-size: {theme('typography.fontSizeHero', 40)}px;")
-        self.button_library = create_styled_button("View Experiments")
+        self.button_library = create_styled_button(
+            "View Experiments",
+            color=theme("palette.accent", "#5FBF9F"),
+            hover_color=theme("palette.primaryHover", "#41B3A2"),
+        )
         self.button_library.clicked.connect(lambda: self.navigate_to(self.show_exp))
 
         library_desc = create_label(
@@ -820,10 +793,26 @@ class MainWindow(QMainWindow, NavigationMixin):
         experiments_card.setLayout(card_layout)
         experiments_card.setMinimumHeight(250)
 
-        self.add_btn = create_styled_button('+ Add Experiment')
-        self.add_channel_btn = create_styled_button('+ Add Channel')
-        self.view_btn = create_styled_button('View Experiment')
-        self.refresh_btn = create_styled_button('↻ Refresh')
+        self.add_btn = create_styled_button(
+            '+ Add Experiment',
+            color=theme('palette.secondary', '#54278F'),
+            hover_color=theme('palette.secondaryHover', '#756BB1'),
+        )
+        self.add_channel_btn = create_styled_button(
+            '+ Add Channel',
+            color=theme('palette.secondary', '#54278F'),
+            hover_color=theme('palette.secondaryHover', '#756BB1'),
+        )
+        self.view_btn = create_styled_button(
+            'View Experiment',
+            color=theme('palette.primary', '#fb8f00'),
+            hover_color=theme('palette.primaryHover', '#41B3A2'),
+        )
+        self.refresh_btn = create_styled_button(
+            '↻ Refresh',
+            color=theme('palette.accent', '#5FBF9F'),
+            hover_color=theme('palette.primaryHover', '#41B3A2'),
+        )
 
         self.add_btn.clicked.connect(self.addexp_button_clicked)
         self.add_channel_btn.clicked.connect(self.addchannel_button_clicked)
