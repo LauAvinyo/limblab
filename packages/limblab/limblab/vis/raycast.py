@@ -52,7 +52,7 @@ def raycast(
     for i in channels:
         if i.channel_name == channel_name:
             print(i)
-            channel: Channel= i 
+            channel: Channel = i 
 
     volume_path = channel.path
     _raycast(volume_path, renderer, outside_class)

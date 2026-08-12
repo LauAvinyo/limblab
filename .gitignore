@@ -11,6 +11,7 @@ env/
 *.egg-info/
 .eggs/
 pip-wheel-metadata/
+.limblab/
 
 # PyInstaller
 build/
@@ -30,3 +31,4 @@ paper/
 figures/
 example_data/
 case_studies/
+.env

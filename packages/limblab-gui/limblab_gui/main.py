@@ -1,6 +1,7 @@
 # pyright: reportOptionalMemberAccess=false
 # pyright: ignore[reportAttributeAccessIssue]
 
+import math
 import os
 import traceback
 import webbrowser
@@ -20,11 +21,21 @@ from limblab.database import (
     list_experiments,
     save_experiment,
 )
+from limblab.design_tokens import theme
 from limblab.models import Channel, Experiment
 from limblab.params import CleanParams
 from Mixin.NavigationMixin import NavigationMixin
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QAction, QIcon
+from PyQt6.QtCore import QPointF, Qt, QTimer
+from PyQt6.QtGui import (
+    QAction,
+    QBrush,
+    QColor,
+    QFont,
+    QIcon,
+    QLinearGradient,
+    QPainter,
+    QPen,
+)
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -68,16 +79,120 @@ from Controllers.stage_controller import StageController
 from Controllers.surface_controller import SurfaceController
 from limblab import pick_isovalues, preview_volume
 
+
+class AnimatedGradientWidget(QWidget):
+    """A QWidget that paints an animated linear gradient background."""
+
+    def __init__(self, parent=None, speed: float = 0.03):
+        super().__init__(parent)
+        self.phase = 0.0
+        self.speed = speed
+        self._timer = QTimer(self)
+        self._timer.timeout.connect(self._on_timer)
+        self._timer.start(30)
+
+    def _on_timer(self):
+        self.phase += self.speed
+        if self.phase > 2 * math.pi:
+            self.phase -= 2 * math.pi
+        self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        r = self.rect()
+        cx = r.center().x()
+        cy = r.center().y()
+        dx = math.cos(self.phase) * r.width() / 2
+        dy = math.sin(self.phase) * r.height() / 2
+
+        grad = QLinearGradient(QPointF(cx - dx, cy - dy), QPointF(cx + dx, cy + dy))
+        c1 = QColor(theme("palette.primary", "#0D7C66"))
+        c2 = QColor(theme("palette.secondary", "#8E7FD6"))
+        c3 = QColor(theme("palette.accent", "#5FBF9F"))
+
+        grad.setColorAt(0.0, c1)
+        grad.setColorAt(0.5, c2)
+        grad.setColorAt(1.0, c3)
+
+        painter.fillRect(r, grad)
+        painter.end()
+
+
+class AnimatedGradientLabel(QLabel):
+    """A QLabel that paints its text filled with an animated linear gradient."""
+
+    def __init__(self, text: str = "", parent=None, speed: float = 0.03):
+        super().__init__(text, parent)
+        self.phase = 0.0
+        self.speed = speed
+        self._timer = QTimer(self)
+        self._timer.timeout.connect(self._on_timer)
+        self._timer.start(30)
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+    def _on_timer(self):
+        self.phase += self.speed
+        if self.phase > 2 * math.pi:
+            self.phase -= 2 * math.pi
+        self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        r = self.rect()
+        cx = r.center().x()
+        cy = r.center().y()
+        dx = math.cos(self.phase) * r.width() / 2
+        dy = math.sin(self.phase) * r.height() / 2
+
+        grad = QLinearGradient(QPointF(cx - dx, cy - dy), QPointF(cx + dx, cy + dy))
+        c1 = QColor(theme("palette.primary", "#0D7C66"))
+        c2 = QColor(theme("palette.secondary", "#8E7FD6"))
+        c3 = QColor(theme("palette.accent", "#5FBF9F"))
+        grad.setColorAt(0.0, c1)
+        grad.setColorAt(0.5, c2)
+        grad.setColorAt(1.0, c3)
+
+        pen = QPen(QBrush(grad), 0)
+        painter.setPen(pen)
+
+        # Apply themed font size if available
+        font = self.font()
+        try:
+            size = int(theme("typography.fontSizeHero", 100))
+        except Exception:
+            size = 100
+        font.setPointSize(size)
+        font.setBold(True)
+        painter.setFont(font)
+
+        painter.drawText(r, Qt.AlignmentFlag.AlignCenter, self.text())
+        painter.end()
+
+
 #laura
 #TEST_BASE_PATH = "/Users/laura/Desktop/Desktop-2026/sox9-fig-thesis"
 #TEST_SURFACE_PATH = "HCR11_MEIS2_l1_dapi_488_LF_surface.vtk"
 
-#gemma
-TEST_BASE_PATH = "C:\\Users\\millan\\Desktop\\test"
-TEST_SURFACE_PATH = "HCR12_HOXA11_l1_dapi_405_LF_surface.vtk"
+# #gemma
+# TEST_SURFACE_PATH = "HCR12_HOXA11_l1_dapi_405_LF_surface.vtk"
+# TEST_DAPI_FILENAME = "HCR12_HOXA11_l1_dapi_405_LF.vti" 
 
-#this is for the SURFACE and CLEAN test! the direct .tiff is required (DAPI)
-TEST_DAPI_FILENAME = "HCR12_HOXA11_l1_dapi_405_LF.vti" 
+env = {}
+with open("../../../.env") as f:
+    for line in f:
+        if line.startswith("#"): continue
+        if line == " ": continue
+        line = line.strip().split("=")
+        if len(line) != 2: continue
+        k, v = line
+        env[k] = v
+
+TEST_BASE_PATH = env["TEST_BASE_PATH"]
+TEST_SURFACE_PATH = env["TEST_SURFACE_PATH"]
+TEST_DAPI_FILENAME = env["TEST_DAPI_FILENAME"]
+
 
 #for the test experiment i added the channels manually 
 experiment = Experiment(
@@ -107,7 +222,7 @@ class MainWindow(QMainWindow, NavigationMixin):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("LimbLab")
-        self.setStyleSheet("QMainWindow, QWidget { background-color: #141414; }")
+        self.setStyleSheet(f"QMainWindow, QWidget {{ background-color: {theme('palette.background', '#141414')}; color: {theme('palette.textPrimary', '#FFFFFF')}; }}")
         self.setStatusBar(QStatusBar(self))
 
         ##########
@@ -286,7 +401,6 @@ class MainWindow(QMainWindow, NavigationMixin):
     # through the pipeline.
     # ------------------------------------------------------------------
     
-    ''''
     def _build_workflow_top_row(
         self, next_label=None, next_callback=None, back_guard=None
     ):
@@ -303,12 +417,79 @@ class MainWindow(QMainWindow, NavigationMixin):
         top_row.addStretch()
 
         if next_label and next_callback:
-            next_btn = create_styled_button(next_label, "#54278F", "#756BB1")
+            next_btn = create_styled_button(next_label)
             next_btn.clicked.connect(next_callback)
             top_row.addWidget(next_btn)
 
         return top_row
-        '''
+
+    # NOTE: Laura build this. So if actually works for her. 
+    def _build_workflow_container(
+        self,
+        next_label=None,
+        next_callback=None,
+        back_guard=None,
+        action_widget=None,
+        current_step=None,
+    ):
+        """Construct the standard workflow container used by pipeline screens.
+
+        Layout (left -> right):
+          - left: top row, 3D viewer, optional per-step action bar
+          - right: side panel (visualizer / pipeline / params)
+
+        Parameters mirror what controllers pass in: next button label/callback,
+        back guard callable, and an optional widget to show under the viewer.
+        """
+        container = QWidget()
+        h_layout = QHBoxLayout(container)
+        h_layout.setContentsMargins(0, 0, 0, 0)
+        h_layout.setSpacing(12)
+
+        # --- Left: viewer + top row + action bar ---
+        left = QWidget()
+        left_layout = QVBoxLayout(left)
+        left_layout.setContentsMargins(0, 0, 0, 0)
+        left_layout.setSpacing(6)
+
+        # Top row (Back / menu / Next)
+        top_row = self._build_workflow_top_row(next_label, next_callback, back_guard)
+        left_layout.addLayout(top_row)
+
+        # Create a fresh VTK viewer widget for this container.
+        # Reusing a previously-created QVTKRenderWindowInteractor can lead
+        # to "wrapped C/C++ object has been deleted" errors when Qt
+        # has already destroyed the old widget. Always instantiate a new
+        # widget here and overwrite any previous references.
+        try:
+            self.frame = QFrame()
+            self.vtkWidget = QVTKRenderWindowInteractor(self.frame)
+            # create a Plotter for convenience (may be re-used by controllers)
+            try:
+                self.plt = Plotter(qt_widget=self.vtkWidget)
+            except Exception:
+                self.plt = None
+        except Exception:
+            # Fallback: lightweight placeholder
+            self.vtkWidget = QWidget()
+
+        # Keep both attribute names used elsewhere compatible
+        self.vtk_widget = getattr(self, "vtkWidget")
+
+        # Add the viewer to the layout
+        left_layout.addWidget(self.vtkWidget, stretch=1)
+
+        # Optional per-step action bar below the viewer
+        if action_widget is not None:
+            left_layout.addWidget(action_widget)
+
+        h_layout.addWidget(left, stretch=3)
+
+        # --- Right: side panel ---
+        side = self._build_side_panel()
+        h_layout.addWidget(side, stretch=1)
+
+        return container
 
 
     def _handle_back(self, guard=None):
@@ -330,28 +511,28 @@ class MainWindow(QMainWindow, NavigationMixin):
         """Clear the QMainWindow menu bar and rebuild it with pipeline steps."""
         menu_bar = self.menuBar()
         menu_bar.setVisible(True)
-        menu_bar.setStyleSheet("""
-            QMenuBar {
-                background-color: #141414;
-                color: #A0A0A0;
+        menu_bar.setStyleSheet(f"""
+            QMenuBar {{
+                background-color: {theme('palette.background', '#141414')};
+                color: {theme('palette.textSecondary', '#A0A0A0')};
                 border: none;
                 padding: 0px;
-            }
-            QMenuBar::item {
+            }}
+            QMenuBar::item {{
                 background-color: transparent;
-                color: #A0A0A0;
+                color: {theme('palette.textSecondary', '#A0A0A0')};
                 padding: 8px 15px;
                 spacing: 0px;
                 border: none;
-            }
-            QMenuBar::item:selected {
-                background-color: #2A2A2A;
-                color: #FFFFFF;
+            }}
+            QMenuBar::item:selected {{
+                background-color: {theme('palette.panel', '#2A2A2A')};
+                color: {theme('palette.textPrimary', '#FFFFFF')};
                 border-radius: 4px;
-            }
-            QMenuBar::item:disabled {
-                color: #3A3A3A;
-            }
+            }}
+            QMenuBar::item:disabled {{
+                color: {theme('palette.textDisabled', '#3A3A3A')};
+            }}
         """)
         old_corner = menu_bar.cornerWidget(Qt.Corner.TopRightCorner)
         menu_bar.setCornerWidget(None)
@@ -432,10 +613,10 @@ class MainWindow(QMainWindow, NavigationMixin):
 
         self._build_contact_menu(right_menu)
 
-        menu_bar.setStyleSheet("""
-            QMenuBar { background-color: #0D7C66; color: white; }
-            QMenuBar::item { background-color: transparent; color: white; padding: 20px 30px; }
-            QMenuBar::item:selected { background-color: #41B3A2; }
+        menu_bar.setStyleSheet(f"""
+            QMenuBar {{ background-color: {theme('palette.primary', '#0D7C66')}; color: {theme('palette.textPrimary', '#FFFFFF')}; }}
+            QMenuBar::item {{ background-color: transparent; color: {theme('palette.textPrimary', '#FFFFFF')}; padding: 20px 30px; }}
+            QMenuBar::item:selected {{ background-color: {theme('palette.primaryHover', '#41B3A2')}; }}
         """)
 
         left_panel = QWidget()
@@ -444,15 +625,19 @@ class MainWindow(QMainWindow, NavigationMixin):
             lambda: self.navigate_to(self.show_first_screen)
         )
 
-        label_main = QLabel(
-            '<span style="font-size:100px; font-weight:bold; color:#5FBF9F;">Limb</span>'
-            '<span style="font-size:100px; font-weight:bold; color:#8E7FD6;">Lab</span>'
-        )
-        label_main.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        label_main = AnimatedGradientLabel("LimbLab")
+        try:
+            hero_size = int(theme("typography.fontSizeHero", 100))
+        except Exception:
+            hero_size = 100
+        fnt = label_main.font()
+        fnt.setPointSize(hero_size)
+        fnt.setBold(True)
+        label_main.setFont(fnt)
 
         sublabel_main = create_label(
             "Analyze your 3D limb data with unprecedented ease.",
-            "color: #A0A0A0; font-size: 20px;",
+            f"color: {theme('palette.textSecondary', '#A0A0A0')}; font-size: {theme('typography.fontSizeLarge', 18)}px;",
         )
 
         left_layout = QVBoxLayout(left_panel)
@@ -471,7 +656,7 @@ class MainWindow(QMainWindow, NavigationMixin):
         # Create vedo renderer and add objects and callbacks
         self.limb_home = Mesh("Limb-rec_281.vtk")
 
-        container = QWidget()
+        container = AnimatedGradientWidget()
         layout = QHBoxLayout(container)
         layout.addWidget(left_panel, stretch=3)
         layout.addWidget(self.vtkWidget, stretch=2)
@@ -488,28 +673,28 @@ class MainWindow(QMainWindow, NavigationMixin):
         top_row.addStretch()
 
         # ---- Create New Experiment ----
-        self.label_upload = create_label("Create New Experiment", "color: #ffffff; font-size: 40px;")
-        self.button_upload = create_styled_button("Upload TIF Volume", "#0D7C66", "#41B3A2")
+        self.label_upload = create_label("Create New Experiment", f"color: {theme('palette.textPrimary', '#FFFFFF')}; font-size: {theme('typography.fontSizeHero', 40)}px;")
+        self.button_upload = create_styled_button("Upload TIF Volume")
         self.button_upload.clicked.connect(self.create_new_experiment)
 
         upload_desc = create_label(
             "Upload a TIF volume to start a new experiment.\n"
             "You can add more channels later.",
-            "color: #A0A0A0; font-size: 14px; text-align: center;"
+            f"color: {theme('palette.textSecondary', '#A0A0A0')}; font-size: {theme('typography.fontSizeBase', 14)}px; text-align: center;"
         )
         upload_desc.setAlignment(Qt.AlignmentFlag.AlignCenter)
         upload_desc.setWordWrap(True)
 
         
         # ---- Library Access ----
-        self.label_library = create_label("Access Limb Library", "color: #ffffff; font-size: 40px;")
-        self.button_library = create_styled_button("View Experiments", "#0D7C66", "#41B3A2")
+        self.label_library = create_label("Access Limb Library", f"color: {theme('palette.textPrimary', '#FFFFFF')}; font-size: {theme('typography.fontSizeHero', 40)}px;")
+        self.button_library = create_styled_button("View Experiments")
         self.button_library.clicked.connect(lambda: self.navigate_to(self.show_exp))
 
         library_desc = create_label(
             "View and manage your existing experiments\n"
             "or load them for visualization.",
-            "color: #A0A0A0; font-size: 14px; text-align: center;"
+            f"color: {theme('palette.textSecondary', '#A0A0A0')}; font-size: {theme('typography.fontSizeBase', 14)}px; text-align: center;"
         )
         library_desc.setAlignment(Qt.AlignmentFlag.AlignCenter)
         library_desc.setWordWrap(True)
@@ -585,7 +770,7 @@ class MainWindow(QMainWindow, NavigationMixin):
             # Check if experiment is complete (has DAPI + gene)
             is_valid, status_message = self._validate_experiment_channels(path)
             status_icon = "✅" if is_valid else "⚠️"
-            status_color = "#41B3A2" if is_valid else "#FF6B6B"
+            status_color = theme('palette.primaryHover', '#41B3A2') if is_valid else theme('palette.warning', '#FF6B6B')
 
             
             '''
@@ -602,13 +787,13 @@ class MainWindow(QMainWindow, NavigationMixin):
             
             # Experiment name with status
             name_label = QLabel(f"{display_name}")
-            name_label.setStyleSheet(f"color: white; font-size: 18px;")
+            name_label.setStyleSheet(f"color: {theme('palette.textPrimary', '#FFFFFF')}; font-size: {theme('typography.fontSizeLarge', 18)}px;")
             #name_label.setToolTip(status_message if not is_valid else "Experiment is complete")
             
             # Show channel count - use the channels from the Experiment object directly
             channel_count = len(channels)
             channel_info = QLabel(f"({channel_count} channels)")
-            channel_info.setStyleSheet("color: #A0A0A0; font-size: 12px;")
+            channel_info.setStyleSheet(f"color: {theme('palette.textSecondary', '#A0A0A0')}; font-size: {theme('typography.fontSizeSmall', 12)}px;")
             
             threebutton = QToolButton()
             threebutton.setIcon(QIcon("threedots.png"))
@@ -630,15 +815,15 @@ class MainWindow(QMainWindow, NavigationMixin):
 
         experiments_card = QWidget()
         experiments_card.setStyleSheet(
-            "background-color: #2A2A2A; border-radius: 12px;"
+            f"background-color: {theme('palette.panel', '#2A2A2A')}; border-radius: {theme('shape.borderRadiusPanel', '12px')};"
         )
         experiments_card.setLayout(card_layout)
         experiments_card.setMinimumHeight(250)
 
-        self.add_btn = create_styled_button('+ Add Experiment', "#54278F", "#514591")
-        self.add_channel_btn = create_styled_button('+ Add Channel', "#7C6FD6", "#8E7FD6")
-        self.view_btn = create_styled_button('View Experiment', "#0D7C66", "#41B3A2")
-        self.refresh_btn = create_styled_button('↻ Refresh', "#212121", "#383838")
+        self.add_btn = create_styled_button('+ Add Experiment')
+        self.add_channel_btn = create_styled_button('+ Add Channel')
+        self.view_btn = create_styled_button('View Experiment')
+        self.refresh_btn = create_styled_button('↻ Refresh')
 
         self.add_btn.clicked.connect(self.addexp_button_clicked)
         self.add_channel_btn.clicked.connect(self.addchannel_button_clicked)
@@ -848,9 +1033,9 @@ class MainWindow(QMainWindow, NavigationMixin):
             self._busy_dialog = QDialog(self)
             self._busy_dialog.setWindowTitle("Please wait")
             self._busy_dialog.setModal(True)
-            self._busy_dialog.setStyleSheet("background-color: #1E1E1E; color: white;")
+            self._busy_dialog.setStyleSheet(f"background-color: {theme('palette.surface', '#1E1E1E')}; color: {theme('palette.textPrimary', '#FFFFFF')};")
             layout = QVBoxLayout(self._busy_dialog)
-            layout.addWidget(create_label(message, "color: #ffffff; font-size: 13px;"))
+            layout.addWidget(create_label(message, f"color: {theme('palette.textPrimary', '#FFFFFF')}; font-size: {theme('typography.fontSizeBase', 14)}px;"))
             self._busy_dialog.setFixedSize(320, 100)
             self._busy_dialog.show()
             from PyQt6.QtWidgets import QApplication
@@ -871,16 +1056,16 @@ class MainWindow(QMainWindow, NavigationMixin):
         """Build the collapsible right-side panel."""
         panel = QWidget()
         panel.setFixedWidth(260)
-        panel.setStyleSheet("background-color: #1E1E1E;")
+        panel.setStyleSheet(f"background-color: {theme('palette.surface', '#1E1E1E')};")
 
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
-        scroll_area.setStyleSheet("""
-            QScrollArea { border: none; background-color: #1E1E1E; }
-            QScrollBar:vertical { border: none; background: #2A2A2A; width: 10px; margin: 0px; }
-            QScrollBar::handle:vertical { background: #41B3A2; border-radius: 5px; min-height: 20px; }
-            QScrollBar::handle:vertical:hover { background: #5FBF9F; }
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { border: none; background: none; }
+        scroll_area.setStyleSheet(f"""
+            QScrollArea {{ border: none; background-color: {theme('palette.surface', '#1E1E1E')}; }}
+            QScrollBar:vertical {{ border: none; background: {theme('palette.panel', '#2A2A2A')}; width: 10px; margin: 0px; }}
+            QScrollBar::handle:vertical {{ background: {theme('palette.primaryHover', '#41B3A2')}; border-radius: 5px; min-height: 20px; }}
+            QScrollBar::handle:vertical:hover {{ background: {theme('palette.primary', '#5FBF9F')}; }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ border: none; background: none; }}
         """)
 
         scroll_content = QWidget()
@@ -926,7 +1111,7 @@ class MainWindow(QMainWindow, NavigationMixin):
             else "pipeline.log was automatically generated. \nNo actions yet."
         )
         self.pipeline_log_widget.setWordWrap(True)
-        self.pipeline_log_widget.setStyleSheet("color: #A0A0A0; font-size: 12px;")
+        self.pipeline_log_widget.setStyleSheet(f"color: {theme('palette.textSecondary', '#A0A0A0')}; font-size: {theme('typography.fontSizeSmall', 12)}px;")
         pipeline_layout.addWidget(self.pipeline_log_widget)
 
         scroll_layout.addWidget(
@@ -969,14 +1154,14 @@ class MainWindow(QMainWindow, NavigationMixin):
 
         if not self.experiments:
             empty_label = QLabel("No experiments loaded")
-            empty_label.setStyleSheet("color: #666666; font-size: 12px;")
+            empty_label.setStyleSheet(f"color: {theme('palette.textDisabled', '#666666')}; font-size: {theme('typography.fontSizeSmall', 12)}px;")
             self.visualizer_list.addWidget(empty_label)
             return
 
         for path in self.experiments:
             name = self.experiment_names.get(path, os.path.basename(path))
             row = QLabel(f"• {name}")
-            row.setStyleSheet("color: #ffffff; font-size: 13px; padding: 2px 0px;")
+            row.setStyleSheet(f"color: {theme('palette.textPrimary', '#FFFFFF')}; font-size: {theme('typography.fontSizeBase', 14)}px; padding: 2px 0px;")
             self.visualizer_list.addWidget(row)
 
     def _clear_layout(self, layout):
@@ -1032,9 +1217,9 @@ class MainWindow(QMainWindow, NavigationMixin):
                 label_text = param.get("default", "")
                 is_bold = category == "Stage" and text_index > 0
                 style = (
-                    "color: #ffffff; font-size: 13px; font-weight: bold; padding: 5px 0px; border-top: 1px solid #2A2A2A;"
+                    f"color: {theme('palette.textPrimary', '#FFFFFF')}; font-size: {theme('typography.fontSizeBase', 14)}px; font-weight: bold; padding: 5px 0px; border-top: 1px solid {theme('palette.panel', '#2A2A2A')};"
                     if is_bold
-                    else "color: #A0A0A0; font-size: 12px; font-style: italic; padding: 5px 0px; border-top: 1px solid #2A2A2A;"
+                    else f"color: {theme('palette.textSecondary', '#A0A0A0')}; font-size: {theme('typography.fontSizeSmall', 12)}px; font-style: italic; padding: 5px 0px; border-top: 1px solid {theme('palette.panel', '#2A2A2A')};"
                 )
                 info_label = create_label(label_text, style, Qt.AlignmentFlag.AlignLeft)
                 info_label.setWordWrap(True)

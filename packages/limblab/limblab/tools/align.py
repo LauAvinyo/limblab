@@ -6,18 +6,23 @@ from vedo import Mesh, Plotter, Text2D, settings
 from limblab.models import Experiment
 from limblab.utils import generate_kwargs
 
-CURRENT_PATH = os.path.abspath(__file__)
-CURRENT_DIR = os.path.dirname(CURRENT_PATH)
-REFERENCE_LIMB_FOLDER = os.path.join(os.path.dirname(CURRENT_DIR), "limb")
-REFERENCE_LIMB_FOLDER = "C:\\Users\\millan\\Desktop\\limblab\\packages\\limblab\\limblab\\limb"
-#REFERENCE_LIMB_FOLDER = "/Users/laura/limblab/packages/limblab/limblab/limb"
+env = {}
+with open("../../../.env") as f:
+    for line in f:
+        if line.startswith("#"): continue
+        if line == " ": continue
+        line = line.strip().split("=")
+        if len(line) != 2: continue
+        k, v = line
+        env[k] = v
 
-# TODO: FIX THIS!
+REFERENCE_LIMB_FOLDER = env["REFERENCE_LIMB_FOLDER"]
+
 
 files = [
     file
     for file in os.listdir(REFERENCE_LIMB_FOLDER)
-    if os.path.isfile(os.path.join(REFERENCE_LIMB_FOLDER, file))
+    if os.path.isfile(os.path.join(REFERENCE_LIMB_FOLDER, file)) # type: ignore
     and not file.startswith(".DS")
     or file.startswith("-")
 ]
@@ -40,7 +45,7 @@ def closest_value(input_list: list, target: int) -> int:
 
 def get_reference_limb(stage: int) -> str | None:
     """From the stage, get the reference limb path"""
-    file = os.path.join(REFERENCE_LIMB_FOLDER, "Limb-rec_" + str(stage) + ".vtk")
+    file = os.path.join(REFERENCE_LIMB_FOLDER, "Limb-rec_" + str(stage) + ".vtk") # type: ignore
     if os.path.isfile(file):
         return file
     return None
