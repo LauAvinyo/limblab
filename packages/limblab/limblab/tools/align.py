@@ -3,21 +3,27 @@ from typing import Any, Literal, Optional
 
 from vedo import Mesh, Plotter, Text2D, settings
 
+from limblab.design import theme
 from limblab.models import Experiment
 from limblab.utils import generate_kwargs
 
-CURRENT_PATH = os.path.abspath(__file__)
-CURRENT_DIR = os.path.dirname(CURRENT_PATH)
-REFERENCE_LIMB_FOLDER = os.path.join(os.path.dirname(CURRENT_DIR), "limb")
-REFERENCE_LIMB_FOLDER = "C:\\Users\\millan\\Desktop\\limblab\\packages\\limblab\\limblab\\limb"
-#REFERENCE_LIMB_FOLDER = "/Users/laura/limblab/packages/limblab/limblab/limb"
+env = {}
+with open("../../../.env") as f:
+    for line in f:
+        if line.startswith("#"): continue
+        if line == " ": continue
+        line = line.strip().split("=")
+        if len(line) != 2: continue
+        k, v = line
+        env[k] = v
 
-# TODO: FIX THIS!
+REFERENCE_LIMB_FOLDER = env["REFERENCE_LIMB_FOLDER"]
+
 
 files = [
     file
     for file in os.listdir(REFERENCE_LIMB_FOLDER)
-    if os.path.isfile(os.path.join(REFERENCE_LIMB_FOLDER, file))
+    if os.path.isfile(os.path.join(REFERENCE_LIMB_FOLDER, file)) # type: ignore
     and not file.startswith(".DS")
     or file.startswith("-")
 ]
@@ -40,7 +46,7 @@ def closest_value(input_list: list, target: int) -> int:
 
 def get_reference_limb(stage: int) -> str | None:
     """From the stage, get the reference limb path"""
-    file = os.path.join(REFERENCE_LIMB_FOLDER, "Limb-rec_" + str(stage) + ".vtk")
+    file = os.path.join(REFERENCE_LIMB_FOLDER, "Limb-rec_" + str(stage) + ".vtk") # type: ignore
     if os.path.isfile(file):
         return file
     return None
@@ -85,8 +91,8 @@ def _rotate_limb(
 ) -> str | tuple[Any, Any, str]:
 
     # Get the Surfaces
-    source = Mesh(surface_path).color(1)  # .scale(1.1)
-    target = Mesh(reference_limb_path).cut_with_plane(origin=(1, 0, 0)).alpha(0.5).c(2)
+    source = Mesh(surface_path).color(theme("palette.limb", "#000000"))  # .scale(1.1)
+    target = Mesh(reference_limb_path).cut_with_plane(origin=(1, 0, 0)).alpha(0.5).c(theme("palette.channel0", "#000000"))
 
     # Store the Transformation
     T = source.apply_transform_from_actor()  # type: ignore
@@ -117,11 +123,9 @@ def _rotate_limb(
         "clipping_range": (8305.31, 11134.5),
     }
 
-    plt.at(2).add(source.alpha(0.4), target.alpha(0.6))
-    plt.at(1).add(source.alpha(0.4), target.alpha(0.6))
-    plt.at(0).add(source.alpha(0.4), target.alpha(0.6))
-
-    plt.verbose = False  # type: ignore
+    plt.at(2).add(source.alpha(0.4), target.alpha(0.6)) # type: ignore
+    plt.at(1).add(source.alpha(0.4), target.alpha(0.6)) # type: ignore
+    plt.at(0).add(source.alpha(0.4), target.alpha(0.6)) # type: ignore
 
     # Add instructions as Text2D instead of using plt.instructions.text()
     instructions = Text2D(
@@ -164,7 +168,7 @@ def rotate_limb(
     surface_path, refence_limb_path = _initialize_limbs_paths(
         experiment, reference_stages
     )
-
+    
     return _rotate_limb(surface_path, refence_limb_path, renderer, outside_class)
 
 

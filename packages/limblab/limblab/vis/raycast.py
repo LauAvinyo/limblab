@@ -3,6 +3,7 @@
 from typing import Any, Literal, Optional
 
 import numpy as np
+from limblab.design import theme
 from limblab.models import Channel, Experiment
 from vedo import Volume
 from vedo.applications import (
@@ -13,13 +14,13 @@ from vedo.applications import (
 # This can be clean up. There are some functions no needed here.
 # We can add more funtionality.
 # Make a list of the functionlaity we should have.
-color1 = "#9ce4f3"
-color2 = "#128099"
+color1 = theme("palette.channel0", "#9ce4f3")
+color2 = theme("palette.channel1", "#128099")
 # color1 = "#B9E9EC"
 # color2 = "#1C93AE"
-primary = "#0d1b2a"
-secondary = "#1b263b"
-background = "#fb8f00"
+primary = theme("palette.primary", "#0d1b2a")
+secondary = theme("palette.secondary", "#1b263b")
+background = theme("palette.background", "#fb8f00")
 
 
 
@@ -52,7 +53,7 @@ def raycast(
     for i in channels:
         if i.channel_name == channel_name:
             print(i)
-            channel: Channel= i 
+            channel: Channel = i 
 
     volume_path = channel.path
     _raycast(volume_path, renderer, outside_class)

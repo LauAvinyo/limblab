@@ -1,12 +1,17 @@
-from limblab import pick_isovalues, clean, get_channel_path, save_experiment
+from limblab import clean, get_channel_path, pick_isovalues, save_experiment
+from limblab.design import theme
 from limblab.params import CleanParams
-
 from PyQt6.QtWidgets import (
-    QHBoxLayout, QVBoxLayout, QMessageBox, QWidget,
-    QSpinBox, QDoubleSpinBox, QComboBox, QGroupBox,
+    QComboBox,
+    QDoubleSpinBox,
+    QGroupBox,
+    QHBoxLayout,
+    QMessageBox,
+    QSpinBox,
+    QVBoxLayout,
+    QWidget,
 )
-from utils import create_styled_button, create_label
-from limblab.params import CleanParams
+from utils import create_label, create_styled_button
 
 
 class CleanController:
@@ -58,8 +63,8 @@ class CleanController:
     def _build_clean_action_bar(self):
         """Build the clean action bar with all CleanParams widgets."""
         bar = QWidget()
-        bar.setStyleSheet("background-color: #1E1E1E;")
-        layout = QVBoxLayout(bar)  # Changed to VBox for more widgets
+        bar.setStyleSheet(f"background-color: {theme('palette.surface', '#1E1E1E')};")
+        layout = QVBoxLayout(bar)
         layout.setContentsMargins(20, 15, 20, 15)
         layout.setSpacing(10)
 
@@ -70,7 +75,7 @@ class CleanController:
 
         # --- Channel select + Load button ---
         channel_row = QHBoxLayout()
-        channel_row.addWidget(create_label("Channel:", "color: #fff; font-weight: bold; font-size: 12px;"))
+        channel_row.addWidget(create_label("Channel:", f"color: {theme('palette.textPrimary', '#FFFFFF')}; font-weight: bold; font-size: {theme('typography.fontSizeSmall', 12)}px;"))
 
         channel_combo = QComboBox()
         channel_combo.addItems(["DAPI", "BMP2", "Sox9", "Hoxa11"])
@@ -79,14 +84,14 @@ class CleanController:
         self.clean_widgets["channel"] = channel_combo
 
         iso_group = QGroupBox("Isovalue Thresholds (picked from viewer)")
-        iso_group.setStyleSheet("QGroupBox { color: #A0A0A0; border: 1px solid #2A2A2A; margin-top: 8px; font-size: 11px; }")
+        iso_group.setStyleSheet(f"QGroupBox {{ color: {theme('palette.textSecondary', '#A0A0A0')}; border: 1px solid {theme('palette.panel', '#2A2A2A')}; margin-top: 8px; font-size: {theme('typography.fontSizeSmall', 11)}px; }}")
         iso_layout = QVBoxLayout(iso_group)
         iso_layout.setSpacing(10)
 
         v0_row = QHBoxLayout()
-        self.v0_label = create_label("Lower (v0): —", "color: #fff; font-size: 12px;")
-        set_v0_btn = create_styled_button("Set Lower from Slider", "#2A2A2A", "#41B3A2")
-        set_v0_btn.setStyleSheet("QPushButton { background-color: #2A2A2A; color: #ffffff; font-weight: bold; font-size: 11px; border-radius: 20px; padding: 3px 8px; } QPushButton:hover { background-color: #41B3A2; }")
+        self.v0_label = create_label("Lower (v0): —", f"color: {theme('palette.textPrimary', '#FFFFFF')}; font-size: {theme('typography.fontSizeSmall', 12)}px;")
+        set_v0_btn = create_styled_button("Set Lower from Slider")
+        set_v0_btn.setStyleSheet(f"QPushButton {{ background-color: {theme('palette.panel', '#2A2A2A')}; color: {theme('palette.textPrimary', '#FFFFFF')}; font-weight: bold; font-size: {theme('typography.fontSizeSmall', 11)}px; border-radius: {theme('shape.borderRadiusSmall', '20px')}; padding: 3px 8px; }} QPushButton:hover {{ background-color: {theme('palette.primaryHover', '#41B3A2')}; }}")
         set_v0_btn.clicked.connect(self._set_v0)
         v0_row.addWidget(self.v0_label)
         v0_row.addWidget(set_v0_btn)
@@ -94,10 +99,10 @@ class CleanController:
         iso_layout.addLayout(v0_row)
 
         v1_row = QHBoxLayout()
-        self.v1_label = create_label("Upper (v1): —", "color: #fff; font-size: 12px;")
-        set_v1_btn = create_styled_button("Set Upper from Slider", "#2A2A2A", "#41B3A2")
+        self.v1_label = create_label("Upper (v1): —", f"color: {theme('palette.textPrimary', '#FFFFFF')}; font-size: {theme('typography.fontSizeSmall', 12)}px;")
+        set_v1_btn = create_styled_button("Set Upper from Slider")
         set_v1_btn.setFixedHeight(26)
-        set_v1_btn.setStyleSheet("QPushButton { background-color: #2A2A2A; color: #ffffff; font-weight: bold; font-size: 11px; border-radius: 20px; padding: 3px 8px; } QPushButton:hover { background-color: #41B3A2; }")
+        set_v1_btn.setStyleSheet(f"QPushButton {{ background-color: {theme('palette.panel', '#2A2A2A')}; color: {theme('palette.textPrimary', '#FFFFFF')}; font-weight: bold; font-size: {theme('typography.fontSizeSmall', 11)}px; border-radius: {theme('shape.borderRadiusSmall', '20px')}; padding: 3px 8px; }} QPushButton:hover {{ background-color: {theme('palette.primaryHover', '#41B3A2')}; }}")
         set_v1_btn.clicked.connect(self._set_v1)
         v1_row.addWidget(self.v1_label)
         v1_row.addWidget(set_v1_btn)
@@ -108,37 +113,48 @@ class CleanController:
 
         # --- Remaining params (unchanged, just smaller spinboxes) ---
         sigma_spin = QDoubleSpinBox()
-        sigma_spin.setRange(0.1, 10.0); sigma_spin.setSingleStep(0.1); sigma_spin.setValue(1.5)
+        sigma_spin.setRange(0.1, 10.0)
+        sigma_spin.setSingleStep(0.1)
+        sigma_spin.setValue(1.5)
         sigma_spin.setFixedHeight(26)
         self.clean_widgets["gaussian_sigma"] = sigma_spin
         sigma_row = QHBoxLayout()
-        sigma_row.addWidget(create_label("Gaussian Sigma:", "color: #fff; font-size: 12px;"))
-        sigma_row.addWidget(sigma_spin); sigma_row.addStretch()
+        sigma_row.addWidget(create_label("Gaussian Sigma:", f"color: {theme('palette.textPrimary', '#FFFFFF')}; font-size: {theme('typography.fontSizeSmall', 12)}px;"))
+        sigma_row.addWidget(sigma_spin)
+        sigma_row.addStretch()
         layout.addLayout(sigma_row)
 
         freq_spin = QDoubleSpinBox()
-        freq_spin.setRange(0.01, 1.0); freq_spin.setSingleStep(0.05); freq_spin.setValue(0.3)
+        freq_spin.setRange(0.01, 1.0)
+        freq_spin.setSingleStep(0.05)
+        freq_spin.setValue(0.3)
         freq_spin.setFixedHeight(26)
         self.clean_widgets["frequency_cutoff"] = freq_spin
         freq_row = QHBoxLayout()
-        freq_row.addWidget(create_label("Frequency Cutoff:", "color: #fff; font-size: 12px;"))
-        freq_row.addWidget(freq_spin); freq_row.addStretch()
+        freq_row.addWidget(create_label("Frequency Cutoff:", f"color: {theme('palette.textPrimary', '#FFFFFF')}; font-size: {theme('typography.fontSizeSmall', 12)}px;"))
+        freq_row.addWidget(freq_spin)
+        freq_row.addStretch()
         layout.addLayout(freq_row)
 
         res_spin = QSpinBox()
-        res_spin.setRange(64, 512); res_spin.setSingleStep(16); res_spin.setValue(256)
+        res_spin.setRange(64, 512)
+        res_spin.setSingleStep(16)
+        res_spin.setValue(256)
         res_spin.setFixedHeight(26)
         self.clean_widgets["low_res_size"] = res_spin
         res_row = QHBoxLayout()
-        res_row.addWidget(create_label("Low Res Size:", "color: #fff; font-size: 12px;"))
-        res_row.addWidget(res_spin); res_row.addStretch()
+        res_row.addWidget(create_label("Low Res Size:", f"color: {theme('palette.textPrimary', '#FFFFFF')}; font-size: {theme('typography.fontSizeSmall', 12)}px;"))
+        res_row.addWidget(res_spin)
+        res_row.addStretch()
         layout.addLayout(res_row)
 
         # --- Execute ---
-        execute_btn = create_styled_button("Clean Volume", "#0D7C66", "#41B3A2")
+        execute_btn = create_styled_button("Clean Volume")
         execute_btn.clicked.connect(self._execute_clean)
         btn_row = QHBoxLayout()
-        btn_row.addStretch(); btn_row.addWidget(execute_btn); btn_row.addStretch()
+        btn_row.addStretch()
+        btn_row.addWidget(execute_btn)
+        btn_row.addStretch()
         layout.addLayout(btn_row)
 
         return bar
@@ -146,6 +162,7 @@ class CleanController:
 
     def _load_volume_for_picking(self):
         try:
+            assert self.experiment is not None
             self.channel_name = self.clean_widgets["channel"].currentText()
             self.raw_volume_path = get_channel_path(self.experiment, self.channel_name)
 
@@ -167,14 +184,14 @@ class CleanController:
         if self.plotter is None:
             QMessageBox.warning(self.window, "No volume loaded", "Click 'Load Volume' first.")
             return
-        self.v0 = int(self.plotter.sliders[0][0].value)
+        self.v0 = int(self.plotter.sliders[0][0].value) # type: ignore
         self.v0_label.setText(f"Lower (v0): {self.v0}")
 
     def _set_v1(self):
         if self.plotter is None:
             QMessageBox.warning(self.window, "No volume loaded", "Click 'Load Volume' first.")
             return
-        self.v1 = int(self.plotter.sliders[0][0].value)
+        self.v1 = int(self.plotter.sliders[0][0].value) # type: ignore
         self.v1_label.setText(f"Upper (v1): {self.v1}")
 
 
@@ -184,6 +201,10 @@ class CleanController:
         self.window._show_busy('Cleaning volume with the selected isovalues...')
 
         try:
+
+            assert self.experiment is not None
+            assert self.channel_name is not None
+            
             if self.raw_volume_path is None:
                 raise RuntimeError("Load a volume (.tiff) before cleaning.")
             if self.v0 is None or self.v1 is None:
@@ -198,7 +219,7 @@ class CleanController:
                 frequency_cutoff=self.clean_widgets["frequency_cutoff"].value(),
                 low_res_size=self.clean_widgets["low_res_size"].value(),
             )
-
+            
             new_channel = clean(
                 experiment=self.experiment,
                 raw_volume_path=self.raw_volume_path,

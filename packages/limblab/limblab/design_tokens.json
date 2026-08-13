@@ -1,0 +1,43 @@
+{
+  "palette": {
+    "background": "#141414",
+    "surface": "#1E1E1E",
+    "panel": "#2A2A2A",
+    "panelAlt": "#181818",
+    "surfaceAlt": "#2B2B2B",
+    "textPrimary": "#FFFFFF",
+    "textSecondary": "#A0A0A0",
+    "textDisabled": "#666666",
+    "primary": "#fb8f00",
+    "primaryHover": "#41B3A2",
+    "secondary": "#54278F",
+    "secondaryHover": "#756BB1",
+    "accent": "#5FBF9F",
+    "warning": "#FF6B6B",
+    "limb": "#FF7F11",
+    "channel0": "#B0DB43",
+    "channel1": "#DB43B0",
+    "channel2": "#43B0DB",
+    "reference": "#FFFFFF"
+  },
+  "typography": {
+    "fontFamilyBase": "Arial, sans-serif",
+    "fontFamilyMono": "Courier, monospace",
+    "fontSizeSmall": 12,
+    "fontSizeBase": 14,
+    "fontSizeLarge": 18,
+    "fontSizeXLarge": 20,
+    "fontSizeHero": 40,
+    "fontWeightBold": "bold"
+  },
+  "shape": {
+    "borderRadiusButton": "20px",
+    "borderRadiusPanel": "20px",
+    "borderRadiusSmall": "20px"
+  },
+  "layout": {
+    "spacingSmall": "8px",
+    "spacingBase": "10px",
+    "spacingLarge": "30px"
+  }
+}

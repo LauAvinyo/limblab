@@ -15,6 +15,7 @@ from vedo import (
 )
 from vedo.applications import SplinePlotter
 
+from limblab.design import theme
 from limblab.models import Experiment
 from limblab.utils import generate_kwargs
 
@@ -24,11 +25,11 @@ STAGING_URL = "https://limbstaging.embl.es/api"
 
 def _stage_limb(
     surface: str,
-    renderer: Optional[Literal["pyqt"]] = None,
-    outside_class: Optional[Any] = None,
+    renderer: Literal["pyqt"] | None = None,
+    outside_class: Any | None = None,
 ) -> int:
 
-    msh = Mesh(surface).c(1).alpha(0.8)  # type: ignore
+    msh = Mesh(surface).c(theme("pallete.limb")).alpha(0.8)  # type: ignore
     txt = Text2D(pos="top-center", bg="yellow5", s=1.5)
 
     result: dict[str, Any] = {"stage": None}  # container to hold the staged value
@@ -55,7 +56,7 @@ def _stage_limb(
 
                 data = {
                     "header": f"gene_mapper tmp.txt  u 1.0  0 0 0 0 {len(fitpoints.coordinates)}\n",
-                    "points": list((p[0], p[1]) for p in vector(fitpoints.coordinates)),
+                    "points": [(p[0], p[1]) for p in vector(fitpoints.coordinates)],
                 }
 
                 response = requests.post(
@@ -81,9 +82,9 @@ def _stage_limb(
         elif event.keypress == "q":
             plt.close()
 
-    params: dict[str, Any] = dict(
-        title="3D Stager", N=2, sharecam=0, size=(2000, 1000), axes=14
-    )
+    params: dict[str, Any] = {
+        "title": "3D Stager", "N": 2, "sharecam": 0, "size": (2000, 1000), "axes": 14
+    }
     kwargs = generate_kwargs(
         params=params, renderer=renderer, outside_class=outside_class
     )
@@ -91,14 +92,14 @@ def _stage_limb(
     plt = SplinePlotter(msh, **kwargs)
     plt.verbose = False
     plt.instructions.text(
-        (
+        
             "Click to add a point\n"
             "Right-click to remove it\n"
             "Press 'c' to clear all points\n"
             "Press 's' to stage the limb\n"
             "Press 'r' to reset camera\n"
             "Press 'q' to quit"
-        )
+        
     )
     plt.add_callback("on keypress", kfunc)
     plt.at(0).add(Axes(msh, c="k", xygrid=False, ztitle=" "))
@@ -106,12 +107,12 @@ def _stage_limb(
 
     # Expose the result container so embedding code can read it after
     # the user presses 's' inside the embedded widget.
-    plt.stage_result = result
+    plt.stage_result = result # type: ignore
 
     if renderer == "pyqt":
         # Embedded mode: host Qt app owns the event loop, don't block.
         plt.at(0).show(interactive=False)
-        return plt
+        return plt # type: ignore
     else:
         # Standalone mode: original blocking behavior.
         plt.at(0).show(interactive=True)
@@ -146,11 +147,10 @@ def stage_limb_embedded(experiment: Experiment, renderer: str = "pyqt", outside_
         )
 
     surface = os.path.join(base, surface_name)
-    return _stage_limb(surface, renderer=renderer, outside_class=outside_class)
+    return _stage_limb(surface, renderer=renderer, outside_class=outside_class) # type: ignore
 
 
 def stage_limb(experiment: Experiment) -> int:
-    """ """
     # Vedo settings
     settings.use_depth_peeling = True
     settings.enable_default_keyboard_callbacks = False

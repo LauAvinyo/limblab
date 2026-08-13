@@ -1,15 +1,17 @@
+from limblab.design import theme
+
 # Constants
-MENU_STYLE = """
-    QMenu { background-color: #0D7C66; color: white; border: 1px solid #41B3A2; }
-    QMenu::item { padding: 8px 25px; background-color: transparent; }
-    QMenu::item:selected { background-color: #41B3A2; color: white; }
-    QMenu::item:disabled { color: #A0A0A0; }
+MENU_STYLE = f"""
+    QMenu {{ background-color: {theme('palette.primary', '#0D7C66')}; color: {theme('palette.textPrimary', '#FFFFFF')}; border: 1px solid {theme('palette.primaryHover', '#41B3A2')}; }}
+    QMenu::item {{ padding: 8px 25px; background-color: transparent; }}
+    QMenu::item:selected {{ background-color: {theme('palette.primaryHover', '#41B3A2')}; color: {theme('palette.textPrimary', '#FFFFFF')}; }}
+    QMenu::item:disabled {{ color: {theme('palette.textSecondary', '#A0A0A0')}; }}
 """
 
-SECMENU_STYLE = """
-    QMenu { background-color: #2B2B2B; color: white; border: 1px solid #2B2B2B; }
-    QMenu::item { padding: 8px 25px; background-color: transparent; }
-    QMenu::item:selected { background-color: #383838; color: white; }
+SECMENU_STYLE = f"""
+    QMenu {{ background-color: {theme('palette.surfaceAlt', '#2B2B2B')}; color: {theme('palette.textPrimary', '#FFFFFF')}; border: 1px solid {theme('palette.surfaceAlt', '#2B2B2B')}; }}
+    QMenu::item {{ padding: 8px 25px; background-color: transparent; }}
+    QMenu::item:selected {{ background-color: {theme('palette.panel', '#383838')}; color: {theme('palette.textPrimary', '#FFFFFF')}; }}
 """
 
 CATEGORY_PARAMS = {

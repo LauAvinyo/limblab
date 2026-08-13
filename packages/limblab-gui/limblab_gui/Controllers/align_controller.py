@@ -2,6 +2,7 @@
 # pyright: ignore[reportAttributeAccessIssue]
 
 from limblab import _store_transformation_matrix, rotate_limb
+from limblab.design import theme
 from PyQt6.QtWidgets import (
     QHBoxLayout,
     QMessageBox,
@@ -31,6 +32,8 @@ class AlignController:
         """
 
         self.experiment = experiment
+
+        print(self.experiment)
 
         container = self.window._build_workflow_container(
             next_label="Visualize",
@@ -63,17 +66,13 @@ class AlignController:
 
     def _build_align_action_bar(self):
         bar = QWidget()
-        bar.setStyleSheet("background-color: #1E1E1E;")
+        bar.setStyleSheet(f"background-color: {theme('palette.surface', '#1E1E1E')};")
 
         layout = QHBoxLayout(bar)
         layout.setContentsMargins(20, 10, 20, 10)
         layout.setSpacing(15)
 
-        confirm_btn = create_styled_button(
-            "Confirm Alignment",
-            "#2A2A2A",
-            "#41B3A2",
-        )
+        confirm_btn = create_styled_button("Confirm Alignment")
         confirm_btn.clicked.connect(self._confirm_alignment)
 
         layout.addStretch()
