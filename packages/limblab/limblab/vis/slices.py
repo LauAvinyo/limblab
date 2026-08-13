@@ -10,15 +10,16 @@ from vedo.applications import (
 from packages.limblab.utils import file2dic, pick_evenly_distributed_values, styles
 import os
 
+
+#ADDED CHANNELs as an atribute, dont know if it works!
 def _slices(volume_path: str,
-    renderer: Optional[Literal["pyqt"]] = None,
-    outside_class: Optional[Any] = None,
-):
+            renderer: Optional[Literal["pyqt"]] = None,
+            outside_class: Optional[Any] = None):
     
-    pipeline_file = os.path.join(volume_path, "pipeline.log")
-    pipeline = file2dic(pipeline_file)
-    volume_file = os.path.join(volume_path, pipeline[channel.upper()])#what is this
-    volume = Volume(volume_file)
+    #pipeline_file = os.path.join(volume_path, "pipeline.log")
+    #pipeline = file2dic(pipeline_file)
+    #volume_file = os.path.join(volume_path, pipeline[channel.upper()])#what is this
+    volume = Volume(volume_path)
 
     plt = Slicer3DPlotter(
         volume,
@@ -49,5 +50,5 @@ def slices(
             channel: Channel= i 
 
     volume_path = channel.path
-    _slices(volume_path, renderer, outside_class)
+    _slices(volume_path, channel, renderer, outside_class)
     

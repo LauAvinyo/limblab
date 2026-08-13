@@ -23,21 +23,24 @@ import os
 from vedo.pyplot import plot
 
 
-def _dynamic_slab(folder, channel):
+def _dynamic_slab(    
+    volume_path: str,
+    renderer: Optional[Literal["pyqt"]] = None,
+    outside_class: Optional[Any] = None,
+):
     printc("Starting dynamic slab viewer...", c="y")
-    pipeline_file = os.path.join(folder, "pipeline.log")
-    pipeline = file2dic(pipeline_file)
-    surface = pipeline["SURFACE"]
-    stage = pipeline["STAGE"]
-    volume = os.path.join(folder, pipeline[channel.upper()])
+    #pipeline_file = os.path.join(folder, "pipeline.log")
+    #pipeline = file2dic(pipeline_file)
+    #surface = pipeline["SURFACE"]
+    #stage = pipeline["STAGE"]
 
     CMAP = "Greys"
-    printc(f"Loading volume: {volume}", c="lg")
-    vol = Volume(volume)  # .resize([100, 100, 100])
+    printc(f"Loading volume: {volume_path}", c="lg")
+    vol = Volume(volume_path)  # .resize([100, 100, 100])
     printc("Volume loaded successfully", c="g")
 
     # Apply non linear tranformation
-    tname = os.path.join(folder, pipeline["TRANSFORMATION"])
+    #tname = os.path.join(folder, pipeline["TRANSFORMATION"])
     if "rotation" in pipeline["TRANSFORMATION"]:
         T = LinearTransform(tname)
     elif "morphing" in pipeline["TRANSFORMATION"]:
@@ -169,3 +172,21 @@ def _dynamic_slab(folder, channel):
         #     clipping_range=(2904.91, 3356.75),
         # )
     ).screenshot(slab_path).close()
+
+
+def dynamic_slab(
+    experiment: Experiment,
+    channel_name: str, 
+    renderer: Literal["pyqt"] | None = None,
+    outside_class: Any | None = None,
+) -> None:
+
+    channels = experiment.channels
+    channel = ""
+    for i in channels:
+        if i.channel_name == channel_name:
+            print(i)
+            channel: Channel= i 
+
+    volume_path = channel.path
+    _dynamic_slab(volume_path, renderer, outside_class)

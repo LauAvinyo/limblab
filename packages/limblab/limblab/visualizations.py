@@ -435,6 +435,44 @@ def two_chanel_isosurface(folder, channel_0, channel_1):
     plt.close()
 
 
+def raycast(folder, channel):
+    # Load Volume data
+    pipeline_file = os.path.join(folder, "pipeline.log")
+    pipeline = file2dic(pipeline_file)
+
+    volume_file = os.path.join(folder, pipeline[channel.upper()])
+    volume = Volume(volume_file)
+    # TODO: apply transform if so.
+    # transformation = pipeline.get("TRANSFORMATION", False)
+
+    volume.mode(1).cmap("jet")  # change visual properties
+
+    # Create a Plotter instance and show
+    plt = RayCastPlotter(volume, bg="white", axes=7)
+    plt.show(viewup="z")
+    plt.close()
+
+
+def slices(folder, channel):
+    pipeline_file = os.path.join(folder, "pipeline.log")
+    pipeline = file2dic(pipeline_file)
+    volume_file = os.path.join(folder, pipeline[channel.upper()])
+    volume = Volume(volume_file)
+
+    plt = Slicer3DPlotter(
+        volume,
+        cmaps=("gist_ncar_r", "jet", "Spectral_r", "hot_r", "bone_r"),
+        use_slider3d=False,
+        bg="white",
+    )
+
+    # Can now add any other vedo object to the Plotter scene:
+    plt += Text2D(__doc__)
+
+    plt.show(viewup="z")
+    plt.close()
+
+
 # import os
 
 # import numpy as np
@@ -442,7 +480,181 @@ def two_chanel_isosurface(folder, channel_0, channel_1):
 # from vedo import Line, plot, show
 
 
+def probe(folder, channels, points=None):
+    """Probe multiple Volumes with a line and plot the intensity values for each channel."""
 
+    global plt, fig
+
+    pipeline_file = os.path.join(folder, "pipeline.log")
+    pipeline = file2dic(pipeline_file)
+    volumes = []
+
+    # Load each volume corresponding to the channels
+    for channel in channels:
+        volume_file = os.path.join(folder, pipeline[channel.upper()])
+        volume = Volume(volume_file)
+        volume.add_scalarbar3d(channel, c="k")
+        volume.scalarbar = volume.scalarbar.clone2d("bottom-right", 0.2)
+        volumes.append(volume)
+
+    # Init the points
+    LINE = True
+    if points is None:
+        p0 = (50, 300, 400)
+        p1 = (100, 300, 400)
+
+    if LINE:
+        # Create a set of points in space
+        pts = Line(p0, p1, res=2).ps(4)
+
+    # Colors
+    colors = [styles[f"channel_{i}"]["color"] for i in range(len(channels))]
+
+    # Visualize the points and the first volume (just for visualization)
+    isosurfaces = [v.isosurface() for i, v in enumerate(volumes)]
+    isosurfaces = [i.color(c) for i, c in zip(isosurfaces, colors)]
+    plt = show(*isosurfaces, __doc__, interactive=False, axes=1)
+
+    def update_probe(vertices):
+        global plt
+
+        plt.remove("figure")
+
+        vertices = np.unique(vertices, axis=0)
+        p0, p1 = vertices
+        # Probe each volume with the line and plot the intensity values
+        # TODO: Make the y axis dynamic
+        for i, volume in enumerate(volumes):
+            pl = Line(p0, p1, res=25)
+            pl.probe(volume)
+
+            # Get the probed values along the line
+            xvals = pl.vertices[:, 0]
+            yvals = pl.pointdata[0]
+
+            if i == 0:
+                _plot = plot(
+                    xvals,
+                    yvals,
+                    xtitle=" ",
+                    aspect=16 / 9,
+                    spline=True,
+                    lc=colors[i],  # line color
+                    marker="O",  # marker style
+                )
+                fig = _plot
+            else:
+                fig += plot(
+                    xvals,
+                    yvals,
+                    xtitle=" ",
+                    aspect=16 / 9,
+                    spline=True,
+                    lc=colors[i],  # line color
+                    marker="O",  # marker style
+                    like=_plot,
+                )
+
+        fig = fig.shift(0, 25, 0).clone2d()
+        fig.name = "figure"
+        plt += fig
+
+    # Add the spline tool using the same points and interact with it
+    sptool = plt.add_spline_tool(pts, closed=True)
+
+    # Add a callback to print the center of mass of the spline
+    sptool.add_observer(
+        "end of interaction",
+        lambda o, e: update_probe(sptool.spline().vertices),
+    )
+
+    # Stay in the loop until the user presses q
+    plt.interactive()
+
+    # Switch off the tool
+    sptool.off()
+
+    # Extract and visualize the resulting spline
+    sp = sptool.spline().lw(4)
+    sp.write(os.path.join(folder, "spline.vti"))
+    # show(sp, "Spline saved and ready", interactive=True, resetcam=False).close()
+
+
+def _probe(folder, channel, points=None):
+    """Probe a Volume with a line and plot the intensity values"""
+
+    global plt, fig
+
+    pipeline_file = os.path.join(folder, "pipeline.log")
+    pipeline = file2dic(pipeline_file)
+    volume_file = os.path.join(folder, pipeline[channel.upper()])
+    volume = Volume(volume_file)
+    volume.add_scalarbar3d(channel, c="k")
+    volume.scalarbar = volume.scalarbar.clone2d("bottom-right", 0.2)
+
+    # Init the points
+    LINE = True
+    if points is None:
+        p0 = (50, 300, 400)
+        p1 = (100, 300, 400)
+
+    if LINE:
+        # Create a set of points in space
+        pts = Line(p0, p1).ps(4)
+
+    # Visualize the points
+    plt = show(pts, volume.isosurface(), __doc__, interactive=False, axes=1)
+
+    def update_probe(vertices):
+        global plt
+
+        plt.remove("figure")
+
+        vertices = np.unique(vertices, axis=0)
+        printc(f"Probe points: {vertices}", c="lg")
+        p0, p1 = vertices
+        # Probe the Volume with the line
+        pl = Line(p0, p1, res=100)
+        pl.probe(volume)
+
+        # Get the probed values along the line
+        xvals = pl.vertices[:, 0]
+        yvals = pl.pointdata[0]
+
+        # Plot the intensity values
+        fig = plot(
+            xvals,
+            yvals,
+            xtitle=" ",
+            ytitle="voxel intensity",
+            aspect=16 / 9,
+            spline=True,
+            lc="r",  # line color
+            marker="O",  # marker style
+        )
+        fig = fig.shift(0, 25, 0).clone2d()
+        fig.name = "figure"
+        plt += fig
+
+    # Add the spline tool using the same points and interact with it
+    sptool = plt.add_spline_tool(pts, closed=True)
+
+    # Add a callback to print the center of mass of the spline
+    sptool.add_observer(
+        "end of interaction",
+        lambda o, e: update_probe(sptool.spline().vertices),
+    )
+
+    # Stay in the loop until the user presses q
+    plt.interactive()
+
+    # Switch off the tool
+    sptool.off()
+
+    # Extract and visualize the resulting spline
+    sp = sptool.spline().lw(4)
+    sp.write(os.path.join(folder, "spline.vti"))
+    show(sp, "Spline saved and ready for use", interactive=True, resetcam=False).close()
 
 
 def one_channel_isosurface(folder, channel):
@@ -703,6 +915,152 @@ def one_channel_isosurface(folder, channel):
     plt.close()
 
 
+def dynamic_slab(folder, channel):
+    printc("Starting dynamic slab viewer...", c="y")
+    pipeline_file = os.path.join(folder, "pipeline.log")
+    pipeline = file2dic(pipeline_file)
+    surface = pipeline["SURFACE"]
+    stage = pipeline["STAGE"]
+    volume = os.path.join(folder, pipeline[channel.upper()])
+
+    CMAP = "Greys"
+    printc(f"Loading volume: {volume}", c="lg")
+    vol = Volume(volume)  # .resize([100, 100, 100])
+    printc("Volume loaded successfully", c="g")
+
+    # Apply non linear tranformation
+    tname = os.path.join(folder, pipeline["TRANSFORMATION"])
+    if "rotation" in pipeline["TRANSFORMATION"]:
+        T = LinearTransform(tname)
+    elif "morphing" in pipeline["TRANSFORMATION"]:
+        T = NonLinearTransform(tname)
+    else:
+        printc("No transformation found... exit", c="r")
+        exit()
+
+    # tname = os.path.join(folder, pipeline["ROTATION"])
+    # T = LinearTransform(tname)
+    printc("Rotation transformation loaded", c="lg")
+
+    vol.apply_transform(T)
+    vol.rotate_y(-angle_d[int(stage)])
+    printc("Rotation applied to volume and limb meshes", c="g")
+
+    # Load the limb surface
+    surface = os.path.join(folder, pipeline.get("BLENDER", pipeline["SURFACE"]))
+
+    limb = Mesh(surface)
+    limb.color(styles["limb"]["color"]).alpha(0.1)
+    limb.extract_largest_region()
+    limb.apply_transform(T)
+    limb.rotate_y(-angle_d[int(stage)])
+    vaxes = Axes(
+        vol,
+        xygrid=False,
+    )  # htitle=volume.replace("_", "-")
+    printc("Limb surface loaded and transformed", c="g")
+    # Box
+    global slab, slab_box, box_limits
+
+    # TODO: Get a better min/max for slab range
+    box_vmin = 0
+    box_vmax = 1000
+    box_min = box_vmin
+    box_max = box_vmax
+    box_limits = [box_min, box_max]
+    slab = vol.slab(box_limits, axis="z", operation="mean")
+    bbox = slab.metadata["slab_bounding_box"]
+    zslab = slab.zbounds()[0] + 1000
+    slab.z(-zslab)  # move slab to the bottom  # move slab to the bottom
+    slab_box = Box(bbox).wireframe().c("black")
+    slab.cmap(CMAP)  # .add_scalarbar("slab")
+
+    def slider1(widget, event):
+        global slab, slab_box, box_limits
+
+        box_limits[0] = int(widget.value)
+        plt.remove(slab)
+        plt.remove(slab_box)
+        slab = vol.slab(box_limits, axis="z", operation="mean")
+        bbox = slab.metadata["slab_bounding_box"]
+        zslab = slab.zbounds()[0] + 1000
+        slab.z(-zslab)  # move slab to the bottom
+        slab_box = Box(bbox).wireframe().c("black")
+        slab.cmap(CMAP)  # .add_scalarbar("slab")
+        plt.add(slab)
+        plt.add(slab_box)
+
+    def slider2(widget, event):
+        global slab, slab_box, box_limits
+
+        new_value = int(widget.value)
+
+        # if new_value <= box_limits[0]:
+        #     return
+
+        box_limits[1] = new_value
+        plt.remove(slab)
+        plt.remove(slab_box)
+        slab = vol.slab(box_limits, axis="z", operation="mean")
+        bbox = slab.metadata["slab_bounding_box"]
+        zslab = slab.zbounds()[0] + 1000
+        slab.z(-zslab)  # move slab to the bottom
+        slab_box = Box(bbox).wireframe().c("black")
+        slab.cmap(CMAP)  # .add_scalarbar("slab")
+        plt.add(slab)
+        plt.add(slab_box)
+
+    limb_clone = limb.clone()
+    limb_clone.project_on_plane()
+    # limb_clone.z(slab.z() - 360)
+    printc("Ready to display the scene", c="y")
+    # exit()
+    plt = Plotter()
+
+    plt += vol.isosurface()
+    plt += limb
+    # plt += limb_clone.color("black").alpha(0.01)
+    plt += slab
+    plt += slab_box
+    plt += vaxes
+
+    plt.add_slider(
+        slider1,
+        xmin=box_vmin,
+        xmax=box_vmax,
+        value=box_vmin,
+        c=styles["ui"]["primary"],
+        pos="bottom-left",  # type: ignore
+        title="Slab Min Value",
+    )
+
+    plt.add_slider(
+        slider2,
+        xmin=box_vmin,
+        xmax=box_vmax,
+        value=box_vmax,
+        c=styles["ui"]["primary"],
+        pos="bottom-right",  # type: ignore
+        title="Slab Max Value",
+    )
+
+    plt.show(axes=14, zoom=1.5).close()
+
+    l, u = slab.metadata["slab_range"]
+    slab_path = os.path.join(folder, f"{channel}_slab_{l}_{u}.py")
+
+    show(
+        slab,
+        #  limb_clone.silhouette(top_camera_slab, border_edges=False),
+        # camera=dict(
+        #     pos=(781.020, 70.1935, 2107.68),
+        #     focal_point=(781.020, 70.1935, 33.6000),
+        #     viewup=(-2.46519e-32, 1.00000, 0),
+        #     roll=-1.41245e-30,
+        #     distance=2074.08,
+        #     clipping_range=(2904.91, 3356.75),
+        # )
+    ).screenshot(slab_path).close()
 
 
 def multi_channel_isosurface(folder, channels):
