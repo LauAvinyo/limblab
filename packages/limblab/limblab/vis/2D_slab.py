@@ -1,38 +1,46 @@
 from typing import Any, Literal, Optional
 
+import numpy as np
 from limblab.models import Channel, Experiment
+from packages.limblab.utils import file2dic, pick_evenly_distributed_values, styles
 from vedo import (
-    Line,
+    Axes,
+    Box,
     LinearTransform,
     Mesh,
     NonLinearTransform,
-    PlaneCutter,
     Plotter,
-    Text2D,
     Volume,
     printc,
     show,
-    Box,
-    Axes
 )
-from vedo.applications import (
-    Slicer3DPlotter
-)
-from packages.limblab.utils import file2dic, pick_evenly_distributed_values, styles
 import os
-from vedo.pyplot import plot
 
 
-def _dynamic_slab(    
+def get_stage_to_angle_dict(start_x, end_x, start_y, end_y):
+    x_values = np.arange(start_x, end_x + 1).astype(int)
+    y_values = np.linspace(
+        start_y, end_y, num=len(x_values), dtype=int
+    )  # Ensure integer y-values
+    return {int(x): int(y) for x, y in zip(x_values, y_values)}
+
+
+angle_d = get_stage_to_angle_dict(248, 320, 20, 40)
+
+
+def _dynamic_slab(
     volume_path: str,
+    channel_name: str,
     renderer: Optional[Literal["pyqt"]] = None,
     outside_class: Optional[Any] = None,
 ):
     printc("Starting dynamic slab viewer...", c="y")
-    #pipeline_file = os.path.join(folder, "pipeline.log")
-    #pipeline = file2dic(pipeline_file)
-    #surface = pipeline["SURFACE"]
-    #stage = pipeline["STAGE"]
+
+    # pipeline.log (surface, stage, transformation) lives next to the volume
+    folder = os.path.dirname(volume_path)
+    pipeline_file = os.path.join(folder, "pipeline.log")
+    pipeline = file2dic(pipeline_file)
+    stage = pipeline["STAGE"]
 
     CMAP = "Greys"
     printc(f"Loading volume: {volume_path}", c="lg")
@@ -40,7 +48,7 @@ def _dynamic_slab(
     printc("Volume loaded successfully", c="g")
 
     # Apply non linear tranformation
-    #tname = os.path.join(folder, pipeline["TRANSFORMATION"])
+    tname = os.path.join(folder, pipeline["TRANSFORMATION"])
     if "rotation" in pipeline["TRANSFORMATION"]:
         T = LinearTransform(tname)
     elif "morphing" in pipeline["TRANSFORMATION"]:
@@ -49,8 +57,6 @@ def _dynamic_slab(
         printc("No transformation found... exit", c="r")
         exit()
 
-    # tname = os.path.join(folder, pipeline["ROTATION"])
-    # T = LinearTransform(tname)
     printc("Rotation transformation loaded", c="lg")
 
     vol.apply_transform(T)
@@ -158,7 +164,7 @@ def _dynamic_slab(
     plt.show(axes=14, zoom=1.5).close()
 
     l, u = slab.metadata["slab_range"]
-    slab_path = os.path.join(folder, f"{channel}_slab_{l}_{u}.py")
+    slab_path = os.path.join(folder, f"{channel_name}_slab_{l}_{u}.py")
 
     show(
         slab,
@@ -176,7 +182,7 @@ def _dynamic_slab(
 
 def dynamic_slab(
     experiment: Experiment,
-    channel_name: str, 
+    channel_name: str,
     renderer: Literal["pyqt"] | None = None,
     outside_class: Any | None = None,
 ) -> None:
@@ -186,7 +192,7 @@ def dynamic_slab(
     for i in channels:
         if i.channel_name == channel_name:
             print(i)
-            channel: Channel= i 
+            channel: Channel = i
 
     volume_path = channel.path
-    _dynamic_slab(volume_path, renderer, outside_class)
+    _dynamic_slab(volume_path, channel_name, renderer, outside_class)

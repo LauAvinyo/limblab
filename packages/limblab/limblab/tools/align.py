@@ -8,6 +8,7 @@ from limblab.models import Experiment
 from limblab.utils import generate_kwargs
 
 env = {}
+''''
 with open("../../../.env") as f:
     for line in f:
         if line.startswith("#"): continue
@@ -16,8 +17,10 @@ with open("../../../.env") as f:
         if len(line) != 2: continue
         k, v = line
         env[k] = v
+'''
 
-REFERENCE_LIMB_FOLDER = env["REFERENCE_LIMB_FOLDER"]
+REFERENCE_LIMB_FOLDER = 'C:\\Users\\millan\\Desktop\\limblab\\packages\\limblab\\limblab\\limb'
+#REFERENCE_LIMB_FOLDER = env["REFERENCE_LIMB_FOLDER"]
 
 
 files = [

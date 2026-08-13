@@ -11,7 +11,6 @@ from packages.limblab.utils import file2dic, pick_evenly_distributed_values, sty
 import os
 
 
-#ADDED CHANNELs as an atribute, dont know if it works!
 def _slices(volume_path: str,
             renderer: Optional[Literal["pyqt"]] = None,
             outside_class: Optional[Any] = None):

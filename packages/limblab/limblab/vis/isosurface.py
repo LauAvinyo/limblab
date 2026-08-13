@@ -1,14 +1,22 @@
 from typing import Any, Literal, Optional
-from limblab.models import Channel, Experiment
-from vedo import (Volume, Text2D, Mesh, printc, 
-NonLinearTransform, LinearTransform, progressbar, Plotter)
-from vedo.applications import IsosurfaceBrowser
+
 import matplotlib.colors as mcolors
-from packages.limblab.utils import file2dic, pick_evenly_distributed_values, styles
-import os
-from vedo.pyplot import plot
 import numpy as np
+import os
 import shutil
+from limblab.models import Channel, Experiment
+from packages.limblab.utils import file2dic, pick_evenly_distributed_values, styles
+from vedo import (
+    LinearTransform,
+    Mesh,
+    NonLinearTransform,
+    Plotter,
+    Text2D,
+    Volume,
+    printc,
+    progressbar,
+)
+from vedo.applications import IsosurfaceBrowser
 
 color1 = "#9ce4f3"
 color2 = "#128099"
@@ -18,16 +26,16 @@ primary = "#0d1b2a"
 secondary = "#1b263b"
 background = "#fb8f00"
 
-def _two_chanel_isosurface(folder, channel_0, channel_1):
+
+def _two_chanel_isosurface(folder, volume_path_0, volume_path_1, channel_0, channel_1):
     # Get the paths
-    #pipeline_file = os.path.join(folder, "pipeline.log")
-    #pipeline = file2dic(pipeline_file)
-    #transformation = pipeline.get("TRANSFORMATION", False)
+    pipeline_file = os.path.join(folder, "pipeline.log")
+    pipeline = file2dic(pipeline_file)
+    transformation = pipeline.get("TRANSFORMATION", False)
 
     # TODO: Take this out of here
-    def compute_isosurfaces(volume_path, logs, channel, isosurface_folder):
+    def compute_isosurfaces(volume_path, isosurface_folder):
         # .replace(".vti", "_smooth.vti"))
-        #volume_file = os.path.join(folder, logs[channel])
         volume = Volume(volume_path)
         txt = Text2D(pos="top-center", bg="yellow5", s=1.5)
         plt1 = IsosurfaceBrowser(volume, use_gpu=True, c="gold")
@@ -133,9 +141,9 @@ def _two_chanel_isosurface(folder, channel_0, channel_1):
 
     # Compute them if needed
     if not os.path.exists(isosurface_folder_0):
-        compute_isosurfaces(pipeline, channel_0, isosurface_folder_0)
+        compute_isosurfaces(volume_path_0, isosurface_folder_0)
     if not os.path.exists(isosurface_folder_1):
-        compute_isosurfaces(pipeline, channel_1, isosurface_folder_1)
+        compute_isosurfaces(volume_path_1, isosurface_folder_1)
 
     # Load isosurfaces
     isosurfaces_0, isovalues_0 = load_isosurfaces(
@@ -375,18 +383,44 @@ def _two_chanel_isosurface(folder, channel_0, channel_1):
     plt.close()
 
 
-def one_channel_isosurface(folder, channel):
+def two_chanel_isosurface(
+    experiment: Experiment,
+    channel_name_0: str,
+    channel_name_1: str,
+    renderer: Optional[Literal["pyqt"]] = None,
+    outside_class: Optional[Any] = None,
+) -> None:
+
+    channels = experiment.channels
+    channel_0 = ""
+    channel_1 = ""
+    for i in channels:
+        if i.channel_name == channel_name_0:
+            channel_0: Channel = i
+        if i.channel_name == channel_name_1:
+            channel_1: Channel = i
+
+    volume_path_0 = channel_0.path
+    volume_path_1 = channel_1.path
+    # pipeline.log (transformation, limb surface) lives next to the volumes
+    folder = os.path.dirname(volume_path_0)
+
+    _two_chanel_isosurface(
+        folder, volume_path_0, volume_path_1, channel_name_0, channel_name_1
+    )
+
+
+def _one_channel_isosurface(folder, volume_path, channel_name):
 
     # Get the pipeline and the paths
     pipeline_file = os.path.join(folder, "pipeline.log")
     pipeline = file2dic(pipeline_file)
-    isosurface_folder = os.path.join(folder, f"isosurfaces_{channel}")
+    isosurface_folder = os.path.join(folder, f"isosurfaces_{channel_name}")
     transformation = pipeline.get("ROTATION", False)
 
-    def compute_isosurfaces(logs, channel, folder, isosurface_folder):
+    def compute_isosurfaces(volume_path, isosurface_folder):
         # .replace(".vti", "_smooth.vti"))
-        volume_file = os.path.join(folder, logs[channel])
-        volume = Volume(volume_file)
+        volume = Volume(volume_path)
 
         txt = Text2D(pos="top-center", bg="yellow5", s=1.5)
         plt1 = IsosurfaceBrowser(volume, use_gpu=True, c="gold")
@@ -477,7 +511,7 @@ def one_channel_isosurface(folder, channel):
         return isosurfaces, isovalues
 
     if not os.path.exists(isosurface_folder):
-        compute_isosurfaces(pipeline, channel, folder, isosurface_folder)
+        compute_isosurfaces(volume_path, isosurface_folder)
 
     # Load the channel isosurfaces
     isosurfaces, isovalues = load_isosurfaces(isosurface_folder, transformation)
@@ -631,3 +665,23 @@ def one_channel_isosurface(folder, channel):
 
     plt.show().interactive()
     plt.close()
+
+
+def one_channel_isosurface(
+    experiment: Experiment,
+    channel_name: str,
+    renderer: Optional[Literal["pyqt"]] = None,
+    outside_class: Optional[Any] = None,
+) -> None:
+
+    channels = experiment.channels
+    channel = ""
+    for i in channels:
+        if i.channel_name == channel_name:
+            channel: Channel = i
+
+    volume_path = channel.path
+    # pipeline.log (rotation, limb surface) lives next to the volume
+    folder = os.path.dirname(volume_path)
+
+    _one_channel_isosurface(folder, volume_path, channel_name)

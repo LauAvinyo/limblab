@@ -1,46 +1,30 @@
-from typing import Any, Literal, Optional
+from typing import Any, List, Literal, Optional
 
-from limblab.models import Channel, Experiment
-from vedo import (
-    Line,
-    LinearTransform,
-    Mesh,
-    NonLinearTransform,
-    PlaneCutter,
-    Plotter,
-    Text2D,
-    Volume,
-    printc,
-    show,
-)
-
-from packages.limblab.utils import file2dic, pick_evenly_distributed_values, styles
-import os
-from vedo.pyplot import plot
 import numpy as np
+from limblab.models import Channel, Experiment
+from packages.limblab.utils import styles
+from vedo import Line, Volume, printc, show
+from vedo.pyplot import plot
+import os
 
-''''
-def _probe(folder, channels, points=None):
+
+def _probe(
+    volume_paths: List[str],
+    channel_names: List[str],
+    renderer: Optional[Literal["pyqt"]] = None,
+    outside_class: Optional[Any] = None,
+    points=None,
+):
     """Probe multiple Volumes with a line and plot the intensity values for each channel."""
-'''
 
-def _probe(volume_path: str,
-           channels,
-            renderer: Optional[Literal["pyqt"]] = None,
-            outside_class: Optional[Any] = None,
-            points = None):
-    
     global plt, fig
 
-    #pipeline_file = os.path.join(volume_path, "pipeline.log")
-    #pipeline = file2dic(pipeline_file)
     volumes = []
 
     # Load each volume corresponding to the channels
-    for ch in channels:
-        #volume_file = os.path.join(volume_path,pipeline[ch.upper()])
-        volume = Volume(ch)
-        volume.add_scalarbar3d(ch, c="k")
+    for volume_path, channel_name in zip(volume_paths, channel_names):
+        volume = Volume(volume_path)
+        volume.add_scalarbar3d(channel_name, c="k")
         volume.scalarbar = volume.scalarbar.clone2d("bottom-right", 0.2)
         volumes.append(volume)
 
@@ -55,7 +39,7 @@ def _probe(volume_path: str,
         pts = Line(p0, p1, res=2).ps(4)
 
     # Colors
-    colors = [styles[f"channel_{i}"]["color"] for i in range(len(volume_path))]
+    colors = [styles[f"channel_{i}"]["color"] for i in range(len(channel_names))]
 
     # Visualize the points and the first volume (just for visualization)
     isosurfaces = [v.isosurface() for i, v in enumerate(volumes)]
@@ -124,112 +108,27 @@ def _probe(volume_path: str,
     # Extract and visualize the resulting spline
     sp = sptool.spline().lw(4)
 
-    #folder == volume_path?
-    sp.write(os.path.join(volume_path, "spline.vti"))
+    # pipeline.log / experiment folder lives next to the volumes
+    folder = os.path.dirname(volume_paths[0])
+    sp.write(os.path.join(folder, "spline.vti"))
     # show(sp, "Spline saved and ready", interactive=True, resetcam=False).close()
 
 
-''''
-def probe_why(experiment: Experiment
-    channel_name: str, 
-    renderer: Literal["pyqt"] | None = None,
-    outside_class: Any | None = None,
-    points = None
-) -> None:
-
-    """Probe a Volume with a line and plot the intensity values"""
-
-    global plt, fig
-
-    #pipeline_file = os.path.join(experiment.base, "pipeline.log")
-    #pipeline = file2dic(pipeline_file)
-    #volume_file = os.path.join(folder, pipeline[channel.upper()])
-    
-    volume = Volume(experiment)#experiment = volume_path
-
-    volume.add_scalarbar3d(channel_name, c="k")
-    volume.scalarbar = volume.scalarbar.clone2d("bottom-right", 0.2)
-
-    # Init the points
-    LINE = True
-    if points is None:
-        p0 = (50, 300, 400)
-        p1 = (100, 300, 400)
-
-    if LINE:
-        # Create a set of points in space
-        pts = Line(p0, p1).ps(4)
-
-    # Visualize the points
-    plt = show(pts, volume.isosurface(), __doc__, interactive=False, axes=1)
-
-    def update_probe(vertices):
-        global plt
-
-        plt.remove("figure")
-
-        vertices = np.unique(vertices, axis=0)
-        printc(f"Probe points: {vertices}", c="lg")
-        p0, p1 = vertices
-        # Probe the Volume with the line
-        pl = Line(p0, p1, res=100)
-        pl.probe(volume)
-
-        # Get the probed values along the line
-        xvals = pl.vertices[:, 0]
-        yvals = pl.pointdata[0]
-
-        # Plot the intensity values
-        fig = plot(
-            xvals,
-            yvals,
-            xtitle=" ",
-            ytitle="voxel intensity",
-            aspect=16 / 9,
-            spline=True,
-            lc="r",  # line color
-            marker="O",  # marker style
-        )
-        fig = fig.shift(0, 25, 0).clone2d()
-        fig.name = "figure"
-        plt += fig
-
-    # Add the spline tool using the same points and interact with it
-    sptool = plt.add_spline_tool(pts, closed=True)
-
-    # Add a callback to print the center of mass of the spline
-    sptool.add_observer(
-        "end of interaction",
-        lambda o, e: update_probe(sptool.spline().vertices),
-    )
-
-    # Stay in the loop until the user presses q
-    plt.interactive()
-
-    # Switch off the tool
-    sptool.off()
-
-    # Extract and visualize the resulting spline
-    sp = sptool.spline().lw(4)
-    sp.write(os.path.join(experiment.base, "spline.vti"))
-    show(sp, "Spline saved and ready for use", interactive=True, resetcam=False).close()
-'''
-#why 2 probes_!_!__!
-
 def probe(
     experiment: Experiment,
-    channel_name: str, 
+    channel_names: List[str],
     renderer: Literal["pyqt"] | None = None,
     outside_class: Any | None = None,
+    points=None,
 ) -> None:
 
     channels = experiment.channels
-    channel = ""
-    for i in channels:
-        if i.channel_name == channel_name:
-            print(i)
-            channel: Channel= i 
+    volume_paths = []
+    for channel_name in channel_names:
+        channel = ""
+        for i in channels:
+            if i.channel_name == channel_name:
+                channel: Channel = i
+        volume_paths.append(channel.path)
 
-    volume_path = channel.path
-    _probe(volume_path, channels, renderer, outside_class)
-    
+    _probe(volume_paths, channel_names, renderer, outside_class, points)
