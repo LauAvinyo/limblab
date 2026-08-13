@@ -1,5 +1,5 @@
 from limblab import save_experiment, stage_limb_embedded
-from limblab.design_tokens import theme
+from limblab.design import theme
 from PyQt6.QtWidgets import QComboBox, QHBoxLayout, QMessageBox, QWidget
 from utils import create_label, create_styled_button
 
@@ -63,7 +63,7 @@ class StageController:
             QMessageBox.warning(self.window, "Not staged", "Press 's' in the 3D view to stage the limb first.")
             return
 
-        stage = self.plotter.stage_result.get("stage")
+        stage = self.plotter.stage_result.get("stage") # type: ignore
         if stage is None:
             QMessageBox.warning(self.window, "Not staged", "Press 's' in the 3D view to stage the limb first.")
             return
@@ -74,8 +74,9 @@ class StageController:
             QMessageBox.critical(self.window, "Staging error", f"Server returned an invalid stage value: {stage!r}")
             return
 
+        assert self.experiment is not None
         self.experiment.stage = stage
-        
+    
         save_experiment(self.window.db_path, self.experiment)
 
         self.window.workflow_state["stage_done"] = True

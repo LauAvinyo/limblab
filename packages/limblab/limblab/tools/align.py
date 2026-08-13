@@ -3,6 +3,7 @@ from typing import Any, Literal, Optional
 
 from vedo import Mesh, Plotter, Text2D, settings
 
+from limblab.design import theme
 from limblab.models import Experiment
 from limblab.utils import generate_kwargs
 
@@ -90,8 +91,8 @@ def _rotate_limb(
 ) -> str | tuple[Any, Any, str]:
 
     # Get the Surfaces
-    source = Mesh(surface_path).color(1)  # .scale(1.1)
-    target = Mesh(reference_limb_path).cut_with_plane(origin=(1, 0, 0)).alpha(0.5).c(2)
+    source = Mesh(surface_path).color(theme("palette.limb", "#000000"))  # .scale(1.1)
+    target = Mesh(reference_limb_path).cut_with_plane(origin=(1, 0, 0)).alpha(0.5).c(theme("palette.channel0", "#000000"))
 
     # Store the Transformation
     T = source.apply_transform_from_actor()  # type: ignore
@@ -122,11 +123,9 @@ def _rotate_limb(
         "clipping_range": (8305.31, 11134.5),
     }
 
-    plt.at(2).add(source.alpha(0.4), target.alpha(0.6))
-    plt.at(1).add(source.alpha(0.4), target.alpha(0.6))
-    plt.at(0).add(source.alpha(0.4), target.alpha(0.6))
-
-    plt.verbose = False  # type: ignore
+    plt.at(2).add(source.alpha(0.4), target.alpha(0.6)) # type: ignore
+    plt.at(1).add(source.alpha(0.4), target.alpha(0.6)) # type: ignore
+    plt.at(0).add(source.alpha(0.4), target.alpha(0.6)) # type: ignore
 
     # Add instructions as Text2D instead of using plt.instructions.text()
     instructions = Text2D(
@@ -169,7 +168,7 @@ def rotate_limb(
     surface_path, refence_limb_path = _initialize_limbs_paths(
         experiment, reference_stages
     )
-
+    
     return _rotate_limb(surface_path, refence_limb_path, renderer, outside_class)
 
 

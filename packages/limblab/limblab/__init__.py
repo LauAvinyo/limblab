@@ -11,7 +11,7 @@ from .database import (
     save_experiment,
     update_experiment,
 )
-from .design_tokens import DESIGN_TOKENS, get_design_token, theme
+from .design import DESIGN_TOKENS, get_design_token, theme
 from .tools.align import _store_transformation_matrix, rotate_limb
 from .tools.clean import clean, get_channel_path, pick_isovalues
 from .tools.show_tiff import preview_volume

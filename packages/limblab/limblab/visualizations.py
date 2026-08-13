@@ -7,6 +7,7 @@ import sys
 
 import matplotlib.colors as mcolors
 import numpy as np
+from packages.limblab.utils import file2dic, pick_evenly_distributed_values, styles
 from vedo import (
     Axes,
     Box,
@@ -25,8 +26,7 @@ from vedo import (
 from vedo.applications import IsosurfaceBrowser, RayCastPlotter, Slicer3DPlotter
 from vedo.pyplot import plot
 
-from packages.limblab.utils import file2dic, pick_evenly_distributed_values, styles
-
+from limblab.design import theme
 
 # from vedo.utils import camera_from_dict
 
@@ -68,13 +68,13 @@ angle_d = get_stage_to_angle_dict(248, 320, 20, 40)
 # This can be clean up. There are some functions no needed here.
 # We can add more funtionality.
 # Make a list of the functionlaity we should have.
-color1 = "#9ce4f3"
-color2 = "#128099"
+color1 = theme("palette.channel0", "#9ce4f3")
+color2 = theme("palette.channel1", "#128099")
 # color1 = "#B9E9EC"
 # color2 = "#1C93AE"
-primary = "#0d1b2a"
-secondary = "#1b263b"
-background = "#fb8f00"
+primary = theme("palette.primary", "#0d1b2a")
+secondary = theme("palette.secondary", "#1b263b")
+background = theme("palette.background", "#fb8f00")
 
 
 def two_chanel_isosurface(folder, channel_0, channel_1):
@@ -775,7 +775,7 @@ def one_channel_isosurface(folder, channel):
 
     plt = Plotter(bg="white")
     # limb.frontface_culling()
-    plt += limb.color("#FF7F11").alpha(0.1)
+    plt += limb.color(theme("palette.limb", "#FF7F11")).alpha(0.1)
 
     #
     static_min_value = isovalues.min()

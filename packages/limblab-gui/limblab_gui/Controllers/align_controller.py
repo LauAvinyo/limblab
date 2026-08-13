@@ -2,13 +2,13 @@
 # pyright: ignore[reportAttributeAccessIssue]
 
 from limblab import _store_transformation_matrix, rotate_limb
+from limblab.design import theme
 from PyQt6.QtWidgets import (
     QHBoxLayout,
     QMessageBox,
     QWidget,
 )
 from utils import create_styled_button
-from limblab.design_tokens import theme
 
 
 class AlignController:
@@ -32,6 +32,8 @@ class AlignController:
         """
 
         self.experiment = experiment
+
+        print(self.experiment)
 
         container = self.window._build_workflow_container(
             next_label="Visualize",

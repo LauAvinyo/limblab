@@ -1,7 +1,7 @@
 
 import numpy as np
 import pyqtgraph.opengl as gl
-from limblab.design_tokens import theme
+from limblab.design import theme
 from PyQt6.QtCore import QObject, Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QLabel,

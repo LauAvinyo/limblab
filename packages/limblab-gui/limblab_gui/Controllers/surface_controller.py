@@ -6,7 +6,7 @@ from limblab import (
     pick_isovalue,
     save_experiment,
 )
-from limblab.design_tokens import theme
+from limblab.design import theme
 from PyQt6.QtCore import QThread, pyqtSignal
 from PyQt6.QtWidgets import (
     QHBoxLayout,
@@ -113,7 +113,7 @@ class SurfaceController:
             return
             #isovalue gets extracted from the vedo renderer se4lected value (slider)
            
-        isovalue = float(self.plotter.sliders[0][0].value)
+        isovalue = float(self.plotter.sliders[0][0].value) # type: ignore
         self._worker = SurfaceExtractionWorker(self.experiment, isovalue)
         self._worker.finished.connect(lambda path: self._on_extraction_done(path, isovalue))
         self._worker.failed.connect(lambda msg: QMessageBox.critical(self.window, "Surface extraction error", msg))
@@ -123,6 +123,7 @@ class SurfaceController:
 
 
     def _on_extraction_done(self, surface_path, isovalue):
+        assert self.experiment is not None
         self.experiment.surface = os.path.basename(str(surface_path))
         save_experiment(self.window.db_path, self.experiment)
 
@@ -134,7 +135,7 @@ class SurfaceController:
         """Guard for Surface -> Stage: must have extracted a surface."""
         if not self.window.workflow_state["surface_done"]:
                 QMessageBox.warning(
-                    self,
+                    self, # type: ignore
                     "Surface required",
                     "Please extract a surface before proceeding to Stage.",
                 )

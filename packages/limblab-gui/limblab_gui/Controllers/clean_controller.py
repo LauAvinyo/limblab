@@ -1,5 +1,5 @@
 from limblab import clean, get_channel_path, pick_isovalues, save_experiment
-from limblab.design_tokens import theme
+from limblab.design import theme
 from limblab.params import CleanParams
 from PyQt6.QtWidgets import (
     QComboBox,
@@ -162,6 +162,7 @@ class CleanController:
 
     def _load_volume_for_picking(self):
         try:
+            assert self.experiment is not None
             self.channel_name = self.clean_widgets["channel"].currentText()
             self.raw_volume_path = get_channel_path(self.experiment, self.channel_name)
 
@@ -183,14 +184,14 @@ class CleanController:
         if self.plotter is None:
             QMessageBox.warning(self.window, "No volume loaded", "Click 'Load Volume' first.")
             return
-        self.v0 = int(self.plotter.sliders[0][0].value)
+        self.v0 = int(self.plotter.sliders[0][0].value) # type: ignore
         self.v0_label.setText(f"Lower (v0): {self.v0}")
 
     def _set_v1(self):
         if self.plotter is None:
             QMessageBox.warning(self.window, "No volume loaded", "Click 'Load Volume' first.")
             return
-        self.v1 = int(self.plotter.sliders[0][0].value)
+        self.v1 = int(self.plotter.sliders[0][0].value) # type: ignore
         self.v1_label.setText(f"Upper (v1): {self.v1}")
 
 
@@ -200,6 +201,10 @@ class CleanController:
         self.window._show_busy('Cleaning volume with the selected isovalues...')
 
         try:
+
+            assert self.experiment is not None
+            assert self.channel_name is not None
+            
             if self.raw_volume_path is None:
                 raise RuntimeError("Load a volume (.tiff) before cleaning.")
             if self.v0 is None or self.v1 is None:
@@ -214,7 +219,7 @@ class CleanController:
                 frequency_cutoff=self.clean_widgets["frequency_cutoff"].value(),
                 low_res_size=self.clean_widgets["low_res_size"].value(),
             )
-
+            
             new_channel = clean(
                 experiment=self.experiment,
                 raw_volume_path=self.raw_volume_path,

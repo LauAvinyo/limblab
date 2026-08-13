@@ -1,4 +1,4 @@
-from limblab.design_tokens import theme
+from limblab.design import theme
 
 # Constants
 MENU_STYLE = f"""
