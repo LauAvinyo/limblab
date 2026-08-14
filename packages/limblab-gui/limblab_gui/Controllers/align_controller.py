@@ -8,7 +8,8 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QWidget,
 )
-from limblab_gui.utils import create_styled_button
+from utils import create_styled_button
+from limblab.database import save_experiment
 
 
 class AlignController:
@@ -101,6 +102,7 @@ class AlignController:
                 T,
                 self.surface_path,
             )
+    
 
         except Exception as e:
             QMessageBox.critical(
@@ -109,6 +111,11 @@ class AlignController:
                 str(e),
             )
             return
+
+        self.experiment.transformation_matrix_path = transformation_path
+        #################self.experiment.rotation_matrix_path = ROTATION MATRIX ????????????????????????????????????????????????????????????
+
+        save_experiment(self.window.db_path, self.experiment)
 
         self.window.workflow_state["align_done"] = True
         self.window.workflow_state["alignment_method"] = "rigid"  # whatever you track

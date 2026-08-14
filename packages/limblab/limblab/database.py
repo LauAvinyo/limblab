@@ -54,6 +54,9 @@ def delete_experiment(db_path: Path, experiment_id: str) -> bool:
         return False
 
 
+    #the functions to handle going back should use delete_experiment, must not go into the controllers!
+
+
 def update_experiment(
     db_path: Path, experiment_id: str, **kwargs
 ) -> Optional[Experiment]:

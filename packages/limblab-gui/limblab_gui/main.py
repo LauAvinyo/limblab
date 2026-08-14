@@ -85,6 +85,8 @@ TEST_SURFACE_PATH = env["TEST_SURFACE_PATH"]
 TEST_DAPI_FILENAME = env["TEST_DAPI_FILENAME"]
 
 #for the test experiment i added the channels manually 
+
+''''
 experiment = Experiment(
     experiment_id="manual_test",
     base=TEST_BASE_PATH,
@@ -94,19 +96,21 @@ experiment = Experiment(
     side="F",
     position="L",
     species="mouse",
-    surface=TEST_SURFACE_PATH,
+    surface_path=TEST_SURFACE_PATH,
+    surface_isovalue=165,
     stage=260,
     channels=[
         Channel(
             experiment_id="manual_test",
             channel_name="DAPI",
             path=TEST_DAPI_FILENAME,
-            v0 = 0,
-            v1 = 54
+            clean_isovalue_min = 0,
+            clean_isovalue_max = 54,
+            
         )
     ],
 )
-
+'''
 
 class MainWindow(QMainWindow, NavigationMixin):
     def __init__(self):
@@ -153,6 +157,7 @@ class MainWindow(QMainWindow, NavigationMixin):
         # jump ahead without finishing the current step) and back
         # navigation warnings (you're about to lose unsaved progress).
 
+        #standard workflow state for any experiment
         self.workflow_state = {
             "clean_done": False,
             "last_cleaned_channel": None,
@@ -169,10 +174,8 @@ class MainWindow(QMainWindow, NavigationMixin):
         self.align = AlignController(self)
         self.stage = StageController(self) 
 
-
         #self.current_experiment = experiment   # set when the user picks a real experiment
-        self.current_experiment = None
-
+        
         self._build_permanent_chrome()
 
         # self.navigate_to(lambda:self.align.show(experiment))
@@ -324,11 +327,11 @@ class MainWindow(QMainWindow, NavigationMixin):
                     action.triggered.connect(self.reset_database)
                 else:
                     action.triggered.connect(self.menu_button_clicked)
-                file_menu.addAction(action)
-
-                
+                file_menu.addAction(action)     
 
     '''
+
+
     def _build_view_menu(self, menu_bar):
         """Build the View menu."""
         view_menu = menu_bar.addMenu("&View")
@@ -370,7 +373,7 @@ class MainWindow(QMainWindow, NavigationMixin):
 
         Layout (left -> right):
           - left: top row, 3D viewer, optional per-step action bar
-          - right: side panel (visualizer / pipeline / params)
+          - right: side panel (visu_dalizer / pipeline / params)
 
         Parameters mirror what controllers pass in: next button label/callback,
         back guard callable, and an optional widget to show under the viewer.
@@ -428,23 +431,25 @@ class MainWindow(QMainWindow, NavigationMixin):
         return container
 
 
-    def _handle_back(self, guard=None):
+    def _handle_back(self, step, guard=None):
         """Go back, warning the user first if the current step isn't finished."""
         if guard is not None:
             done, message = guard()
             if not done:
                 reply = QMessageBox.question(
-                    self,
-                    "Step not completed",
+                    self, "Step not completed",
                     f"{message}\n\nGo back anyway? Progress on this step will be lost.",
                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                 )
                 if reply != QMessageBox.StandardButton.Yes:
                     return
+
+        if step is not None:
+            self._reset_workflow_from(step)
         self.go_back()
 
 
-
+    ''''
     def _go_to_step(self, step):
         idx = self.PIPELINE_STEPS.index(step)
 
@@ -479,7 +484,8 @@ class MainWindow(QMainWindow, NavigationMixin):
         }
         self.navigate_to(step_to_show[step])
 
-
+    '''
+    
     def _reset_workflow_from(self, step):
         """Clear *_done flags for `step` and everything after it, so the
         toolbar re-locks those steps until they're redone. Called only after
@@ -504,14 +510,6 @@ class MainWindow(QMainWindow, NavigationMixin):
         self.log_pipeline(f"Reset workflow state from '{step}' onward — redoing this step.")
 
    
-    ''''
-    def setup_workflow_menu(self, current_step):
-        """Build the main menu bar with File, View, and pipeline steps."""
-        menu_bar = self._reset_top_menu_bar(current_step=current_step)
-        self._build_file_menu(menu_bar)
-        self._build_view_menu(menu_bar)
-
-    '''
 
     def _build_permanent_chrome(self):
         if getattr(self, "_chrome_built", False):
@@ -525,8 +523,6 @@ class MainWindow(QMainWindow, NavigationMixin):
             QMenuBar::item:selected {{ background-color: {theme('palette.panel', '#2A2A2A')};
                         color: {theme('palette.textPrimary', '#FFFFFF')}; border-radius: 4px; }}
         """)
-        #self._build_file_menu(menu_bar)
-        #self._build_view_menu(menu_bar)
 
         self.action_bar = self.addToolBar("Pipeline")
         self.action_bar.setMovable(False)
@@ -541,8 +537,7 @@ class MainWindow(QMainWindow, NavigationMixin):
         # so addWidget (not addAction).
         self._active_back_guard = None
         self.back_btn = create_back_button(
-            lambda: self._handle_back(self._active_back_guard)
-        )
+        lambda: self._handle_back(self._current_pipeline_step, self._active_back_guard))
         self.action_bar.addWidget(self.back_btn)
         self.action_bar.addSeparator()
 
@@ -562,12 +557,6 @@ class MainWindow(QMainWindow, NavigationMixin):
     # ------------------------------------------------------------------
     # Screen Methods
     # ------------------------------------------------------------------
-    
-    
-    
-    
-    
-    
     def show_home(self):
         self.action_bar.setVisible(False)
 
@@ -791,12 +780,12 @@ class MainWindow(QMainWindow, NavigationMixin):
                 btn.clicked.connect(callback)
                 return btn
 
-            #view_btn = make_small_btn('View', theme('palette.accent', '#5FBF9F'), theme('palette.primaryHover', '#41B3A2'), lambda checked=False, p=path: self._view_experiment(p))
+            view_btn = make_small_btn('View', theme('palette.accent', '#5FBF9F'), theme('palette.primaryHover', '#41B3A2'), lambda checked=False, p=path: self._view_experiment(p))
             add_ch_btn = make_small_btn('+Channel', theme('palette.secondary', '#54278F'), theme('palette.secondaryHover', '#756BB1'), lambda checked=False, p=path: self._add_channel_to_existing(p))
             rename_btn = make_small_btn('Rename', theme('palette.warning', '#FF6B6B'), theme('palette.warning', '#FF6B6B'), lambda checked=False, p=path: self._rename_experiment(p))
             del_btn = make_small_btn('Delete', theme('palette.error', '#D9534F'), theme('palette.error', '#C9302C'), lambda checked=False, p=path: self._delete_experiment(p))
 
-            #act_layout.addWidget(view_btn)
+            act_layout.addWidget(view_btn)
             act_layout.addWidget(add_ch_btn)
             act_layout.addWidget(rename_btn)
             act_layout.addWidget(del_btn)
@@ -914,7 +903,6 @@ class MainWindow(QMainWindow, NavigationMixin):
         self._add_channel_to_existing()
 
 
-
     def _refresh_experiments(self):
         """Refresh the experiments list."""
         self._load_experiments_from_db()
@@ -923,6 +911,9 @@ class MainWindow(QMainWindow, NavigationMixin):
 
 
     def show_viz(self):
+        self._show_busy('Loading volume...')
+        #visualization of hte uploaded users channel!
+        #self.current_experiment = self.new_exp#from create new experiment function, as the user uploads!
 
         container = self._build_workflow_container(
         next_label="Clean",
@@ -931,8 +922,8 @@ class MainWindow(QMainWindow, NavigationMixin):
         current_step="Visualize"
     )
         self.setCentralWidget(container)
-
         self._refresh_pipeline_actions(current_step="Visualize")
+        self._hide_busy()
 
         
         if (
@@ -941,6 +932,7 @@ class MainWindow(QMainWindow, NavigationMixin):
             and self.align.surface_path is not None
         ):
             self._show_final_aligned_mesh()
+
         elif (
             self.workflow_state.get("clean_done")
             and self.workflow_state.get("last_cleaned_channel")
@@ -949,7 +941,6 @@ class MainWindow(QMainWindow, NavigationMixin):
             self._show_cleaned_channel_preview()
         else:
             self._show_raw_volume_preview(self.current_experiment)
-
 
         
     def _show_final_aligned_mesh(self):
@@ -1296,16 +1287,15 @@ class MainWindow(QMainWindow, NavigationMixin):
                 exp_data = get_experiment(self.db_path, exp_id)
                 if exp_data:
                     # jsut for TESTING
-                    print(f"📊 Loaded: {exp_id}")  # DEBUG
                     # Store full experiment data
                     self.experiment_metadata[exp_id] = exp_data
                     # Set display name
                     self.experiment_names[exp_id] = exp_id
 
-            print(f"📂 Loaded {len(self.experiments)} experiments from database")
+            print(f"Loaded {len(self.experiments)} experiments from database")
 
         except Exception as e:
-            print(f"⚠️ Error loading experiments: {e}")
+            print(f"Error loading experiments: {e}")
             self.experiments = []
             self.experiment_metadata = {}
 
@@ -1582,15 +1572,26 @@ class MainWindow(QMainWindow, NavigationMixin):
 
 
     def _view_channel(self, experiment_id, channel_name):
-        # Basic viewer action: set current experiment and last cleaned channel then go to viz
-        exp_obj = self.experiment_metadata.get(experiment_id)
+        exp_obj = get_experiment(self.db_path, experiment_id)   # fresh DB read, not the cache
         if not exp_obj:
             QMessageBox.warning(self, "Error", "Experiment not found.")
             return
-        # set current and show visualization for that channel
+
         try:
-            self.current_experiment = exp_obj
-            self.workflow_state['last_cleaned_channel'] = channel_name
+            self._set_current_experiment(exp_obj)
+
+            # last_cleaned_channel drives _show_cleaned_channel_preview in show_viz,
+            # which expects a CLEANED (.vti) channel. Only set it if this channel
+            # actually is cleaned — otherwise let show_viz fall through to the raw
+            # preview branch instead of trying to load an unprocessed file as if
+            # it were finished output.
+            ch = next(
+                (c for c in (exp_obj.channels or []) if c.channel_name == channel_name),
+                None,
+            )
+            is_cleaned = bool(ch and ch.path.lower().endswith(".vti"))
+            self.workflow_state["last_cleaned_channel"] = channel_name if is_cleaned else None
+
             self.navigate_to(self.show_viz)
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to view channel: {e}")
@@ -1598,17 +1599,57 @@ class MainWindow(QMainWindow, NavigationMixin):
 
     def _view_experiment(self, experiment_id):
         """View the selected experiment (show visualization)."""
-        exp_obj = self.experiment_metadata.get(experiment_id)
+        exp_obj = get_experiment(self.db_path, experiment_id)   # fresh DB read, not the cache
         if not exp_obj:
             QMessageBox.warning(self, "Error", "Experiment not found.")
             return
+
         try:
-            self.current_experiment = exp_obj
-            self.workflow_state['last_cleaned_channel'] = None
+            self._set_current_experiment(exp_obj)
             self.navigate_to(self.show_viz)
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to view experiment: {e}")
 
+
+    def _infer_workflow_state(self, exp):
+        """Derive pipeline progress from what's actually persisted on the
+        experiment row + its channels, rather than trusting an in-memory flag
+        that could drift from what's really on disk/DB."""
+        channels = exp.channels or []
+
+        # A channel counts as "cleaned" if its stored path is a processed .vti,
+        # matching the same convention surface_controller already checks.
+        cleaned_channels = [ch for ch in channels if ch.path.lower().endswith(".vti")]
+        clean_done = len(cleaned_channels) > 0
+        last_cleaned_channel = cleaned_channels[-1].channel_name if cleaned_channels else None
+
+        return {
+            "clean_done": clean_done,
+            "last_cleaned_channel": last_cleaned_channel,
+            "surface_done": bool(exp.surface_path),
+            "stage_done": exp.stage is not None,
+            "selected_stage": exp.stage,
+            "align_done": bool(exp.transformation_matrix_path),
+            "alignment_method": "rigid" if exp.transformation_matrix_path else None,
+        }
+    
+
+
+
+    def _set_current_experiment(self, exp_obj):
+        """Switch the active experiment. Pipeline progress is derived from
+        what's actually saved on this experiment's row — so resuming an
+        experiment you cleaned/surfaced last week correctly shows those
+        steps unlocked, without needing a separate progress table."""
+        
+        self.current_experiment = exp_obj
+        self.workflow_state = self._infer_workflow_state(exp_obj)
+        self.align.source = None
+        self.align.surface_path = str(
+            os.path.join(exp_obj.base, exp_obj.surface_path)
+        ) if exp_obj.surface_path else None
+    
+    
 
     def create_new_experiment(self):
         """Create a new experiment from any TIF volume (DAPI or gene channel)."""
@@ -1649,12 +1690,6 @@ class MainWindow(QMainWindow, NavigationMixin):
             # Get channel type
             channel_name = limb_info['channel_type']
             
-            # Set default isovalues based on channel type
-            if channel_name == "DAPI":
-                v0, v1 = 238.0, 463.0
-            else:  # Gene channels
-                v0, v1 = 174.0, 335.0
-
             # Create experiment
             new_exp = Experiment(
                 experiment_id=exp_id,
@@ -1669,8 +1704,7 @@ class MainWindow(QMainWindow, NavigationMixin):
                         experiment_id=exp_id,
                         channel_name=channel_name,
                         path=os.path.basename(filepath),
-                        v0=v0,
-                        v1=v1
+                        
                     )
                 ]
             )
@@ -1681,6 +1715,7 @@ class MainWindow(QMainWindow, NavigationMixin):
 
             # Show success message with next steps
             next_steps = "Add more gene channels using the 'Add Channel' button."
+
             if channel_name == "DAPI":
                 next_steps = "Add gene channels (Hoxa11, Sox9, BMP2, SHH) using the 'Add Channel' button."
             else:
@@ -1689,10 +1724,10 @@ class MainWindow(QMainWindow, NavigationMixin):
             QMessageBox.information(
                 self,
                 "Success",
-                f"✅ Experiment created: {exp_id}\n"
-                f"📁 File: {os.path.basename(filepath)}\n"
-                f"📊 Channel: {channel_name}\n\n"
-                f"💡 {next_steps}"
+                f"Experiment created: {exp_id}\n"
+                f"File: {os.path.basename(filepath)}\n"
+                f"Channel: {channel_name}\n\n"
+                f"{next_steps}"
             )
 
         except Exception as e:
@@ -1759,7 +1794,7 @@ class MainWindow(QMainWindow, NavigationMixin):
             self,
             "Channel Type",
             f"Select channel type to add:\n\n{channel_info}",
-            ["Hoxa11", "Sox9", "BMP2", "SHH"],
+            ['DAPI',"Hoxa11", "Sox9", "BMP2", "SHH"],
             0,
             False
         )
@@ -1783,27 +1818,14 @@ class MainWindow(QMainWindow, NavigationMixin):
             new_channel = {
                 'experiment_id': exp_id,
                 'channel_name': channel_type,
-                'path': os.path.basename(filepath),
-                'v0': 174.0,
-                'v1': 335.0
+                'path': os.path.basename(filepath)
             }
             
             exp_data['channels'].append(new_channel)
             
-            # Recreate experiment object
-            experiment_obj = Experiment(
-                experiment_id=exp_id,
-                base=exp_data['base'],
-                spacing_x=exp_data.get('spacing_x', 0.65),
-                spacing_y=exp_data.get('spacing_y', 0.65),
-                spacing_z=exp_data.get('spacing_z', 2.0),
-                side=exp_data.get('side', 'L'),
-                position=exp_data.get('position', 'H'),
-                channels=exp_data['channels']
-            )
-            
+
             # Save to database
-            save_experiment(self.db_path, experiment_obj)
+            save_experiment(self.db_path, self.current_experiment)
             
             # Reload and refresh
             self._load_experiments_from_db()
@@ -1816,19 +1838,16 @@ class MainWindow(QMainWindow, NavigationMixin):
                 QMessageBox.information(
                     self,
                     "Success",
-                    f"✅ Added {channel_type} channel to experiment: {exp_id}\n"
-                    f"📁 File: {os.path.basename(filepath)}\n\n"
-                    f"🎉 Experiment is now complete!\n"
+                    f"Added {channel_type} channel to experiment: {exp_id}\n"
+                    f"File: {os.path.basename(filepath)}\n\n"
                     f"Channels: {', '.join([ch.get('channel_name', '') for ch in exp_data['channels']])}\n\n"
-                    f"You can now visualize this experiment."
                 )
             else:
                 QMessageBox.information(
                     self,
                     "Success",
-                    f"✅ Added {channel_type} channel to experiment: {exp_id}\n"
-                    f"📁 File: {os.path.basename(filepath)}\n\n"
-                    f"⚠️ Experiment is still incomplete:\n{status}\n\n"
+                    f"Added {channel_type} channel to experiment: {exp_id}\n"
+                    f"File: {os.path.basename(filepath)}\n\n"
                     f"Current channels: {', '.join([ch.get('channel_name', '') for ch in exp_data['channels']])}"
                 )
             
@@ -1926,9 +1945,8 @@ class MainWindow(QMainWindow, NavigationMixin):
         channel_label.setFixedWidth(100)
         channel_combo = QComboBox()
 
-
         if channel_only:
-            channel_combo.addItems(["Hoxa11", "Sox9", "BMP2"])
+            channel_combo.addItems(['DAPI',"Hoxa11", "Sox9", "BMP2"])
             channel_label.setText("Gene channel:")
         else:
             channel_combo.addItems(["DAPI", "Hoxa11", "Sox9", "BMP2"])
@@ -1984,25 +2002,6 @@ class MainWindow(QMainWindow, NavigationMixin):
 
     def addexp_button_clicked(self, checked=False):
         """Add experiment button handler - creates new experiment or adds channel to existing."""
-        # First, check if we have existing experiments
-        if self.experiments:
-            # Ask user if they want to create new experiment or add to existing
-            reply = QMessageBox.question(
-                self,
-                "Add to Existing?",
-                "Do you want to add this channel to an existing experiment?\n"
-                "• Yes: Add channel to existing experiment\n"
-                "• No: Create new experiment",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel
-            )
-            
-            if reply == QMessageBox.StandardButton.Cancel:
-                return
-            elif reply == QMessageBox.StandardButton.Yes:
-                # Add to existing experiment
-                self._add_channel_to_existing()
-                return
-            # else: No - create new experiment (continue below)
         
         # Create new experiment (Original flow)
         filepath, _ = QFileDialog.getOpenFileName(
@@ -2039,11 +2038,6 @@ class MainWindow(QMainWindow, NavigationMixin):
             # Get channel type from dialog
             channel_name = limb_info['channel_type']
 
-            # Set default isovalues for new experiment channel
-            if channel_name == "DAPI":
-                nv0, nv1 = 238.0, 463.0
-            else:
-                nv0, nv1 = 174.0, 335.0
 
             # Create a new experiment
             new_exp = Experiment(
@@ -2058,9 +2052,7 @@ class MainWindow(QMainWindow, NavigationMixin):
                     Channel(
                         experiment_id=exp_id,
                         channel_name=channel_name,
-                        path=os.path.basename(filepath),
-                        v0=nv0,
-                        v1=nv1,
+                        path=os.path.basename(filepath)
                     )
                 ]
             )
@@ -2083,43 +2075,27 @@ class MainWindow(QMainWindow, NavigationMixin):
             
             traceback.print_exc()
 
-    def saveexp_button_clicked(self):
-        """Save experiment button handler."""
-        print(True)
-
     def viewexp_button_clicked(self):
         """View experiment button handler."""
-        self._show_busy('Loading volume...')
         # Use the experiments tree selection to determine the experiment to view
         if not hasattr(self, 'experiments_tree') or self.experiments_tree.currentItem() is None:
             QMessageBox.warning(self, "No experiment selected", "Please select an experiment to visualize.")
-            self._hide_busy()
             return
 
         item = self.experiments_tree.currentItem()
-        # if a child (channel) is selected, use its parent as experiment
-        if item.parent() is not None:
-            parent = item.parent()
-        else:
-            parent = item
-
+        parent = item.parent() if item.parent() is not None else item
         exp_id = parent.data(0, Qt.ItemDataRole.UserRole)
         if not exp_id:
             QMessageBox.warning(self, "No experiment selected", "Please select an experiment to visualize.")
-            self._hide_busy()
+
             return
 
-        self.current_experiment = get_experiment(self.db_path, exp_id)
-        self.workflow_state = {
-            "clean_done": False,
-            "last_cleaned_channel": None,
-            "surface_done": False,
-            "stage_done": False,
-            "selected_stage": None,
-            "align_done": False,
-            "alignment_method": None,
-        }
+        exp_obj = get_experiment(self.db_path, exp_id)
+        if not exp_obj:
+            QMessageBox.warning(self, "Not found", f"Experiment '{exp_id}' not found in database.")
+            return
 
+        self._set_current_experiment(exp_obj)
         self._hide_busy()
         self.navigate_to(self.show_viz)
 
@@ -2193,18 +2169,15 @@ class MainWindow(QMainWindow, NavigationMixin):
             if is_valid:
                 QMessageBox.information(
                     self, "Success",
-                    f"✅ Added {channel_type} channel to experiment: {exp_id}\n"
-                    f"📁 File: {os.path.basename(filepath)}\n\n"
-                    f"🎉 Experiment is now complete!\nChannels: {channel_list}\n\n"
-                    f"You can now visualize this experiment."
+                    f"Added {channel_type} channel to experiment: {exp_id}\n"
+                    f"File: {os.path.basename(filepath)}\n\n"
+                  
                 )
             else:
                 QMessageBox.information(
                     self, "Success",
-                    f"✅ Added {channel_type} channel to experiment: {exp_id}\n"
-                    f"📁 File: {os.path.basename(filepath)}\n\n"
-                    f"⚠️ Experiment is still incomplete:\n{status}\n\n"
-                    f"Current channels: {channel_list}"
+                    f"Added {channel_type} channel to experiment: {exp_id}\n"
+                    f"File: {os.path.basename(filepath)}\n\n"
                 )
 
         except Exception as e:

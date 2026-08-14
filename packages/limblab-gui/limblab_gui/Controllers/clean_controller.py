@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from limblab_gui.utils import create_label, create_styled_button
+from utils import create_label, create_styled_button
 
 
 class CleanController:
@@ -234,6 +234,13 @@ class CleanController:
             ch for ch in self.experiment.channels
             if ch.channel_name.upper() != new_channel.channel_name.upper()
         ] + [new_channel]
+
+        self.experiment.channel.clean_isovalue_min = clean_params.v0
+        self.experiment.channel.clean_isovalue_max = clean_params.v1
+
+        self.experiment.channel.clean_path = self.new_channel.raw_volume_path
+
+###################DONT KNOW IF THIS IS RIGHT###########################################################################
 
         save_experiment(self.window.db_path, self.experiment)
 

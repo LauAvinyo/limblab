@@ -137,8 +137,7 @@ class NavigationMixin:
 
         if affected:
             reply = QMessageBox.question(
-                self,
-                "Reset progress?",
+                self, "Reset progress?",
                 f"Going back to {target_step} will reset progress on: {', '.join(affected)}.\n"
                 "You'll need to redo these steps. Continue?",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
@@ -146,24 +145,8 @@ class NavigationMixin:
             if reply != QMessageBox.StandardButton.Yes:
                 return
 
-            for s in affected:
-                self.workflow_state[self.STEP_DONE_FLAG[s]] = False
-            if target_step == "Clean":
-                self.workflow_state["last_cleaned_channel"] = None
-            if target_step in ("Clean", "Surface"):
-                self.workflow_state["selected_stage"] = None
-            if target_step in ("Clean", "Surface", "Stage"):
-                self.workflow_state["alignment_method"] = None
-            if "Align" in affected:
-                self.align.source = None
-                self.align.surface_path = None
-
-            # The history from BEFORE this reset is no longer valid — later
-            # screens in it reflect a pipeline state that just got wiped.
-            # Rebuild it as the correct chain leading up to target_step so
-            # "Back" walks exp -> Clean -> Surface -> ... instead of into
-            # stale, now-invalidated later steps.
-            self._jump_to_step(target_step)
+            self._reset_workflow_from(target_step)   # <-- single source of truth now
+            self._jump_to_step(target_step)           # <-- rebuilds nav_stack, see below
             return
 
         self.navigate_to(self.STEP_CONTROLLERS[target_step](self))
@@ -192,3 +175,8 @@ class NavigationMixin:
         self.nav_stack = chain.get(step, [self.show_exp])
         self.current_screen = self.STEP_CONTROLLERS[step](self)
         self.current_screen()
+
+
+
+
+##################USE HERE TO DELETE FROM DATABASE####################################################

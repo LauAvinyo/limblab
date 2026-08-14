@@ -13,7 +13,7 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QWidget,
 )
-from limblab_gui.utils import create_label, create_styled_button
+from utils import create_label, create_styled_button
 
 
 class SurfaceExtractionWorker(QThread):
@@ -123,7 +123,8 @@ class SurfaceController:
 
     def _on_extraction_done(self, surface_path, isovalue):
         assert self.experiment is not None
-        self.experiment.surface = os.path.basename(str(surface_path))
+        self.experiment.surface_path = os.path.basename(str(surface_path))#############DATABASE action.
+        self.experiment.surface_isovalue = int(isovalue)
         save_experiment(self.window.db_path, self.experiment)
 
         self.window.workflow_state["surface_done"] = True
