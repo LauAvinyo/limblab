@@ -46,6 +46,7 @@ class CleanController:
         # or your test experiment), auto-select it and load it into the
         # picker right away — no need to click "Load Volume" first.
         #
+        self.window._refresh_pipeline_actions(current_step="Clean")
 
         #TODO change this for any current volume cleaning, any channel. So if teh user wants to remove the surface they can
         #upload here the DAPI and proceed, if not, if htey onlly have a gene channel, its ok, they can clean volume and proeceed with
@@ -179,7 +180,6 @@ class CleanController:
             QMessageBox.critical(self.window, "Load error", str(e))
 
 
-
     def _set_v0(self):
         if self.plotter is None:
             QMessageBox.warning(self.window, "No volume loaded", "Click 'Load Volume' first.")
@@ -197,20 +197,18 @@ class CleanController:
 
 
     def _execute_clean(self):
-
-        self.window._show_busy('Cleaning volume with the selected isovalues...')
-
         try:
-
             assert self.experiment is not None
             assert self.channel_name is not None
-            
+
             if self.raw_volume_path is None:
                 raise RuntimeError("Load a volume (.tiff) before cleaning.")
             if self.v0 is None or self.v1 is None:
                 raise RuntimeError("Pick both a lower and upper isovalue first.")
             if self.v0 == self.v1:
                 raise RuntimeError("Lower and upper isovalues must differ.")
+
+            self.window._show_busy('Cleaning volume with the selected isovalues...')
 
             clean_params = CleanParams(
                 v0=self.v0,
@@ -219,7 +217,7 @@ class CleanController:
                 frequency_cutoff=self.clean_widgets["frequency_cutoff"].value(),
                 low_res_size=self.clean_widgets["low_res_size"].value(),
             )
-            
+
             new_channel = clean(
                 experiment=self.experiment,
                 raw_volume_path=self.raw_volume_path,
@@ -241,6 +239,11 @@ class CleanController:
 
         self.window.workflow_state["clean_done"] = True
         self.window.workflow_state["last_cleaned_channel"] = new_channel.channel_name
+
+        # Surface just became reachable — tell the persistent bar right now,
+        # don't wait for the next navigation to notice.
+        self.window._refresh_pipeline_actions(current_step="Clean")
+
         self.window.log_pipeline(
             f"Cleaned {new_channel.channel_name} (v0={new_channel.v0}, v1={new_channel.v1}).\n"
             f"Written to:\n{new_channel.path}"

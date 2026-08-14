@@ -33,8 +33,6 @@ class AlignController:
 
         self.experiment = experiment
 
-        print(self.experiment)
-
         container = self.window._build_workflow_container(
             next_label="Visualize",
             next_callback=self._go_next_from_align,
@@ -47,8 +45,9 @@ class AlignController:
 
         self.window.setCentralWidget(container)
 
-        menu_bar = self.window._reset_top_menu_bar()
-        self.window._build_file_menu(menu_bar)
+        # Chrome (menu bar + action bar) is built once in MainWindow.__init__.
+        # Never rebuild it here — just tell the fixed bar which step is active.
+        self.window._refresh_pipeline_actions(current_step="Align")
 
         # Start alignment viewer
         try:
@@ -63,7 +62,6 @@ class AlignController:
     # -------------------------------------------------------
     # UI
     # -------------------------------------------------------
-
     def _build_align_action_bar(self):
         bar = QWidget()
         bar.setStyleSheet(f"background-color: {theme('palette.surface', '#1E1E1E')};")
@@ -80,6 +78,7 @@ class AlignController:
         layout.addStretch()
 
         return bar
+
 
     # -------------------------------------------------------
     # Actions
@@ -113,6 +112,11 @@ class AlignController:
             return
 
         self.window.workflow_state["align_done"] = True
+        self.window.workflow_state["alignment_method"] = "rigid"  # whatever you track
+
+        # The step is now "done" — refresh the fixed action bar so the
+        # checkmark/label updates immediately without touching the menu.
+        self.window._refresh_pipeline_actions(current_step="Align")
 
         self.window.log_pipeline(
             f"Alignment completed.\nMatrix written to:\n{transformation_path}"
@@ -127,4 +131,4 @@ class AlignController:
             )
             return
 
-        self.window.navigate_to(self.window.show_viz)
+        self.window.navigate_to(lambda: self.window.show_viz)

@@ -58,9 +58,7 @@ class SurfaceController:
         )
         self.window.setCentralWidget(container)
 
-        menu_bar = self.window._reset_top_menu_bar()
-        self.window._build_file_menu(menu_bar)
-        self.window._build_view_menu(menu_bar)
+        self.window._refresh_pipeline_actions(current_step="Surface")
 
         dapi_channel = next(
             (ch for ch in (experiment.channels or []) if ch.channel_name.upper() == "DAPI"),
@@ -85,23 +83,23 @@ class SurfaceController:
 
     #from main
     def _build_surface_action_bar(self):
-            """Execute Surface Extraction button, shown under the viewer on the Surface screen."""
-            bar = QWidget()
-            bar.setStyleSheet(f"background-color: {theme('palette.surface', '#1E1E1E')};")
-            layout = QHBoxLayout(bar)
-            layout.setContentsMargins(20, 10, 20, 10)
+        """Execute Surface Extraction button, shown under the viewer on the Surface screen."""
+        bar = QWidget()
+        bar.setStyleSheet(f"background-color: {theme('palette.surface', '#1E1E1E')};")
+        layout = QHBoxLayout(bar)
+        layout.setContentsMargins(20, 10, 20, 10)
 
-            info = create_label(
+        info = create_label(
                 "Select isovalue for surface extraction\nRemember that Surface Extraction is performed on clean DAPI channels",
                 f"color: {theme('palette.textSecondary', '#A0A0A0')}; font-size: {theme('typography.fontSizeBase', 14)}px; font-style: italic;",
             )
-            execute_btn = create_styled_button("Execute Surface Extraction")
-            execute_btn.clicked.connect(self._execute_surface)
+        execute_btn = create_styled_button("Execute Surface Extraction")
+        execute_btn.clicked.connect(self._execute_surface)
 
-            layout.addWidget(info)
-            layout.addStretch()
-            layout.addWidget(execute_btn)
-            return bar
+        layout.addWidget(info)
+        layout.addStretch()
+        layout.addWidget(execute_btn)
+        return bar
 
     #from main
     def _execute_surface(self):
@@ -119,6 +117,7 @@ class SurfaceController:
         self._worker.failed.connect(lambda msg: QMessageBox.critical(self.window, "Surface extraction error", msg))
         self._worker.start()
 
+
         self.window._hide_busy()
 
 
@@ -128,18 +127,19 @@ class SurfaceController:
         save_experiment(self.window.db_path, self.experiment)
 
         self.window.workflow_state["surface_done"] = True
+        self.window._refresh_pipeline_actions(current_step="Surface")
+
         self.window.log_pipeline(f"Surface extracted (isovalue={isovalue:.3f}).\nWritten to:\n{surface_path}")
 
     #from main
     def _go_next_from_surface(self):
         """Guard for Surface -> Stage: must have extracted a surface."""
         if not self.window.workflow_state["surface_done"]:
-                QMessageBox.warning(
-                    self, # type: ignore
-                    "Surface required",
-                    "Please extract a surface before proceeding to Stage.",
-                )
-                return
-
+            QMessageBox.warning(
+                self.window,
+                "Surface required",
+                "Please extract a surface before proceeding to Stage.",
+            )
+            return
 
         self.window.navigate_to(lambda: self.window.stage.show(self.window.current_experiment))

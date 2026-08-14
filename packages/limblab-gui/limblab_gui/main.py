@@ -69,25 +69,31 @@ vtkmodules.qt.QVTKRWIBase = "QGLWidget"
 #TEST_SURFACE_PATH = "HCR11_MEIS2_l1_dapi_488_LF_surface.vtk"
 
 
-TEST_SURFACE_PATH = "HCR12_HOXA11_l1_dapi_405_LF_surface.vtk"
-TEST_DAPI_FILENAME = "HCR12_HOXA11_l1_dapi_405_LF.vti" 
-TEST_BASE_PATH = 'C:\\Users\\millan\\Desktop\\prova'
-''''
 env = {}
 with open("../../../.env") as f:
     for line in f:
-        if line.startswith("#"): continue
-        if line == " ": continue
-        line = line.strip().split("=")
-        if len(line) != 2: continue
-        k, v = line
-        env[k] = v
+        line = line.strip()
+        # Skip empty lines and comments
+        if not line or line.startswith("#"):
+            continue
+        # Ensure there is an '='
+        if "=" not in line:
+            continue
+        # Split only on the first '='
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip()
+        # Optional: remove surrounding quotes (single or double)
+        if value.startswith('"') and value.endswith('"'):
+            value = value[1:-1]
+        elif value.startswith("'") and value.endswith("'"):
+            value = value[1:-1]
+        env[key] = value
 
 TEST_BASE_PATH = env["TEST_BASE_PATH"]
 TEST_SURFACE_PATH = env["TEST_SURFACE_PATH"]
 TEST_DAPI_FILENAME = env["TEST_DAPI_FILENAME"]
 
-'''
 #for the test experiment i added the channels manually 
 experiment = Experiment(
     experiment_id="manual_test",
@@ -174,11 +180,66 @@ class MainWindow(QMainWindow, NavigationMixin):
         self.align = AlignController(self)
         self.stage = StageController(self) 
 
+
         #self.current_experiment = experiment   # set when the user picks a real experiment
         self.current_experiment = None
 
+        self._build_permanent_chrome()
+
         # self.navigate_to(lambda:self.align.show(experiment))
         self.navigate_to(self.show_home)
+
+
+    def _build_home_topbar(self):
+        """Home-page branding bar. Lives inside show_home's own layout —
+        NOT self.menuBar() — so it disappears with the rest of the screen
+        the moment you navigate away, instead of sticking around forever."""
+        bar = QWidget()
+        bar.setStyleSheet(f"""
+            background-color: {theme('palette.primary', '#0D7C66')};
+        """)
+        layout = QHBoxLayout(bar)
+        layout.setContentsMargins(30, 0, 30, 0)
+
+        title = QLabel("LimbLab")
+        title.setStyleSheet(f"color: {theme('palette.textPrimary', '#FFFFFF')}; font-weight: bold; padding: 20px 0px;")
+        layout.addWidget(title)
+        layout.addStretch()
+
+        resources_btn = QToolButton()
+        resources_btn.setText("Resources")
+        resources_menu = QMenu(resources_btn)
+        paper = QAction("Paper", self)
+        paper.triggered.connect(lambda: webbrowser.open("https://pmc.ncbi.nlm.nih.gov/articles/PMC12794269/"))
+        resources_menu.addAction(paper)
+        github = QAction("GitHub", self)
+        github.triggered.connect(lambda: webbrowser.open("https://limblab.embl.es/docs/"))
+        resources_menu.addAction(github)
+        resources_btn.setMenu(resources_menu)
+        resources_btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        layout.addWidget(resources_btn)
+
+        aboutus_btn = QToolButton()
+        aboutus_btn.setText("About us")
+        aboutus_btn.clicked.connect(lambda: webbrowser.open("https://www.embl.org/groups/sharpe/"))
+        layout.addWidget(aboutus_btn)
+
+        return bar
+
+
+    def _refresh_pipeline_actions(self, current_step=None):
+        self.action_bar.setVisible(True)
+        for idx, step in enumerate(self.PIPELINE_STEPS):
+            act = self._step_actions[step]
+            flag = self.STEP_DONE_FLAG.get(step)
+            is_done = bool(flag and self.workflow_state.get(flag))
+            is_reachable = all(
+                self.workflow_state.get(self.STEP_DONE_FLAG[s])
+                for s in self.PIPELINE_STEPS[:idx] if s in self.STEP_DONE_FLAG
+            )
+            act.setText(("✓ " if is_done else "🔒 " if not is_reachable else "") + step)
+            act.setEnabled(is_reachable)
+            act.setChecked(step == current_step)
 
 
     def reset_database(self):
@@ -295,27 +356,6 @@ class MainWindow(QMainWindow, NavigationMixin):
     # through the pipeline.
     # ------------------------------------------------------------------
     
-    def _build_workflow_top_row(
-        self, next_label=None, next_callback=None, back_guard=None
-    ):
-        """Build the Back | Left-menu | ...stretch... | Next-step-button row.
-
-        back_guard, if given, is a zero-arg callable returning
-        (is_done: bool, message: str). If is_done is False when the user
-        presses Back, they get a confirmation popup telling them what
-        they haven't done yet before letting them leave the screen.
-        """
-        top_row = QHBoxLayout()
-
-        
-        top_row.addStretch()
-
-        if next_label and next_callback:
-            next_btn = create_styled_button(next_label)
-            next_btn.clicked.connect(next_callback)
-            top_row.addWidget(next_btn)
-
-        return top_row
 
     # NOTE: Laura build this. So if actually works for her. 
     def _build_workflow_container(
@@ -326,6 +366,7 @@ class MainWindow(QMainWindow, NavigationMixin):
         action_widget=None,
         current_step=None,
     ):
+
         """Construct the standard workflow container used by pipeline screens.
 
         Layout (left -> right):
@@ -335,6 +376,9 @@ class MainWindow(QMainWindow, NavigationMixin):
         Parameters mirror what controllers pass in: next button label/callback,
         back guard callable, and an optional widget to show under the viewer.
         """
+
+        self._active_back_guard = back_guard
+
         container = QWidget()
         h_layout = QHBoxLayout(container)
         h_layout.setContentsMargins(0, 0, 0, 0)
@@ -347,8 +391,7 @@ class MainWindow(QMainWindow, NavigationMixin):
         left_layout.setSpacing(6)
 
         # Top row (Back / menu / Next)
-        top_row = self._build_workflow_top_row(next_label, next_callback, back_guard)
-        left_layout.addLayout(top_row)
+
 
         # Create a fresh VTK viewer widget for this container.
         # Reusing a previously-created QVTKRenderWindowInteractor can lead
@@ -401,6 +444,8 @@ class MainWindow(QMainWindow, NavigationMixin):
                     return
         self.go_back()
 
+
+    ''''
     def _reset_top_menu_bar(self, current_step=None):
         """Clear the QMainWindow menu bar and rebuild it with pipeline steps."""
         menu_bar = self.menuBar()
@@ -472,46 +517,80 @@ class MainWindow(QMainWindow, NavigationMixin):
             menu_bar.addSeparator()
         
         return menu_bar
+    '''
+
+    def _go_to_step(self, step):
+        step_to_show = {
+            "Visualize": self.show_viz,
+            "Clean": lambda: self.clean.show(self.current_experiment),
+            "Surface": lambda: self.surface.show(self.current_experiment),
+            "Stage": lambda: self.stage.show(self.current_experiment),
+            "Align": lambda: self.align.show(self.current_experiment),
+        }
+        self.navigate_to(step_to_show[step])
 
    
-
+    ''''
     def setup_workflow_menu(self, current_step):
         """Build the main menu bar with File, View, and pipeline steps."""
         menu_bar = self._reset_top_menu_bar(current_step=current_step)
         self._build_file_menu(menu_bar)
         self._build_view_menu(menu_bar)
 
+    '''
+
+    def _build_permanent_chrome(self):
+
+
+        if getattr(self, "_chrome_built", False):
+            return
+        self._chrome_built = True
+
+        """Build File/View menu + limb-action bar ONCE. Nothing else may touch
+        self.menuBar() or self.action_bar ever again outside this method and
+        _refresh_pipeline_actions."""
+        menu_bar = self.menuBar()
+        menu_bar.setStyleSheet(f"""
+            QMenuBar {{ background-color: {theme('palette.background', '#141414')};
+                        color: {theme('palette.textSecondary', '#A0A0A0')}; border: none; }}
+            QMenuBar::item:selected {{ background-color: {theme('palette.panel', '#2A2A2A')};
+                        color: {theme('palette.textPrimary', '#FFFFFF')}; border-radius: 4px; }}
+        """)
+
+        self.action_bar = self.addToolBar("Pipeline")
+        self.action_bar.setMovable(False)
+        self.action_bar.setStyleSheet(f"""
+            QToolBar {{ background-color: {theme('palette.background', '#141414')}; border: none; spacing: 4px; padding: 4px; }}
+            QToolButton {{ color: {theme('palette.textSecondary', '#A0A0A0')}; padding: 6px 14px; border-radius: 4px; }}
+            QToolButton:disabled {{ color: {theme('palette.textDisabled', '#3A3A3A')}; }}
+            QToolButton:checked {{ background-color: {theme('palette.panel', '#2A2A2A')}; color: {theme('palette.textPrimary', '#FFFFFF')}; }}
+        """)
+
+        self._step_actions = {}
+        for step in self.PIPELINE_STEPS:
+            act = QAction(step, self)
+            act.setCheckable(True)
+            act.triggered.connect(lambda checked=False, s=step: self._go_to_step(s))
+            self.action_bar.addAction(act)
+            self._step_actions[step] = act
+
+        self.action_bar.setVisible(False)  # hidden until a pipeline screen shows it
+
+
+
     # ------------------------------------------------------------------
     # Screen Methods
     # ------------------------------------------------------------------
+    
+    
+    
+    
+    
+    
     def show_home(self):
-        self.reset_menu_bar()
+        self.action_bar.setVisible(False)
 
-        menu_bar = self.menuBar()
-        lb_action = QAction("LimbLab", self)
-        lb_action.triggered.connect(
-            lambda: webbrowser.open("https://limblab.embl.es/docs/")
-        )
-        menu_bar.addAction(lb_action)
-
-        right_menu = QMenuBar(menu_bar)
-        menu_bar.setCornerWidget(right_menu, Qt.Corner.TopRightCorner)
-
-        self._build_resources_menu(right_menu)
-
-        aboutus_action = QAction("About us", self)
-        aboutus_action.triggered.connect(
-            lambda: webbrowser.open("https://www.embl.org/groups/sharpe/")
-        )
-        right_menu.addAction(aboutus_action)
-
-        self._build_contact_menu(right_menu)
-
-        menu_bar.setStyleSheet(f"""
-            QMenuBar {{ background-color: {theme('palette.primary', '#0D7C66')}; color: {theme('palette.textPrimary', '#FFFFFF')}; }}
-            QMenuBar::item {{ background-color: transparent; color: {theme('palette.textPrimary', '#FFFFFF')}; padding: 20px 30px; }}
-            QMenuBar::item:selected {{ background-color: {theme('palette.primaryHover', '#41B3A2')}; }}
-        """)
+        topbar = self._build_home_topbar()
 
         left_panel = QWidget()
         get_started_btn = create_styled_button(
@@ -573,20 +652,24 @@ class MainWindow(QMainWindow, NavigationMixin):
         # Create vedo renderer and add objects and callbacks
         self.limb_home = Mesh("Limb-rec_281.vtk").c(theme("palette.primary"))
         
-
         container = QWidget()
-        container.setStyleSheet(
-            f"background-color: {theme('palette.background', '#141414')};"
-        )
-        layout = QHBoxLayout(container)
+        container.setStyleSheet(f"background-color: {theme('palette.background', '#141414')};")
+        outer_layout = QVBoxLayout(container)
+        outer_layout.setContentsMargins(0, 0, 0, 0)
+        outer_layout.setSpacing(0)
+        outer_layout.addWidget(topbar)
+
+        body = QWidget()
+        layout = QHBoxLayout(body)
         layout.addWidget(left_panel, stretch=3)
         layout.addWidget(self.vtkWidget, stretch=2)
-        self.setCentralWidget(container)
+        outer_layout.addWidget(body, stretch=1)
 
-        self.plt.show(self.limb_home)  # build the vedo rendering
+        self.setCentralWidget(container)
+        self.plt.show(self.limb_home)
 
     def show_first_screen(self):
-        self.reset_menu_bar()
+        self.action_bar.setVisible(False)
 
         top_row = QHBoxLayout()
         top_row.addWidget(create_back_button(self.go_back))
@@ -654,7 +737,8 @@ class MainWindow(QMainWindow, NavigationMixin):
 
 
     def show_exp(self):
-        self.reset_menu_bar()
+        self.action_bar.setVisible(False)
+
         if not self.db_path.exists():
             # Database doesn't exist, create it with test data
             init_db(self.db_path)
@@ -871,6 +955,7 @@ class MainWindow(QMainWindow, NavigationMixin):
 
 
     def show_viz(self):
+
         container = self._build_workflow_container(
         next_label="Clean",
         next_callback=lambda: self.navigate_to(lambda: self.clean.show(self.current_experiment)),
@@ -879,9 +964,9 @@ class MainWindow(QMainWindow, NavigationMixin):
     )
         self.setCentralWidget(container)
 
-        # Use the helper
-        self.setup_workflow_menu("Visualize")
+        self._refresh_pipeline_actions(current_step="Visualize")
 
+        
         if (
             self.workflow_state.get("align_done")
             and self.align.source is not None
@@ -898,6 +983,7 @@ class MainWindow(QMainWindow, NavigationMixin):
             self._show_raw_volume_preview(self.current_experiment)
 
 
+        
     def _show_final_aligned_mesh(self):
         """Show the fully processed (aligned) limb mesh — final pipeline output."""
         try:

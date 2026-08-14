@@ -24,9 +24,7 @@ class StageController:
         )
         self.window.setCentralWidget(container)
 
-        menu_bar = self.window._reset_top_menu_bar()
-        self.window._build_file_menu(menu_bar)
-        self.window._build_view_menu(menu_bar)
+        self.window._refresh_pipeline_actions(current_step="Stage")
 
         try:
             self.plotter = stage_limb_embedded(
@@ -82,6 +80,9 @@ class StageController:
         self.window.workflow_state["stage_done"] = True
         self.window.workflow_state["selected_stage"] = stage
         self.stage_label.setText(f"Stage: {stage}")
+
+        self.window._refresh_pipeline_actions(current_step="Stage")
+
         self.window.log_pipeline(f"Stage confirmed: {stage}")
 
     def _go_next_from_stage(self):
