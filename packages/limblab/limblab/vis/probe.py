@@ -114,13 +114,10 @@ def _probe(
     # Switch off the tool
     sptool.off()
 
-    # Extract and visualize the resulting spline
+    # TODO: RETURN THIS.
     sp = sptool.spline().lw(4)
 
-    # pipeline.log / experiment folder lives next to the volumes
-    folder = os.path.dirname(volume_paths[0])
-    sp.write(os.path.join(folder, "spline.vti"))
-    # show(sp, "Spline saved and ready", interactive=True, resetcam=False).close()
+
 
 
 def probe(
