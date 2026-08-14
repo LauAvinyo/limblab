@@ -10,10 +10,10 @@ from types import SimpleNamespace
 import vtkmodules
 from components.terminal_paper import TerminalPaperWidget
 from config import *
-from Controllers.align_controller import AlignController
-from Controllers.clean_controller import CleanController
-from Controllers.stage_controller import StageController
-from Controllers.surface_controller import SurfaceController
+from controllers.align_controller import AlignController
+from controllers.clean_controller import CleanController
+from controllers.stage_controller import StageController
+from controllers.surface_controller import SurfaceController
 from limblab import preview_volume
 from limblab.database import (
     delete_experiment,
@@ -23,14 +23,13 @@ from limblab.database import (
     save_experiment,
 )
 from limblab.models import Channel, Experiment
-from Mixin.NavigationMixin import NavigationMixin
+from mixin.NavigationMixin import NavigationMixin
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import (
     QAction,
     QIcon,
 )
 from PyQt6.QtWidgets import (
-    
     QComboBox,
     QDialog,
     QDoubleSpinBox,
@@ -48,10 +47,10 @@ from PyQt6.QtWidgets import (
     QScrollArea,
     QStatusBar,
     QToolButton,
-    QVBoxLayout,
-    QWidget,
     QTreeWidget,
     QTreeWidgetItem,
+    QVBoxLayout,
+    QWidget,
 )
 from utils import (
     create_back_button,
@@ -64,15 +63,7 @@ from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 
 vtkmodules.qt.QVTKRWIBase = "QGLWidget"
 
-#laura
-#TEST_BASE_PATH = "/Users/laura/Desktop/Desktop-2026/sox9-fig-thesis"
-#TEST_SURFACE_PATH = "HCR11_MEIS2_l1_dapi_488_LF_surface.vtk"
 
-
-TEST_SURFACE_PATH = "HCR12_HOXA11_l1_dapi_405_LF_surface.vtk"
-TEST_DAPI_FILENAME = "HCR12_HOXA11_l1_dapi_405_LF.vti" 
-TEST_BASE_PATH = 'C:\\Users\\millan\\Desktop\\prova'
-''''
 env = {}
 with open("../../../.env") as f:
     for line in f:
@@ -87,7 +78,7 @@ TEST_BASE_PATH = env["TEST_BASE_PATH"]
 TEST_SURFACE_PATH = env["TEST_SURFACE_PATH"]
 TEST_DAPI_FILENAME = env["TEST_DAPI_FILENAME"]
 
-'''
+
 #for the test experiment i added the channels manually 
 experiment = Experiment(
     experiment_id="manual_test",

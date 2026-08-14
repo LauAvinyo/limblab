@@ -1,23 +1,24 @@
-from typing import Any, List, Literal, Optional
+import os
+from typing import Any, Literal
 
 import numpy as np
-from limblab.models import Channel, Experiment
-from packages.limblab.utils import styles
-from vedo import Line, Volume, printc, show
+from limblab.design import theme
+from limblab.models import Experiment
+from limblab.utils import generate_kwargs
+from vedo import Line, Plotter, Volume, show
 from vedo.pyplot import plot
-import os
 
 
 def _probe(
-    volume_paths: List[str],
-    channel_names: List[str],
-    renderer: Optional[Literal["pyqt"]] = None,
-    outside_class: Optional[Any] = None,
+    volume_paths: list[str],
+    channel_names: list[str],
+    renderer: Literal["pyqt"] | None = None,
+    outside_class: Any | None = None,
     points=None,
 ):
     """Probe multiple Volumes with a line and plot the intensity values for each channel."""
 
-    global plt, fig
+    global plt
 
     volumes = []
 
@@ -38,12 +39,20 @@ def _probe(
         # Create a set of points in space
         pts = Line(p0, p1, res=2).ps(4)
 
+
     # Colors
-    colors = [styles[f"channel_{i}"]["color"] for i in range(len(channel_names))]
+    colors = [theme(f"palette.channel{i}") for i in range(len(volume_paths))]
 
     # Visualize the points and the first volume (just for visualization)
     isosurfaces = [v.isosurface() for i, v in enumerate(volumes)]
     isosurfaces = [i.color(c) for i, c in zip(isosurfaces, colors)]
+
+    params = {}
+    kwargs = generate_kwargs(params, renderer, outside_class)
+
+    plt = Plotter(interactive=False, axes=1)
+    plt.show(*isosurfaces, __doc__)
+
     plt = show(*isosurfaces, __doc__, interactive=False, axes=1)
 
     def update_probe(vertices):
@@ -116,7 +125,7 @@ def _probe(
 
 def probe(
     experiment: Experiment,
-    channel_names: List[str],
+    channel_names: list[str],
     renderer: Literal["pyqt"] | None = None,
     outside_class: Any | None = None,
     points=None,
@@ -124,11 +133,8 @@ def probe(
 
     channels = experiment.channels
     volume_paths = []
-    for channel_name in channel_names:
-        channel = ""
-        for i in channels:
-            if i.channel_name == channel_name:
-                channel: Channel = i
-        volume_paths.append(channel.path)
+    for i in channels:
+        if i.channel_name in channel_names:
+            volume_paths.append(i.path)
 
     _probe(volume_paths, channel_names, renderer, outside_class, points)

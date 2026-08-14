@@ -1,42 +1,49 @@
 """LimbLab Plotter"""
 
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 from limblab.models import Channel, Experiment
-from vedo import Volume, Text2D
-from vedo.applications import (
-    Slicer3DPlotter
-)
-from packages.limblab.utils import file2dic, pick_evenly_distributed_values, styles
-import os
+from limblab.utils import generate_kwargs
+from vedo import Text2D, Volume
+from vedo.applications import Slicer3DPlotter
 
 
-def _slices(volume_path: str,
-            renderer: Optional[Literal["pyqt"]] = None,
-            outside_class: Optional[Any] = None):
-    
-    #pipeline_file = os.path.join(volume_path, "pipeline.log")
-    #pipeline = file2dic(pipeline_file)
-    #volume_file = os.path.join(volume_path, pipeline[channel.upper()])#what is this
+def _slices(
+    volume_path: str,
+    renderer: Literal["pyqt"] | None = None,
+    outside_class: Any | None = None,
+):
+
     volume = Volume(volume_path)
+
+    params: dict[str, Any] = {
+        "cmaps": ("gist_ncar_r", "jet", "Spectral_r", "hot_r", "bone_r"),
+        "use_slider3d": False,
+        "bg": "white",
+    }
+
+    kwargs = generate_kwargs(
+        params=params, renderer=renderer, outside_class=outside_class
+    )
 
     plt = Slicer3DPlotter(
         volume,
-        cmaps=("gist_ncar_r", "jet", "Spectral_r", "hot_r", "bone_r"),
-        use_slider3d=False,
-        bg="white",
+        **kwargs
     )
 
-    # Can now add any other vedo object to the Plotter scene:
-    plt += Text2D(__doc__)
+    if __doc__ is not None:
+        plt += Text2D(__doc__)
+
+    if renderer == "pyqt":
+        plt.show(viewup="z", interactive=False)
+        return plt
 
     plt.show(viewup="z")
     plt.close()
 
-
 def slices(
     experiment: Experiment,
-    channel_name: str, 
+    channel_name: str,
     renderer: Literal["pyqt"] | None = None,
     outside_class: Any | None = None,
 ) -> None:
@@ -46,8 +53,7 @@ def slices(
     for i in channels:
         if i.channel_name == channel_name:
             print(i)
-            channel: Channel= i 
+            channel: Channel = i
 
     volume_path = channel.path
-    _slices(volume_path, channel, renderer, outside_class)
-    
+    _slices(volume_path, renderer, outside_class)

@@ -1,6 +1,8 @@
 from pathlib import Path
 from typing import List, Optional
+
 from sqlmodel import Session, SQLModel, create_engine, select
+
 from limblab.models import Channel, Experiment
 
 
