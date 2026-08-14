@@ -229,6 +229,8 @@ class MainWindow(QMainWindow, NavigationMixin):
 
     def _refresh_pipeline_actions(self, current_step=None):
         self.action_bar.setVisible(True)
+        self._current_pipeline_step = current_step 
+
         for idx, step in enumerate(self.PIPELINE_STEPS):
             act = self._step_actions[step]
             flag = self.STEP_DONE_FLAG.get(step)
@@ -445,81 +447,32 @@ class MainWindow(QMainWindow, NavigationMixin):
         self.go_back()
 
 
-    ''''
-    def _reset_top_menu_bar(self, current_step=None):
-        """Clear the QMainWindow menu bar and rebuild it with pipeline steps."""
-        menu_bar = self.menuBar()
-        menu_bar.setVisible(True)
-        menu_bar.setStyleSheet(f"""
-            QMenuBar {{
-                background-color: {theme('palette.background', '#141414')};
-                color: {theme('palette.textSecondary', '#A0A0A0')};
-                border: none;
-                padding: 0px;
-            }}
-            QMenuBar::item {{
-                background-color: transparent;
-                color: {theme('palette.textSecondary', '#A0A0A0')};
-                padding: 8px 15px;
-                spacing: 0px;
-                border: none;
-            }}
-            QMenuBar::item:selected {{
-                background-color: {theme('palette.panel', '#2A2A2A')};
-                color: {theme('palette.textPrimary', '#FFFFFF')};
-                border-radius: 4px;
-            }}
-            QMenuBar::item:disabled {{
-                color: {theme('palette.textDisabled', '#3A3A3A')};
-            }}
-        """)
-        old_corner = menu_bar.cornerWidget(Qt.Corner.TopRightCorner)
-        menu_bar.setCornerWidget(None)
-        if old_corner is not None:
-            old_corner.deleteLater()
-        menu_bar.clear()
-        
-        # Add pipeline steps first if we have a current step
-        if current_step is not None:
-            # Add pipeline steps as top-level menu items
-            for idx, step in enumerate(self.PIPELINE_STEPS):
-                flag = self.STEP_DONE_FLAG.get(step)
-                is_done = bool(flag and self.workflow_state.get(flag))
-                is_reachable = all(
-                    self.workflow_state.get(self.STEP_DONE_FLAG[s])
-                    for s in self.PIPELINE_STEPS[:idx]
-                    if s in self.STEP_DONE_FLAG
-                )
-                is_current = step == current_step
-                
-                if is_current:
-                    label = f"● {step}"
-                elif is_done:
-                    label = f"✓ {step}"
-                elif is_reachable:
-                    label = step
-                else:
-                    label = f"🔒 {step}"
-                
-                action = QAction(label, self)
-                action.setEnabled(is_reachable and not is_current)
-                if action.isEnabled():
-                    action.triggered.connect(
-                        lambda checked=False, s=step: self._navigate_to_step(s, current_step)
-                    )
-                menu_bar.addAction(action)
-                
-                # Add separator between steps
-                if idx < len(self.PIPELINE_STEPS) - 1:
-                    menu_bar.addSeparator()
-            
-            # Add a separator before File menu
-            menu_bar.addSeparator()
-        
-        return menu_bar
-    '''
 
     def _go_to_step(self, step):
+        idx = self.PIPELINE_STEPS.index(step)
+
+        # Would jumping into `step` invalidate work already done on later steps?
+        later_steps = self.PIPELINE_STEPS[idx:]
+        any_later_done = any(
+            self.workflow_state.get(self.STEP_DONE_FLAG.get(s), False)
+            for s in later_steps
+            if s in self.STEP_DONE_FLAG
+        )
+
+        if any_later_done:
+            reply = QMessageBox.question(
+                self,
+                "Redo this step?",
+                f"Going back to '{step}' will reset progress on this and every "
+                f"step after it. Files those steps already generated will be "
+                f"overwritten once you redo them, and those later steps will be "
+                f"locked again until you do.\n\nContinue?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            )
+            if reply != QMessageBox.StandardButton.Yes:
+                return
+            self._reset_workflow_from(step)
+
         step_to_show = {
             "Visualize": self.show_viz,
             "Clean": lambda: self.clean.show(self.current_experiment),
@@ -528,6 +481,30 @@ class MainWindow(QMainWindow, NavigationMixin):
             "Align": lambda: self.align.show(self.current_experiment),
         }
         self.navigate_to(step_to_show[step])
+
+
+    def _reset_workflow_from(self, step):
+        """Clear *_done flags for `step` and everything after it, so the
+        toolbar re-locks those steps until they're redone. Called only after
+        the user has explicitly confirmed they want to overwrite prior output."""
+        idx = self.PIPELINE_STEPS.index(step)
+        for s in self.PIPELINE_STEPS[idx:]:
+            flag = self.STEP_DONE_FLAG.get(s)
+            if flag:
+                self.workflow_state[flag] = False
+
+        # fields that ride alongside the *_done flags
+        if idx <= self.PIPELINE_STEPS.index("Clean"):
+            self.workflow_state["last_cleaned_channel"] = None
+        if idx <= self.PIPELINE_STEPS.index("Stage"):
+            self.workflow_state["selected_stage"] = None
+        if idx <= self.PIPELINE_STEPS.index("Align"):
+            self.workflow_state["alignment_method"] = None
+            self.align.source = None
+            self.align.surface_path = None
+
+        self._refresh_pipeline_actions(current_step=step)
+        self.log_pipeline(f"Reset workflow state from '{step}' onward — redoing this step.")
 
    
     ''''
@@ -540,15 +517,10 @@ class MainWindow(QMainWindow, NavigationMixin):
     '''
 
     def _build_permanent_chrome(self):
-
-
         if getattr(self, "_chrome_built", False):
             return
         self._chrome_built = True
 
-        """Build File/View menu + limb-action bar ONCE. Nothing else may touch
-        self.menuBar() or self.action_bar ever again outside this method and
-        _refresh_pipeline_actions."""
         menu_bar = self.menuBar()
         menu_bar.setStyleSheet(f"""
             QMenuBar {{ background-color: {theme('palette.background', '#141414')};
@@ -556,6 +528,8 @@ class MainWindow(QMainWindow, NavigationMixin):
             QMenuBar::item:selected {{ background-color: {theme('palette.panel', '#2A2A2A')};
                         color: {theme('palette.textPrimary', '#FFFFFF')}; border-radius: 4px; }}
         """)
+        #self._build_file_menu(menu_bar)
+        #self._build_view_menu(menu_bar)
 
         self.action_bar = self.addToolBar("Pipeline")
         self.action_bar.setMovable(False)
@@ -566,15 +540,25 @@ class MainWindow(QMainWindow, NavigationMixin):
             QToolButton:checked {{ background-color: {theme('palette.panel', '#2A2A2A')}; color: {theme('palette.textPrimary', '#FFFFFF')}; }}
         """)
 
+        # Same back button widget show_exp/show_first_screen use — real QWidget,
+        # so addWidget (not addAction).
+        self._active_back_guard = None
+        self.back_btn = create_back_button(
+            lambda: self._handle_back(self._active_back_guard)
+        )
+        self.action_bar.addWidget(self.back_btn)
+        self.action_bar.addSeparator()
+
+        self._current_pipeline_step = None
         self._step_actions = {}
         for step in self.PIPELINE_STEPS:
             act = QAction(step, self)
             act.setCheckable(True)
-            act.triggered.connect(lambda checked=False, s=step: self._go_to_step(s))
+            act.triggered.connect(lambda checked=False, s=step: self._navigate_to_step(s, self._current_pipeline_step))
             self.action_bar.addAction(act)
             self._step_actions[step] = act
 
-        self.action_bar.setVisible(False)  # hidden until a pipeline screen shows it
+        self.action_bar.setVisible(False)
 
 
 
@@ -810,12 +794,12 @@ class MainWindow(QMainWindow, NavigationMixin):
                 btn.clicked.connect(callback)
                 return btn
 
-            view_btn = make_small_btn('View', theme('palette.accent', '#5FBF9F'), theme('palette.primaryHover', '#41B3A2'), lambda checked=False, p=path: self._view_experiment(p))
+            #view_btn = make_small_btn('View', theme('palette.accent', '#5FBF9F'), theme('palette.primaryHover', '#41B3A2'), lambda checked=False, p=path: self._view_experiment(p))
             add_ch_btn = make_small_btn('+Channel', theme('palette.secondary', '#54278F'), theme('palette.secondaryHover', '#756BB1'), lambda checked=False, p=path: self._add_channel_to_existing(p))
             rename_btn = make_small_btn('Rename', theme('palette.warning', '#FF6B6B'), theme('palette.warning', '#FF6B6B'), lambda checked=False, p=path: self._rename_experiment(p))
             del_btn = make_small_btn('Delete', theme('palette.error', '#D9534F'), theme('palette.error', '#C9302C'), lambda checked=False, p=path: self._delete_experiment(p))
 
-            act_layout.addWidget(view_btn)
+            #act_layout.addWidget(view_btn)
             act_layout.addWidget(add_ch_btn)
             act_layout.addWidget(rename_btn)
             act_layout.addWidget(del_btn)
@@ -889,16 +873,7 @@ class MainWindow(QMainWindow, NavigationMixin):
             color=theme('palette.secondary', '#54278F'),
             hover_color=theme('palette.secondaryHover', '#756BB1'),
         )
-        self.add_channel_btn = create_styled_button(
-            '+ Add Channel',
-            color=theme('palette.secondary', '#54278F'),
-            hover_color=theme('palette.secondaryHover', '#756BB1'),
-        )
-        self.view_btn = create_styled_button(
-            'View Experiment',
-            color=theme('palette.primary', '#fb8f00'),
-            hover_color=theme('palette.primaryHover', '#41B3A2'),
-        )
+        
         self.refresh_btn = create_styled_button(
             '↻ Refresh',
             color=theme('palette.accent', '#5FBF9F'),
@@ -906,8 +881,8 @@ class MainWindow(QMainWindow, NavigationMixin):
         )
 
         self.add_btn.clicked.connect(self.addexp_button_clicked)
-        self.add_channel_btn.clicked.connect(self.addchannel_button_clicked)
-        self.view_btn.clicked.connect(self.viewexp_button_clicked)
+        #self.add_channel_btn.clicked.connect(self.addchannel_button_clicked)
+        #self.view_btn.clicked.connect(self.viewexp_button_clicked)
         self.refresh_btn.clicked.connect(self._refresh_experiments)
 
         buttons_row = QVBoxLayout()
@@ -917,11 +892,7 @@ class MainWindow(QMainWindow, NavigationMixin):
         buttons_row.addStretch(1)  # Big stretch on left
         buttons_row.addWidget(self.add_btn)
         buttons_row.addSpacing(10)
-        buttons_row.addWidget(self.add_channel_btn)
-        buttons_row.addSpacing(10)
         buttons_row.addStretch(1)
-        buttons_row.addWidget(self.view_btn)
-        buttons_row.addSpacing(10)
         buttons_row.addWidget(self.refresh_btn)
         buttons_row.addStretch(1)
 

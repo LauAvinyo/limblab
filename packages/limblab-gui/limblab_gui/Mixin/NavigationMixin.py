@@ -8,7 +8,6 @@ from PyQt6.QtCore import Qt
 from utils import *
 from config import *
 
-
 class NavigationMixin:
     # Types
     nav_stack: list
@@ -126,3 +125,69 @@ class NavigationMixin:
                 return
 
         self.navigate_to(self.STEP_CONTROLLERS[target_step](self))
+
+
+    def _navigate_backward_to_step(self, target_step, target_idx, current_idx):
+        steps = self.PIPELINE_STEPS
+        affected = [
+            s for s in steps[target_idx:current_idx + 1]
+            if s in self.STEP_DONE_FLAG and self.workflow_state.get(self.STEP_DONE_FLAG[s])
+        ]
+
+        if affected:
+            reply = QMessageBox.question(
+                self,
+                "Reset progress?",
+                f"Going back to {target_step} will reset progress on: {', '.join(affected)}.\n"
+                "You'll need to redo these steps. Continue?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            )
+            if reply != QMessageBox.StandardButton.Yes:
+                return
+
+            for s in affected:
+                self.workflow_state[self.STEP_DONE_FLAG[s]] = False
+            if target_step == "Clean":
+                self.workflow_state["last_cleaned_channel"] = None
+            if target_step in ("Clean", "Surface"):
+                self.workflow_state["selected_stage"] = None
+            if target_step in ("Clean", "Surface", "Stage"):
+                self.workflow_state["alignment_method"] = None
+            if "Align" in affected:
+                self.align.source = None
+                self.align.surface_path = None
+
+            # The history from BEFORE this reset is no longer valid — later
+            # screens in it reflect a pipeline state that just got wiped.
+            # Rebuild it as the correct chain leading up to target_step so
+            # "Back" walks exp -> Clean -> Surface -> ... instead of into
+            # stale, now-invalidated later steps.
+            self._jump_to_step(target_step)
+            return
+
+        self.navigate_to(self.STEP_CONTROLLERS[target_step](self))
+
+
+    def _jump_to_step(self, step):
+        """Navigate to `step` with a freshly-built nav_stack (exp -> ... -> step),
+        replacing whatever history existed before a reset."""
+        chain = {
+            "Clean":     [self.show_exp],
+            "Surface":   [self.show_exp,
+                        lambda: self.clean.show(self.current_experiment)],
+            "Stage":     [self.show_exp,
+                        lambda: self.clean.show(self.current_experiment),
+                        lambda: self.surface.show(self.current_experiment)],
+            "Align":     [self.show_exp,
+                        lambda: self.clean.show(self.current_experiment),
+                        lambda: self.surface.show(self.current_experiment),
+                        lambda: self.stage.show(self.current_experiment)],
+            "Visualize": [self.show_exp,
+                        lambda: self.clean.show(self.current_experiment),
+                        lambda: self.surface.show(self.current_experiment),
+                        lambda: self.stage.show(self.current_experiment),
+                        lambda: self.align.show(self.current_experiment)],
+        }
+        self.nav_stack = chain.get(step, [self.show_exp])
+        self.current_screen = self.STEP_CONTROLLERS[step](self)
+        self.current_screen()
