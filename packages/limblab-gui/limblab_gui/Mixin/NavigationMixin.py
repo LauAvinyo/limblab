@@ -7,6 +7,7 @@ from PyQt6.QtCore import Qt
 
 from utils import *
 from config import *
+from PyQt6.QtWidgets import QMessageBox
 
 class NavigationMixin:
     # Types

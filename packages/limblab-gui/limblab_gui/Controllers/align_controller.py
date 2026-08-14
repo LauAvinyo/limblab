@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QWidget,
 )
-from utils import create_styled_button
+from limblab_gui.utils import create_styled_button
 
 
 class AlignController:
@@ -30,7 +30,6 @@ class AlignController:
         """
         Display the Align workflow screen.
         """
-
         self.experiment = experiment
 
         container = self.window._build_workflow_container(

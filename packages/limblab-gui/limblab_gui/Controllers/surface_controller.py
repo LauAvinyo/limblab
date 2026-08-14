@@ -13,7 +13,7 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QWidget,
 )
-from utils import create_label, create_styled_button
+from limblab_gui.utils import create_label, create_styled_button
 
 
 class SurfaceExtractionWorker(QThread):

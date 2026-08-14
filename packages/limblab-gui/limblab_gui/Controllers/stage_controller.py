@@ -1,7 +1,7 @@
 from limblab import save_experiment, stage_limb_embedded
 from limblab.design import theme
 from PyQt6.QtWidgets import QComboBox, QHBoxLayout, QMessageBox, QWidget
-from utils import create_label, create_styled_button
+from limblab_gui.utils import create_label, create_styled_button
 
 
 class StageController:

@@ -164,7 +164,6 @@ class MainWindow(QMainWindow, NavigationMixin):
         }
         
 
-        
         self.surface = SurfaceController(self)
         self.clean = CleanController(self)
         self.align = AlignController(self)
@@ -233,7 +232,7 @@ class MainWindow(QMainWindow, NavigationMixin):
             act.setEnabled(is_reachable)
             act.setChecked(step == current_step)
 
-
+    ''''
     def reset_database(self):
         reply = QMessageBox.question(
             self, "Reset database",
@@ -256,6 +255,7 @@ class MainWindow(QMainWindow, NavigationMixin):
 
         self._load_experiments_from_db()
         self.show_exp()
+    '''
 
 
     # ------------------------------------------------------------------
@@ -286,6 +286,9 @@ class MainWindow(QMainWindow, NavigationMixin):
         # contact.addAction(QLabel("EMBL, Barcelona", self))
         # contact.addAction(QLabel("info@embl.es", self))
         return contact
+
+
+    ''''
 
     def _build_file_menu(self, menu_bar):
         """Build the File menu."""
@@ -323,6 +326,9 @@ class MainWindow(QMainWindow, NavigationMixin):
                     action.triggered.connect(self.menu_button_clicked)
                 file_menu.addAction(action)
 
+                
+
+    '''
     def _build_view_menu(self, menu_bar):
         """Build the View menu."""
         view_menu = menu_bar.addMenu("&View")
@@ -334,6 +340,7 @@ class MainWindow(QMainWindow, NavigationMixin):
             action.triggered.connect(lambda checked, m=mode: self.add_viz_section(m))
             view_menu.addAction(action)
         return view_menu
+
 
     # ------------------------------------------------------------------
     # Shared workflow-screen layout
@@ -1168,11 +1175,6 @@ class MainWindow(QMainWindow, NavigationMixin):
         self.dynamic_sections_layout.setSpacing(2)
         scroll_layout.addWidget(dynamic_container)
 
-        self._current_section_widgets = {}
-        for category in self.active_categories:
-            section = self._build_category_section(category)
-            self.dynamic_sections_layout.addWidget(section)
-            self._current_section_widgets[category] = section
 
         scroll_layout.addStretch()
         scroll_area.setWidget(scroll_content)
@@ -1221,6 +1223,8 @@ class MainWindow(QMainWindow, NavigationMixin):
     # ------------------------------------------------------------------
     # Category and Viz Section Builders
     # ------------------------------------------------------------------
+    
+    ''''
     def add_category_section(self, category):
         """Add a category section to the side panel."""
         if category not in self.active_categories:
@@ -1274,11 +1278,8 @@ class MainWindow(QMainWindow, NavigationMixin):
                     builder(content_layout, category, param, stored)
 
         return create_collapsible_section(category, content, expanded=True)
-
-
-
     
-
+    '''
 
     def _load_experiments_from_db(self):
         """Load all experiments from the database."""

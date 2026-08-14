@@ -8,15 +8,20 @@ from limblab.models import Experiment
 from limblab.utils import generate_kwargs
 
 env = {}
-
 with open("../../../.env") as f:
     for line in f:
-        if line.startswith("#"): continue
-        if line == " ": continue
-        line = line.strip().split("=")
-        if len(line) != 2: continue
-        k, v = line
-        env[k] = v
+        line = line.strip()
+        # Skip empty lines and comments
+        if not line or line.startswith("#"):
+            continue
+        # Ensure there is an '='
+        if "=" not in line:
+            continue
+        # Split only on the first '='
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().replace('"', "").replace("'", "")
+        env[key] = value
 
 REFERENCE_LIMB_FOLDER = env["REFERENCE_LIMB_FOLDER"]
 
