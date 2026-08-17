@@ -20,7 +20,8 @@ from limblab.database import (
     init_db,
     list_experiments,
     save_experiment,
-    delete_channel
+    delete_channel,
+    rename_experiment
 )
 from limblab.models import Channel, Experiment
 from mixin.NavigationMixin import NavigationMixin
@@ -595,12 +596,14 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
                 btn.clicked.connect(callback)
                 return btn
 
-            view_btn = make_small_btn('View', theme('palette.accent', '#5FBF9F'), theme('palette.primaryHover', '#41B3A2'), lambda checked=False, p=path: self._view_experiment(p))
+            view_btn = make_small_btn('View', theme('palette.accent', '#0D7C66'), theme('palette.primaryHover', '#41B3A2'), lambda checked=False, p=path: self._view_experiment(p))
             add_ch_btn = make_small_btn('+Channel', theme('palette.secondary', '#54278F'), theme('palette.secondaryHover', '#756BB1'), lambda checked=False, p=path: self._add_channel_to_existing(p))
-            del_btn = make_small_btn('Delete', theme('palette.error', '#D9534F'), theme('palette.error', '#C9302C'), lambda checked=False, p=path: self._delete_experiment(p))
+            del_btn = make_small_btn('Delete', theme('palette.error', '#A6284F'), theme('palette.error', '#C9302C'), lambda checked=False, p=path, n=display_name: self._delete_experiment(p,n))
+            rename_btn = make_small_btn('Rename', theme('palette.error', "#3AAC58"), theme('palette.error', "#58C92C"), lambda checked=False, p=path: self._rename_experiment(p))
 
             act_layout.addWidget(view_btn)
             act_layout.addWidget(add_ch_btn)
+            act_layout.addWidget(rename_btn)
             act_layout.addWidget(del_btn)
             tree.setItemWidget(parent, 1, act_widget)
 
@@ -948,11 +951,9 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
             for exp_id in exp_ids:
                 exp_data = get_experiment(self.db_path, exp_id)
                 if exp_data:
-                    # jsut for TESTING
-                    # Store full experiment data
                     self.experiment_metadata[exp_id] = exp_data
-                    # Set display name
-                    self.experiment_names[exp_id] = exp_id
+                    # Use the persisted display name if set, otherwise fall back to the id
+                    self.experiment_names[exp_id] = exp_data.display_name or exp_id
 
             print(f"Loaded {len(self.experiments)} experiments from database")
 
@@ -966,23 +967,27 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
     # ------------------------------------------------------------------
 
     def _rename_experiment(self, path):
-        """Rename an experiment."""
+        """Rename an experiment and persist to DB."""
         current_name = self.experiment_names.get(path, os.path.basename(path))
         new_name, ok = QInputDialog.getText(
             self, "Rename experiment", "New name:", text=current_name
         )
         if ok and new_name.strip():
-            self.experiment_names[path] = new_name.strip()
-            self.show_exp()
+            success = rename_experiment(self.db_path, path, new_name.strip())
+            if success:
+                self.experiment_names[path] = new_name.strip()
+                self.show_exp()
+            else:
+                QMessageBox.warning(self, "Error", f"Experiment '{path}' not found in database.")
 
     # DELETE FUNCTION CALLS DATABASE DELETE FUNCTION, AUXILIAR UI
-    def _delete_experiment(self, experiment_id):
+    def _delete_experiment(self, experiment_id, display_name):
         """Delete an experiment from the database."""
         # Confirm with user
         reply = QMessageBox.question(
             self,
             "Delete Experiment",
-            f"Are you sure you want to delete experiment '{experiment_id}'?\nThis implies deleting all its associated channels from the database entry.",
+            f"Are you sure you want to delete experiment '{display_name}'?\nThis implies deleting all its associated channels from the database entry.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
 
@@ -991,7 +996,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
             success = delete_experiment(self.db_path, experiment_id)#delete_experiment as a functioin imported from database.py
 
             if success:#delete function returns True if exp ( exp = session.get(Experiment, experiment_id, if exp: session.delete(exp)session.commit() return True
-                # Remove from local lists (logistics)
+                # Remove from local lists (UI logistics)
                 if experiment_id in self.experiments:
                     self.experiments.remove(experiment_id)
                 if experiment_id in self.experiment_names:
@@ -1002,13 +1007,13 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
                 # Refresh the UI
                 self.show_exp()
                 QMessageBox.information(
-                    self, "Success", f"Deleted experiment: {experiment_id}"
+                    self, "Success", f"Deleted experiment: {display_name}"
                 )
             else:
                 QMessageBox.warning(
                     self,
                     "Error",
-                    f"Experiment '{experiment_id}' not found in database.",
+                    f"Experiment '{display_name}' not found in database.",
                 )
 
 

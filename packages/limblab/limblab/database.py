@@ -83,6 +83,19 @@ def update_experiment(
         return None
 
 
+def rename_experiment(db_path: Path, experiment_id: str, new_name: str) -> bool:
+    engine = get_engine(db_path)
+    with Session(engine) as session:
+        exp = session.get(Experiment, experiment_id)
+        if exp:
+            exp.display_name = new_name
+            session.add(exp)
+            session.commit()
+            return True
+        return False
+
+
+
 # Keep the standalone script functionality for testing
 if __name__ == "__main__":
     DB_PATH = Path("experiments.db")

@@ -10,7 +10,8 @@ from .database import (
     init_db,
     save_experiment,
     update_experiment,
-    delete_channel
+    delete_channel,
+    rename_experiment
 )
 from .design import DESIGN_TOKENS, get_design_token, theme
 from .tools.align import _store_transformation_matrix, rotate_limb
@@ -50,7 +51,8 @@ __all__ = [
     '_stage_connection',
     'stage_limb_embedded',
     'preview_volume',
-    'delete_channel'
+    'delete_channel',
+    'rename_experiment'
     
 ]
 #les funcions privades s-haurien de poder ficar aqui????
