@@ -1,8 +1,6 @@
 from pathlib import Path
 from typing import List, Optional
-
 from sqlmodel import Session, SQLModel, create_engine, select
-
 from limblab.models import Channel, Experiment
 
 
@@ -52,9 +50,20 @@ def delete_experiment(db_path: Path, experiment_id: str) -> bool:
             session.commit()
             return True
         return False
-
-
     #the functions to handle going back should use delete_experiment, must not go into the controllers!
+
+
+#added database function for deleting specific channel .tifs
+#as channel has an id we can direclty acecess the selected channel 
+def delete_channel(db_path: Path, channel_id: int) -> bool:
+    engine = get_engine(db_path)
+    with Session(engine) as session:
+        channel = session.get(Channel, channel_id)
+        if channel:
+            session.delete(channel)
+            session.commit()
+            return True
+        return False
 
 
 def update_experiment(

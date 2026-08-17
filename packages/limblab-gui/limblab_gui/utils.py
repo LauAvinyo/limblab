@@ -11,8 +11,13 @@ from PyQt6.QtWidgets import (
     QToolButton,
     QVBoxLayout,
     QWidget,
+    QMenu
 )
-
+import webbrowser
+from PyQt6.QtGui import (
+    QAction, QIcon)
+import webbrowser
+from config import *
 
 def create_styled_button(
     text: str,
@@ -130,5 +135,4 @@ def create_back_button(callback):
     """)
     back_button.clicked.connect(callback)
     return back_button
-
 

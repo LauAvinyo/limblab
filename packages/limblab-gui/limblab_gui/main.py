@@ -3,7 +3,6 @@
 
 import os
 import traceback
-import webbrowser
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -21,13 +20,13 @@ from limblab.database import (
     init_db,
     list_experiments,
     save_experiment,
+    delete_channel
 )
 from limblab.models import Channel, Experiment
 from mixin.NavigationMixin import NavigationMixin
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import (
-    QAction,
-    QIcon,
+    QAction, QIcon
 )
 from PyQt6.QtWidgets import (
     QComboBox,
@@ -41,10 +40,8 @@ from PyQt6.QtWidgets import (
     QLabel,
     QMainWindow,
     QMenu,
-    QMenuBar,
     QMessageBox,
     QPushButton,
-    QScrollArea,
     QStatusBar,
     QToolButton,
     QTreeWidget,
@@ -54,15 +51,17 @@ from PyQt6.QtWidgets import (
 )
 from utils import (
     create_back_button,
-    create_collapsible_section,
     create_label,
-    create_styled_button,
+    create_styled_button
 )
 from vedo import Mesh, Plotter
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 
 vtkmodules.qt.QVTKRWIBase = "QGLWidget"
 
+from menu_utils import MenuUtils
+
+import webbrowser
 
 env = {}
 with open("../../../.env") as f:
@@ -112,7 +111,7 @@ experiment = Experiment(
 )
 '''
 
-class MainWindow(QMainWindow, NavigationMixin):
+class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("LimbLab")
@@ -182,59 +181,6 @@ class MainWindow(QMainWindow, NavigationMixin):
         self.navigate_to(self.show_home)
 
 
-    def _build_home_topbar(self):
-        """Home-page branding bar. Lives inside show_home's own layout —
-        NOT self.menuBar() — so it disappears with the rest of the screen
-        the moment you navigate away, instead of sticking around forever."""
-        bar = QWidget()
-        bar.setStyleSheet(f"""
-            background-color: {theme('palette.primary', '#0D7C66')};
-        """)
-        layout = QHBoxLayout(bar)
-        layout.setContentsMargins(30, 0, 30, 0)
-
-        title = QLabel("LimbLab")
-        title.setStyleSheet(f"color: {theme('palette.textPrimary', '#FFFFFF')}; font-weight: bold; padding: 20px 0px;")
-        layout.addWidget(title)
-        layout.addStretch()
-
-        resources_btn = QToolButton()
-        resources_btn.setText("Resources")
-        resources_menu = QMenu(resources_btn)
-        paper = QAction("Paper", self)
-        paper.triggered.connect(lambda: webbrowser.open("https://pmc.ncbi.nlm.nih.gov/articles/PMC12794269/"))
-        resources_menu.addAction(paper)
-        github = QAction("GitHub", self)
-        github.triggered.connect(lambda: webbrowser.open("https://limblab.embl.es/docs/"))
-        resources_menu.addAction(github)
-        resources_btn.setMenu(resources_menu)
-        resources_btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
-        layout.addWidget(resources_btn)
-
-        aboutus_btn = QToolButton()
-        aboutus_btn.setText("About us")
-        aboutus_btn.clicked.connect(lambda: webbrowser.open("https://www.embl.org/groups/sharpe/"))
-        layout.addWidget(aboutus_btn)
-
-        return bar
-
-
-    def _refresh_pipeline_actions(self, current_step=None):
-        self.action_bar.setVisible(True)
-        self._current_pipeline_step = current_step 
-
-        for idx, step in enumerate(self.PIPELINE_STEPS):
-            act = self._step_actions[step]
-            flag = self.STEP_DONE_FLAG.get(step)
-            is_done = bool(flag and self.workflow_state.get(flag))
-            is_reachable = all(
-                self.workflow_state.get(self.STEP_DONE_FLAG[s])
-                for s in self.PIPELINE_STEPS[:idx] if s in self.STEP_DONE_FLAG
-            )
-            act.setText(("✓ " if is_done else "🔒 " if not is_reachable else "") + step)
-            act.setEnabled(is_reachable)
-            act.setChecked(step == current_step)
-
     ''''
     def reset_database(self):
         reply = QMessageBox.question(
@@ -264,31 +210,7 @@ class MainWindow(QMainWindow, NavigationMixin):
     # ------------------------------------------------------------------
     # Menu Building Methods
     # ------------------------------------------------------------------
-    def _build_resources_menu(self, menu):
-        """Build the Resources submenu."""
-        resources = menu.addMenu("Resources")
-        paper = QAction("Paper", self)
-        paper.triggered.connect(
-            lambda: webbrowser.open(
-                "https://pmc.ncbi.nlm.nih.gov/articles/PMC12794269/"
-            )
-        )
-        resources.addAction(paper)
-
-        github = QAction("GitHub", self)
-        github.triggered.connect(
-            lambda: webbrowser.open("https://limblab.embl.es/docs/")
-        )
-        resources.addAction(github)
-        return resources
-
-    def _build_contact_menu(self, menu):
-        """Build the Contact us submenu."""
-        contact = menu.addMenu("Contact us")
-
-        # contact.addAction(QLabel("EMBL, Barcelona", self))
-        # contact.addAction(QLabel("info@embl.es", self))
-        return contact
+    
 
 
     ''''
@@ -332,18 +254,33 @@ class MainWindow(QMainWindow, NavigationMixin):
     '''
 
 
-    def _build_view_menu(self, menu_bar):
-        """Build the View menu."""
-        view_menu = menu_bar.addMenu("&View")
-        view_menu.addAction(QAction("Visualization Mode", self))
 
-        viz_modes = ["Isosurface", "Slices", "Raycast", "Probe", "2D Projection Slab"]
-        for mode in viz_modes:
-            action = QAction(mode, self)  # , checkable=True
-            action.triggered.connect(lambda checked, m=mode: self.add_viz_section(m))
-            view_menu.addAction(action)
-        return view_menu
+    def create_left_button(self):
+        """Create the left menu button with dropdown."""
+        button = QToolButton()
+        button.setIcon(QIcon("left_icon.png"))
+        button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
 
+        menu = QMenu(self)
+        menu.setStyleSheet(MENU_STYLE)
+
+        home = QAction("Home", self)
+        home.triggered.connect(lambda: self.navigate_to(self.show_home))
+        menu.addAction(home)
+
+        menu.addSeparator()
+        self._build_resources_menu(menu)
+
+        about = QAction("About us", self)
+        about.triggered.connect(
+                lambda: webbrowser.open("https://www.embl.org/groups/sharpe/")
+            )
+        menu.addAction(about)
+
+        self._build_contact_menu(menu)
+
+        button.setMenu(menu)
+        return button
 
     # ------------------------------------------------------------------
     # Shared workflow-screen layout
@@ -430,130 +367,7 @@ class MainWindow(QMainWindow, NavigationMixin):
 
         return container
 
-
-    def _handle_back(self, step, guard=None):
-        """Go back, warning the user first if the current step isn't finished."""
-        if guard is not None:
-            done, message = guard()
-            if not done:
-                reply = QMessageBox.question(
-                    self, "Step not completed",
-                    f"{message}\n\nGo back anyway? Progress on this step will be lost.",
-                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                )
-                if reply != QMessageBox.StandardButton.Yes:
-                    return
-
-        if step is not None:
-            self._reset_workflow_from(step)
-        self.go_back()
-
-
-    ''''
-    def _go_to_step(self, step):
-        idx = self.PIPELINE_STEPS.index(step)
-
-        # Would jumping into `step` invalidate work already done on later steps?
-        later_steps = self.PIPELINE_STEPS[idx:]
-        any_later_done = any(
-            self.workflow_state.get(self.STEP_DONE_FLAG.get(s), False)
-            for s in later_steps
-            if s in self.STEP_DONE_FLAG
-        )
-
-        if any_later_done:
-            reply = QMessageBox.question(
-                self,
-                "Redo this step?",
-                f"Going back to '{step}' will reset progress on this and every "
-                f"step after it. Files those steps already generated will be "
-                f"overwritten once you redo them, and those later steps will be "
-                f"locked again until you do.\n\nContinue?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            )
-            if reply != QMessageBox.StandardButton.Yes:
-                return
-            self._reset_workflow_from(step)
-
-        step_to_show = {
-            "Visualize": self.show_viz,
-            "Clean": lambda: self.clean.show(self.current_experiment),
-            "Surface": lambda: self.surface.show(self.current_experiment),
-            "Stage": lambda: self.stage.show(self.current_experiment),
-            "Align": lambda: self.align.show(self.current_experiment),
-        }
-        self.navigate_to(step_to_show[step])
-
-    '''
     
-    def _reset_workflow_from(self, step):
-        """Clear *_done flags for `step` and everything after it, so the
-        toolbar re-locks those steps until they're redone. Called only after
-        the user has explicitly confirmed they want to overwrite prior output."""
-        idx = self.PIPELINE_STEPS.index(step)
-        for s in self.PIPELINE_STEPS[idx:]:
-            flag = self.STEP_DONE_FLAG.get(s)
-            if flag:
-                self.workflow_state[flag] = False
-
-        # fields that ride alongside the *_done flags
-        if idx <= self.PIPELINE_STEPS.index("Clean"):
-            self.workflow_state["last_cleaned_channel"] = None
-        if idx <= self.PIPELINE_STEPS.index("Stage"):
-            self.workflow_state["selected_stage"] = None
-        if idx <= self.PIPELINE_STEPS.index("Align"):
-            self.workflow_state["alignment_method"] = None
-            self.align.source = None
-            self.align.surface_path = None
-
-        self._refresh_pipeline_actions(current_step=step)
-        self.log_pipeline(f"Reset workflow state from '{step}' onward — redoing this step.")
-
-   
-
-    def _build_permanent_chrome(self):
-        if getattr(self, "_chrome_built", False):
-            return
-        self._chrome_built = True
-
-        menu_bar = self.menuBar()
-        menu_bar.setStyleSheet(f"""
-            QMenuBar {{ background-color: {theme('palette.background', '#141414')};
-                        color: {theme('palette.textSecondary', '#A0A0A0')}; border: none; }}
-            QMenuBar::item:selected {{ background-color: {theme('palette.panel', '#2A2A2A')};
-                        color: {theme('palette.textPrimary', '#FFFFFF')}; border-radius: 4px; }}
-        """)
-
-        self.action_bar = self.addToolBar("Pipeline")
-        self.action_bar.setMovable(False)
-        self.action_bar.setStyleSheet(f"""
-            QToolBar {{ background-color: {theme('palette.background', '#141414')}; border: none; spacing: 4px; padding: 4px; }}
-            QToolButton {{ color: {theme('palette.textSecondary', '#A0A0A0')}; padding: 6px 14px; border-radius: 4px; }}
-            QToolButton:disabled {{ color: {theme('palette.textDisabled', '#3A3A3A')}; }}
-            QToolButton:checked {{ background-color: {theme('palette.panel', '#2A2A2A')}; color: {theme('palette.textPrimary', '#FFFFFF')}; }}
-        """)
-
-        # Same back button widget show_exp/show_first_screen use — real QWidget,
-        # so addWidget (not addAction).
-        self._active_back_guard = None
-        self.back_btn = create_back_button(
-        lambda: self._handle_back(self._current_pipeline_step, self._active_back_guard))
-        self.action_bar.addWidget(self.back_btn)
-        self.action_bar.addSeparator()
-
-        self._current_pipeline_step = None
-        self._step_actions = {}
-        for step in self.PIPELINE_STEPS:
-            act = QAction(step, self)
-            act.setCheckable(True)
-            act.triggered.connect(lambda checked=False, s=step: self._navigate_to_step(s, self._current_pipeline_step))
-            self.action_bar.addAction(act)
-            self._step_actions[step] = act
-
-        self.action_bar.setVisible(False)
-
-
-
     # ------------------------------------------------------------------
     # Screen Methods
     # ------------------------------------------------------------------
@@ -643,7 +457,8 @@ class MainWindow(QMainWindow, NavigationMixin):
 
         top_row = QHBoxLayout()
         top_row.addWidget(create_back_button(self.go_back))
-        top_row.addWidget(self._create_left_button())
+        top_row.addWidget(self.
+                          create_left_button())
         top_row.addStretch()
 
         # ---- Create New Experiment ----
@@ -727,7 +542,7 @@ class MainWindow(QMainWindow, NavigationMixin):
 
         top_row = QHBoxLayout()
         top_row.addWidget(create_back_button(self.go_back))
-        top_row.addWidget(self._create_left_button())
+        top_row.addWidget(self.create_left_button())
         top_row.addStretch()
 
         # Use a tree view for clear hierarchy: experiments -> channels
@@ -782,21 +597,20 @@ class MainWindow(QMainWindow, NavigationMixin):
 
             view_btn = make_small_btn('View', theme('palette.accent', '#5FBF9F'), theme('palette.primaryHover', '#41B3A2'), lambda checked=False, p=path: self._view_experiment(p))
             add_ch_btn = make_small_btn('+Channel', theme('palette.secondary', '#54278F'), theme('palette.secondaryHover', '#756BB1'), lambda checked=False, p=path: self._add_channel_to_existing(p))
-            rename_btn = make_small_btn('Rename', theme('palette.warning', '#FF6B6B'), theme('palette.warning', '#FF6B6B'), lambda checked=False, p=path: self._rename_experiment(p))
             del_btn = make_small_btn('Delete', theme('palette.error', '#D9534F'), theme('palette.error', '#C9302C'), lambda checked=False, p=path: self._delete_experiment(p))
 
             act_layout.addWidget(view_btn)
             act_layout.addWidget(add_ch_btn)
-            act_layout.addWidget(rename_btn)
             act_layout.addWidget(del_btn)
             tree.setItemWidget(parent, 1, act_widget)
 
             # Add channels as children
             for ch in channels:
                 ch_name = ch.channel_name if hasattr(ch, 'channel_name') else ch.get('channel_name', '')
+                ch_id = ch.id if hasattr(ch, 'id') else ch.get('id')
                 child = QTreeWidgetItem(parent)
                 # store channel info: tuple (experiment_id, channel_name)
-                child.setData(0, Qt.ItemDataRole.UserRole, (path, ch_name))
+                child.setData(0, Qt.ItemDataRole.UserRole, (path, ch_name, ch_id))
                 ch_widget = QWidget()
                 ch_layout = QHBoxLayout(ch_widget)
                 ch_layout.setContentsMargins(8, 4, 8, 4)
@@ -819,22 +633,14 @@ class MainWindow(QMainWindow, NavigationMixin):
                 ch_view.setStyleSheet(f"background-color: {theme('palette.accent', '#5FBF9F')}; color: {theme('palette.textPrimary', '#FFFFFF')}; border-radius: 13px; font-size: 12px; padding: 0px 6px;")
                 ch_view.clicked.connect(lambda checked=False, p=path, c=ch_name: self._view_channel(p, c))
 
-                ch_rename = QToolButton()
-                ch_rename.setText('Rename')
-                ch_rename.setFixedSize(70, 26)
-                ch_rename.setToolTip('Rename')
-                ch_rename.setStyleSheet(f"background-color: {theme('palette.warning', '#FF6B6B')}; color: {theme('palette.textPrimary', '#FFFFFF')}; border-radius: 13px; font-size: 12px; padding: 0px 6px;")
-                ch_rename.clicked.connect(lambda checked=False, p=path, c=ch_name: self._rename_channel(p, c))
-
                 ch_del = QToolButton()
                 ch_del.setText('Delete')
                 ch_del.setFixedSize(70, 26)
                 ch_del.setToolTip('Delete')
                 ch_del.setStyleSheet(f"background-color: {theme('palette.error', '#D9534F')}; color: {theme('palette.textPrimary', '#FFFFFF')}; border-radius: 13px; font-size: 12px; padding: 0px 6px;")
-                ch_del.clicked.connect(lambda checked=False, p=path, c=ch_name: self._delete_channel(p, c))
+                ch_del.clicked.connect(lambda checked=False, p=path, c=ch_name, cid=ch_id: self._delete_channel(p, c, cid))
 
                 ch_act_layout.addWidget(ch_view)
-                ch_act_layout.addWidget(ch_rename)
                 ch_act_layout.addWidget(ch_del)
                 tree.setItemWidget(child, 1, ch_act)
 
@@ -1093,89 +899,6 @@ class MainWindow(QMainWindow, NavigationMixin):
     # ------------------------------------------------------------------
     # Side Panel Methods
     # ------------------------------------------------------------------
-    def _build_side_panel(self):
-        """Build the collapsible right-side panel."""
-        panel = QWidget()
-        panel.setFixedWidth(260)
-        panel.setStyleSheet(f"background-color: {theme('palette.surface', '#1E1E1E')};")
-
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setStyleSheet(f"""
-            QScrollArea {{ border: none; background-color: {theme('palette.surface', '#1E1E1E')}; }}
-            QScrollBar:vertical {{ border: none; background: {theme('palette.panel', '#2A2A2A')}; width: 10px; margin: 0px; }}
-            QScrollBar::handle:vertical {{ background: {theme('palette.primaryHover', '#41B3A2')}; border-radius: 5px; min-height: 20px; }}
-            QScrollBar::handle:vertical:hover {{ background: {theme('palette.primary', '#5FBF9F')}; }}
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ border: none; background: none; }}
-        """)
-
-        scroll_content = QWidget()
-        scroll_layout = QVBoxLayout(scroll_content)
-        scroll_layout.setContentsMargins(0, 0, 0, 0)
-        scroll_layout.setSpacing(2)
-
-        # Visualizer section
-        self.visualizer_content = QWidget()
-        outer_viz_layout = QVBoxLayout(self.visualizer_content)
-        outer_viz_layout.setContentsMargins(10, 6, 10, 10)
-        outer_viz_layout.setSpacing(6)
-
-        self.visualizer_list = QVBoxLayout()
-        outer_viz_layout.addLayout(self.visualizer_list)
-
-        viz_dynamic_container = QWidget()
-        self.viz_sections_layout = QVBoxLayout(viz_dynamic_container)
-        self.viz_sections_layout.setContentsMargins(0, 0, 0, 0)
-        self.viz_sections_layout.setSpacing(2)
-        outer_viz_layout.addWidget(viz_dynamic_container)
-
-        scroll_layout.addWidget(
-            create_collapsible_section(
-                "Visualizer", self.visualizer_content, expanded=True
-            )
-        )
-
-        self._current_viz_section_widgets = {}
-        for viz_name in self.active_viz_sections:
-            vsection = self._build_viz_section(viz_name)
-            self.viz_sections_layout.addWidget(vsection)
-            self._current_viz_section_widgets[viz_name] = vsection
-
-        # Pipeline section
-        pipeline_content = QWidget()
-        pipeline_layout = QVBoxLayout(pipeline_content)
-        pipeline_layout.setContentsMargins(10, 6, 10, 10)
-
-        self.pipeline_log_widget = QLabel(
-            "\n".join(self.pipeline_log[-10:])
-            if self.pipeline_log
-            else "pipeline.log was automatically generated. \nNo actions yet."
-        )
-        self.pipeline_log_widget.setWordWrap(True)
-        self.pipeline_log_widget.setStyleSheet(f"color: {theme('palette.textSecondary', '#A0A0A0')}; font-size: {theme('typography.fontSizeSmall', 12)}px;")
-        pipeline_layout.addWidget(self.pipeline_log_widget)
-
-        scroll_layout.addWidget(
-            create_collapsible_section("Pipeline", pipeline_content, expanded=True)
-        )
-
-        # Dynamic sections
-        dynamic_container = QWidget()
-        self.dynamic_sections_layout = QVBoxLayout(dynamic_container)
-        self.dynamic_sections_layout.setContentsMargins(0, 0, 0, 0)
-        self.dynamic_sections_layout.setSpacing(2)
-        scroll_layout.addWidget(dynamic_container)
-
-
-        scroll_layout.addStretch()
-        scroll_area.setWidget(scroll_content)
-        panel_layout = QVBoxLayout(panel)
-        panel_layout.setContentsMargins(0, 0, 0, 0)
-        panel_layout.addWidget(scroll_area)
-
-        self._refresh_visualizer_list()
-        return panel
-
 
     
     
@@ -1211,67 +934,6 @@ class MainWindow(QMainWindow, NavigationMixin):
 
         
 
-    # ------------------------------------------------------------------
-    # Category and Viz Section Builders
-    # ------------------------------------------------------------------
-    
-    ''''
-    def add_category_section(self, category):
-        """Add a category section to the side panel."""
-        if category not in self.active_categories:
-            self.active_categories.append(category)
-            self.log_pipeline(f"{category} parameters added.")
-
-        if not hasattr(self, "dynamic_sections_layout"):
-            return
-
-        if category in getattr(self, "_current_section_widgets", {}):
-            return
-
-        section = self._build_category_section(category)
-        self.dynamic_sections_layout.addWidget(section)
-        self._current_section_widgets[category] = section
-
-    def _build_category_section(self, category):
-        """Build a category section from CATEGORY_PARAMS."""
-        params = CATEGORY_PARAMS.get(category, [])
-        stored = self.param_values.setdefault(category, {})
-
-        content = QWidget()
-        content_layout = QVBoxLayout(content)
-        content_layout.setContentsMargins(12, 8, 12, 12)
-        content_layout.setSpacing(8)
-
-        param_builders = {
-            "slider": self._add_slider_param,
-            "spinbox": self._add_spinbox_param,
-            "aer_line": self._add_aer_line_param,
-            "limb_reference": self._add_limb_reference_param,
-        }
-
-        text_index = 0
-        for param in params:
-            if param.get("type") == "text":
-                label_text = param.get("default", "")
-                is_bold = category == "Stage" and text_index > 0
-                style = (
-                    f"color: {theme('palette.textPrimary', '#FFFFFF')}; font-size: {theme('typography.fontSizeBase', 14)}px; font-weight: bold; padding: 5px 0px; border-top: 1px solid {theme('palette.panel', '#2A2A2A')};"
-                    if is_bold
-                    else f"color: {theme('palette.textSecondary', '#A0A0A0')}; font-size: {theme('typography.fontSizeSmall', 12)}px; font-style: italic; padding: 5px 0px; border-top: 1px solid {theme('palette.panel', '#2A2A2A')};"
-                )
-                info_label = create_label(label_text, style, Qt.AlignmentFlag.AlignLeft)
-                info_label.setWordWrap(True)
-                content_layout.addWidget(info_label)
-                text_index += 1
-            else:
-                builder = param_builders.get(param.get("type", "slider"))
-                if builder:
-                    builder(content_layout, category, param, stored)
-
-        return create_collapsible_section(category, content, expanded=True)
-    
-    '''
-
     def _load_experiments_from_db(self):
         """Load all experiments from the database."""
         try:
@@ -1302,59 +964,6 @@ class MainWindow(QMainWindow, NavigationMixin):
     # ------------------------------------------------------------------
     # Button Actions
     # ------------------------------------------------------------------
-    def _create_left_button(self):
-        """Create the left menu button with dropdown."""
-        button = QToolButton()
-        button.setIcon(QIcon("left_icon.png"))
-        button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
-
-        menu = QMenu(self)
-        menu.setStyleSheet(MENU_STYLE)
-
-        home = QAction("Home", self)
-        home.triggered.connect(lambda: self.navigate_to(self.show_home))
-        menu.addAction(home)
-
-        menu.addSeparator()
-        self._build_resources_menu(menu)
-
-        about = QAction("About us", self)
-        about.triggered.connect(
-            lambda: webbrowser.open("https://www.embl.org/groups/sharpe/")
-        )
-        menu.addAction(about)
-
-        self._build_contact_menu(menu)
-
-        button.setMenu(menu)
-        return button
-
-    def _click_threebuttons(self, path, button):
-        """Handle three-dots button click for experiment actions."""
-        menu = QMenu(self)
-        menu.setStyleSheet(SECMENU_STYLE)
-
-        # connect with database functions
-        delete_act = QAction("Delete")
-        # database function
-        delete_act.triggered.connect(lambda: self._delete_experiment(path))
-        menu.addAction(delete_act)
-
-        rename_act = QAction("Rename")
-        rename_act.triggered.connect(lambda: self._rename_experiment(path))
-        menu.addAction(rename_act)
-
-        details_act = QAction("Details")
-        details_act.triggered.connect(lambda: self.menu_button_clicked)
-        menu.addAction(details_act)
-
-        download_act = QAction("Download .tiff")
-        download_act.triggered.connect(lambda: self.menu_button_clicked)
-        menu.addAction(download_act)
-
-        menu.exec(button.mapToGlobal(button.rect().bottomLeft()))
-
-    # DETELE, already defined database function
 
     def _rename_experiment(self, path):
         """Rename an experiment."""
@@ -1373,16 +982,16 @@ class MainWindow(QMainWindow, NavigationMixin):
         reply = QMessageBox.question(
             self,
             "Delete Experiment",
-            f"Are you sure you want to delete experiment '{experiment_id}'?",
+            f"Are you sure you want to delete experiment '{experiment_id}'?\nThis implies deleting all its associated channels from the database entry.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
 
         if reply == QMessageBox.StandardButton.Yes:
-            # 🔥 Call the imported delete_experiment with correct parameters
-            success = delete_experiment(self.db_path, experiment_id)
 
-            if success:
-                # Remove from local lists
+            success = delete_experiment(self.db_path, experiment_id)#delete_experiment as a functioin imported from database.py
+
+            if success:#delete function returns True if exp ( exp = session.get(Experiment, experiment_id, if exp: session.delete(exp)session.commit() return True
+                # Remove from local lists (logistics)
                 if experiment_id in self.experiments:
                     self.experiments.remove(experiment_id)
                 if experiment_id in self.experiment_names:
@@ -1412,10 +1021,6 @@ class MainWindow(QMainWindow, NavigationMixin):
         delete_act.triggered.connect(lambda: self._delete_channel(experiment_id, channel_name))
         menu.addAction(delete_act)
 
-        rename_act = QAction("Rename channel", self)
-        rename_act.triggered.connect(lambda: self._rename_channel(experiment_id, channel_name))
-        menu.addAction(rename_act)
-
         view_act = QAction("View channel", self)
         view_act.triggered.connect(lambda: self._view_channel(experiment_id, channel_name))
         menu.addAction(view_act)
@@ -1423,152 +1028,29 @@ class MainWindow(QMainWindow, NavigationMixin):
         menu.exec(button.mapToGlobal(button.rect().bottomLeft()))
 
 
-    def _delete_channel(self, experiment_id, channel_name):
+    def _delete_channel(self, experiment_id, channel_name, channel_id):
         """Delete a channel from an experiment and persist to DB."""
         reply = QMessageBox.question(
             self,
             "Delete Channel",
-            f"Are you sure you want to delete channel '{channel_name}' from experiment '{experiment_id}'?",
+            f"Are you sure you want to delete the selected channel '{channel_name}' from experiment '{experiment_id}'?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
-        if reply != QMessageBox.StandardButton.Yes:
-            return
+        if reply == QMessageBox.StandardButton.Yes:
+            success = delete_channel(self.db_path, channel_id)
 
-        exp_data = self.experiment_metadata.get(experiment_id)
-        if not exp_data:
-            QMessageBox.warning(self, "Error", "Experiment not found.")
-            return
-
-        # Get channels as a mutable list (handle both pydantic model and dict cases)
-        if hasattr(exp_data, 'channels'):
-            channels = list(exp_data.channels)
-        else:
-            channels = list(exp_data.get('channels', []))
-
-        # Remove matching channel
-        new_channels = []
-        removed = False
-        for ch in channels:
-            name = ch.channel_name if hasattr(ch, 'channel_name') else ch.get('channel_name', '')
-            if name == channel_name and not removed:
-                removed = True
-                continue
-            new_channels.append(ch)
-
-        if not removed:
-            QMessageBox.warning(self, "Error", "Channel not found on experiment.")
-            return
-
-        # Rebuild Experiment object and save
-        # Extract experiment-level fields from exp_data (support both object and dict)
-        base = getattr(exp_data, 'base', None) or exp_data.get('base', None)
-        spacing_x = getattr(exp_data, 'spacing_x', None) or exp_data.get('spacing_x', 0.65)
-        spacing_y = getattr(exp_data, 'spacing_y', None) or exp_data.get('spacing_y', 0.65)
-        spacing_z = getattr(exp_data, 'spacing_z', None) or exp_data.get('spacing_z', 2.0)
-        side = getattr(exp_data, 'side', None) or exp_data.get('side', 'L')
-        position = getattr(exp_data, 'position', None) or exp_data.get('position', 'H')
-
-        # Convert channels to Channel objects
-        ch_objs = []
-        for ch in new_channels:
-            if hasattr(ch, 'channel_name'):
-                ch_objs.append(Channel(experiment_id=ch.experiment_id, channel_name=ch.channel_name, path=ch.path, v0=getattr(ch, 'v0', 0.0), v1=getattr(ch, 'v1', 0.0)))
+            if success:
+                self.show_exp()
+                QMessageBox.information(
+                    self, "Success", f"Deleted channel: {channel_name}"
+                )
             else:
-                ch_copy = dict(ch)
-                ch_copy.setdefault('v0', 0.0)
-                ch_copy.setdefault('v1', 0.0)
-                ch_objs.append(Channel(**ch_copy))
+                QMessageBox.warning(
+                    self,
+                    "Error",
+                    f"Channel '{channel_name}' not found in database.",
+                )
 
-        updated = Experiment(
-            experiment_id=experiment_id,
-            base=base,
-            spacing_x=spacing_x,
-            spacing_y=spacing_y,
-            spacing_z=spacing_z,
-            side=side,
-            position=position,
-            channels=ch_objs,
-        )
-
-        try:
-            save_experiment(self.db_path, updated)
-            self._load_experiments_from_db()
-            self.show_exp()
-            QMessageBox.information(self, "Success", f"Deleted channel '{channel_name}' from '{experiment_id}'")
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to delete channel: {e}")
-
-
-    def _rename_channel(self, experiment_id, channel_name):
-        current = channel_name
-        new_name, ok = QInputDialog.getText(self, "Rename channel", "New channel name:", text=current)
-        if not ok or not new_name.strip():
-            return
-        new_name = new_name.strip()
-
-        exp_data = self.experiment_metadata.get(experiment_id)
-        if not exp_data:
-            QMessageBox.warning(self, "Error", "Experiment not found.")
-            return
-
-        if hasattr(exp_data, 'channels'):
-            channels = list(exp_data.channels)
-        else:
-            channels = list(exp_data.get('channels', []))
-
-        renamed = False
-        for ch in channels:
-            if (hasattr(ch, 'channel_name') and ch.channel_name == channel_name) or (
-                not hasattr(ch, 'channel_name') and ch.get('channel_name') == channel_name
-            ):
-                if hasattr(ch, 'channel_name'):
-                    ch.channel_name = new_name
-                else:
-                    ch['channel_name'] = new_name
-                renamed = True
-                break
-
-        if not renamed:
-            QMessageBox.warning(self, "Error", "Channel not found.")
-            return
-
-        # Recreate Experiment object and save
-        base = getattr(exp_data, 'base', None) or exp_data.get('base', None)
-        spacing_x = getattr(exp_data, 'spacing_x', None) or exp_data.get('spacing_x', 0.65)
-        spacing_y = getattr(exp_data, 'spacing_y', None) or exp_data.get('spacing_y', 0.65)
-        spacing_z = getattr(exp_data, 'spacing_z', None) or exp_data.get('spacing_z', 2.0)
-        side = getattr(exp_data, 'side', None) or exp_data.get('side', 'L')
-        position = getattr(exp_data, 'position', None) or exp_data.get('position', 'H')
-
-        ch_objs = []
-        for ch in channels:
-            if hasattr(ch, 'channel_name'):
-                ch_objs.append(Channel(experiment_id=ch.experiment_id, channel_name=ch.channel_name, path=ch.path, v0=getattr(ch, 'v0', 0.0), v1=getattr(ch, 'v1', 0.0)))
-            else:
-                # ensure v0/v1 exist for dict channels
-                ch_copy = dict(ch)
-                ch_copy.setdefault('v0', 0.0)
-                ch_copy.setdefault('v1', 0.0)
-                ch_objs.append(Channel(**ch_copy))
-
-        updated = Experiment(
-            experiment_id=experiment_id,
-            base=base,
-            spacing_x=spacing_x,
-            spacing_y=spacing_y,
-            spacing_z=spacing_z,
-            side=side,
-            position=position,
-            channels=ch_objs,
-        )
-
-        try:
-            save_experiment(self.db_path, updated)
-            self._load_experiments_from_db()
-            self.show_exp()
-            QMessageBox.information(self, "Success", f"Renamed channel to '{new_name}'")
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to rename channel: {e}")
 
 
     def _view_channel(self, experiment_id, channel_name):
@@ -1633,7 +1115,6 @@ class MainWindow(QMainWindow, NavigationMixin):
             "alignment_method": "rigid" if exp.transformation_matrix_path else None,
         }
     
-
 
 
     def _set_current_experiment(self, exp_obj):
