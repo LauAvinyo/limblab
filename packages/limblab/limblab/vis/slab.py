@@ -2,7 +2,7 @@ from typing import Any, Literal, Optional
 
 import numpy as np
 from limblab.models import Channel, Experiment
-from packages.limblab.utils import file2dic, pick_evenly_distributed_values, styles
+from limblab.vizutils import file2dic, styles
 from vedo import (
     Axes,
     Box,

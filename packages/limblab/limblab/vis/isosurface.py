@@ -5,7 +5,7 @@ import numpy as np
 import os
 import shutil
 from limblab.models import Channel, Experiment
-from packages.limblab.utils import file2dic, pick_evenly_distributed_values, styles
+from limblab.vizutils import file2dic, pick_evenly_distributed_values, styles
 from vedo import (
     LinearTransform,
     Mesh,
@@ -14,7 +14,7 @@ from vedo import (
     Text2D,
     Volume,
     printc,
-    progressbar,
+    progressbar
 )
 from vedo.applications import IsosurfaceBrowser
 

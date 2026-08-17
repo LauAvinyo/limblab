@@ -64,6 +64,11 @@ from menu_utils import MenuUtils
 
 import webbrowser
 
+
+from controllers.visualization_controller import VisualizationController
+
+
+
 env = {}
 with open("../../../.env") as f:
     for line in f:
@@ -177,6 +182,10 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         #self.current_experiment = experiment   # set when the user picks a real experiment
         
         self._build_permanent_chrome()
+
+        #visualizations!
+        self.visualizer = VisualizationController(self)
+
 
         # self.navigate_to(lambda:self.align.show(experiment))
         self.navigate_to(self.show_home)
@@ -724,17 +733,9 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         #visualization of hte uploaded users channel!
         #self.current_experiment = self.new_exp#from create new experiment function, as the user uploads!
 
-        container = self._build_workflow_container(
-        next_label="Clean",
-        next_callback=lambda: self.navigate_to(lambda: self.clean.show(self.current_experiment)),
-        back_guard=None,
-        current_step="Visualize"
-    )
-        self.setCentralWidget(container)
-        self._refresh_pipeline_actions(current_step="Visualize")
-        self._hide_busy()
-
+        self.navigate_to(lambda: self.visualizer.show(self.current_experiment))
         
+        self._hide_busy()
         if (
             self.workflow_state.get("align_done")
             and self.align.source is not None
@@ -750,6 +751,8 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
             self._show_cleaned_channel_preview()
         else:
             self._show_raw_volume_preview(self.current_experiment)
+
+        
 
         
     def _show_final_aligned_mesh(self):
@@ -1711,3 +1714,13 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         self.pipeline_log.append(message)
         if hasattr(self, "pipeline_log_widget"):
             self.pipeline_log_widget.setText("\n".join(self.pipeline_log[-10:]))
+
+
+
+
+
+
+
+
+
+#self.navigate_to(lambda: self.raycast.show(self.current_channel)),

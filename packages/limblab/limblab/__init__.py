@@ -4,6 +4,7 @@ LimbLab - core library for limb development data processing and visualization.
 
 __version__ = "0.4.1"
 
+#Database actions
 from .database import (
     delete_experiment,
     get_engine,
@@ -13,7 +14,11 @@ from .database import (
     delete_channel,
     rename_experiment
 )
+
+#Design logistics
 from .design import DESIGN_TOKENS, get_design_token, theme
+
+#Limb processing tools
 from .tools.align import _store_transformation_matrix, rotate_limb
 from .tools.clean import clean, get_channel_path, pick_isovalues
 from .tools.show_tiff import preview_volume
@@ -24,6 +29,16 @@ from .tools.surface import (
     get_nuclei_channel_path,
     pick_isovalue,
 )
+
+#Visualizations
+from .vis.isosurface import (two_chanel_isosurface, one_channel_isosurface)
+from .vis.probe import probe
+from .vis.raycast import raycast
+from .vis.slices import slices
+from .vis.slab import dynamic_slab
+
+
+from .vizutils import file2dic, pick_evenly_distributed_values, styles
 
 __all__ = [
     "_store_transformation_matrix",
@@ -52,7 +67,16 @@ __all__ = [
     'stage_limb_embedded',
     'preview_volume',
     'delete_channel',
-    'rename_experiment'
+    'rename_experiment',
+    'one_channel_isosurface',
+    'two_chanel_isosurface',
+    'dynamic_slab',
+    'probe',
+    'raycast',
+    'slices',
+    'file2dic',
+    'pick_evenly_distributed_values',
+    'styles'
     
 ]
 #les funcions privades s-haurien de poder ficar aqui????

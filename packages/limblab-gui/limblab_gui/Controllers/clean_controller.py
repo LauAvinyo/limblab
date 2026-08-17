@@ -22,8 +22,8 @@ class CleanController:
         self.experiment = None
         self.channel_name = None
         self.raw_volume_path = None
-        self.v0 = None
-        self.v1 = None
+        self.clean_isovalue_min = None
+        self.clean_isovalue_max = None
 
 
     def show(self,experiment):
@@ -222,25 +222,19 @@ class CleanController:
                 experiment=self.experiment,
                 raw_volume_path=self.raw_volume_path,
                 channel_name=self.channel_name,
-                params=clean_params,
+                params=clean_params
             )
 
         except Exception as e:
             QMessageBox.critical(self.window, "Clean error", str(e))
             return
+    
 
-        # Replace existing channel entry of the same name, or add it
-        self.experiment.channels = [
-            ch for ch in self.experiment.channels
-            if ch.channel_name.upper() != new_channel.channel_name.upper()
-        ] + [new_channel]
+        new_channel.clean_isovalue_min = clean_params.v0
+        new_channel.clean_isovalue_max = clean_params.v1
+        new_channel.clean_path = new_channel.path  
 
-        self.experiment.channel.clean_isovalue_min = clean_params.v0
-        self.experiment.channel.clean_isovalue_max = clean_params.v1
-
-        self.experiment.channel.clean_path = self.new_channel.raw_volume_path
-
-###################DONT KNOW IF THIS IS RIGHT###########################################################################
+        print('DEBUG!!!')
 
         save_experiment(self.window.db_path, self.experiment)
 
@@ -252,7 +246,7 @@ class CleanController:
         self.window._refresh_pipeline_actions(current_step="Clean")
 
         self.window.log_pipeline(
-            f"Cleaned {new_channel.channel_name} (v0={new_channel.v0}, v1={new_channel.v1}).\n"
+            f"Cleaned {new_channel.channel_name} (v0={new_channel.clean_isovalue_min}, v1={new_channel.clean_isovalue_max}).\n"
             f"Written to:\n{new_channel.path}"
         )
 

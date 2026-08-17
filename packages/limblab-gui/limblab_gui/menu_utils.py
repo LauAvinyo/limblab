@@ -16,6 +16,7 @@ from utils import (
     create_collapsible_section
     
 )
+from mixin.NavigationMixin import NavigationMixin
 
 class MenuUtils:    
     def _build_home_topbar(self):
@@ -154,7 +155,7 @@ class MenuUtils:
         for step in self.PIPELINE_STEPS:
             act = QAction(step, self)
             act.setCheckable(True)
-            act.triggered.connect(lambda checked=False, s=step: self._navigate_to_step(s, self._current_pipeline_step))
+            act.triggered.connect(lambda checked=False, s=step: self.navigate_to_step(s, self._current_pipeline_step))
             self.action_bar.addAction(act)
             self._step_actions[step] = act
 

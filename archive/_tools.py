@@ -11,10 +11,10 @@ from vedo.pyplot import histogram
 
 # from limblab.cameras_figures import (fig2_camera_side, fig2_camera_tilted,
 #                                      fig2_camera_top)
-from utils import (closest_value, dic2file, file2dic,
+from limblab.vizutils import (closest_value, dic2file, file2dic,
                            get_reference_limb, load_pipeline, reference_stages)
 
-from utils import styles
+from limblab.vizutils import styles
 
 vedo.settings.screenshot_transparent_background = True
 VERBOSE = True

@@ -98,6 +98,6 @@ def clean(
         experiment_id=experiment.experiment_id,
         channel_name=channel_name,
         path=str(out_path),
-        v0=params.v0,
-        v1=params.v1,
+        clean_isovalue_min=params.v0,
+        clean_isovalue_max=params.v1,
     )

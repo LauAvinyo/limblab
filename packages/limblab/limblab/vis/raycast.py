@@ -5,7 +5,7 @@ from typing import Any, Literal, Optional
 import numpy as np
 from limblab.design import theme
 from limblab.models import Channel, Experiment
-from vedo import Volume
+from vedo import Volume, Plotter
 from vedo.applications import (
     RayCastPlotter,
 )
@@ -24,28 +24,37 @@ background = theme("palette.background", "#fb8f00")
 
 
 
-def _raycast(    
+def _raycast(
     volume_path: str,
     renderer: Optional[Literal["pyqt"]] = None,
     outside_class: Optional[Any] = None,
+    plotter: Optional[Plotter] = None,   # <-- new parameter
 ):
-
     volume = Volume(volume_path)
     # TODO: apply transform if so.
     # transformation = pipeline.get("TRANSFORMATION", False)
 
-    volume.mode(1).cmap("jet")  # type: ignore # change visual properties
+    volume.mode(1).cmap("jet")  # raycasting mode
 
-    # Create a Plotter instance and show
-    plt = RayCastPlotter(volume, bg="white", axes=7)
-    plt.show(viewup="z")
-    plt.close()
+    if plotter is not None:
+        # Remove only previous Volume actors (not axes or background)
+        for actor in list(plotter.actors):
+            if isinstance(actor, Volume):
+                plotter.remove(actor)
+        plotter.add(volume)
+        plotter.render()         # update the Qt widget
+    else:
+        # Original standalone window
+        plt = RayCastPlotter(volume, bg="black", axes=7)
+        plt.show(viewup="z")
+        plt.close()
 
 def raycast(
     experiment: Experiment,
     channel_name: str, 
     renderer: Literal["pyqt"] | None = None,
     outside_class: Any | None = None,
+    plotter: Optional[Plotter] = None,   # <-- new parameter
 ) -> None:
 
     channels = experiment.channels
@@ -56,5 +65,5 @@ def raycast(
             channel: Channel = i 
 
     volume_path = channel.path
-    _raycast(volume_path, renderer, outside_class)
+    _raycast(volume_path, renderer, outside_class, plotter=plotter)
     
