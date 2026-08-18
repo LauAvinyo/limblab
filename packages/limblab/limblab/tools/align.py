@@ -1,4 +1,5 @@
 import os
+import sqlite3
 from typing import Any, Literal, Optional
 
 from vedo import Mesh, Plotter, Text2D, settings
@@ -7,39 +8,47 @@ from limblab.design import theme
 from limblab.models import Experiment
 from limblab.utils import generate_kwargs
 
-env = {}
-with open("../../../.env") as f:
-    for line in f:
-        line = line.strip()
-        # Skip empty lines and comments
-        if not line or line.startswith("#"):
-            continue
-        # Ensure there is an '='
-        if "=" not in line:
-            continue
-        # Split only on the first '='
-        key, value = line.split("=", 1)
-        key = key.strip()
-        value = value.strip().replace('"', "").replace("'", "")
-        env[key] = value
 
-REFERENCE_LIMB_FOLDER = env["REFERENCE_LIMB_FOLDER"]
+def _store_transformation_matrix(T, surface_path: str) -> str:
+    try:
+        transformation_path = surface_path.replace("_surface.vtk", "_rotation.mat")
+        T.write(transformation_path)
+    except Exception as e:
+        raise RuntimeError(f"Failed to write transformation matrix: {e}") from e
+
+    return transformation_path
 
 
-files = [
-    file
-    for file in os.listdir(REFERENCE_LIMB_FOLDER)
-    if os.path.isfile(os.path.join(REFERENCE_LIMB_FOLDER, file)) # type: ignore
-    and not file.startswith(".DS")
-    or file.startswith("-")
-]
-reference_stages = [int(file.split(".")[0].split("_")[1]) for file in files]
+# ----------------------------------------------------------------------
+# DB-backed reference limb lookup
+#
+# Replaces the old REFERENCE_LIMB_FOLDER filesystem scan (os.listdir +
+# filename parsing like "Limb-rec_23.vtk" -> stage 23). 
+# ----------------------------------------------------------------------
+
+def _get_reference_stages(db_path: str) -> list[int]:
+    """All stages that have a reference limb available in the DB."""
+    with sqlite3.connect(db_path) as conn:
+        rows = conn.execute("SELECT stage FROM reference_limbs").fetchall()
+    return [row[0] for row in rows]
+
+
+def _get_reference_limb_path(db_path: str, stage: int) -> Optional[str]:
+    """File path for the reference limb at an exact stage, or None."""
+    with sqlite3.connect(db_path) as conn:
+        row = conn.execute(
+            "SELECT file_path FROM reference_limbs WHERE stage = ?", (stage,)
+        ).fetchone()
+    if row is None:
+        return None
+    file_path = row[0]
+    return file_path if os.path.isfile(file_path) else None
 
 
 def closest_value(input_list: list, target: int) -> int:
-    """ "Get the closest value of the list to our target."""
-    closest = input_list[0]  # Assume the first value is the closest initially
-    min_diff = abs(target - closest)  # Initialize minimum difference
+    """Get the closest value in the list to our target."""
+    closest = input_list[0]
+    min_diff = abs(target - closest)
 
     for value in input_list:
         diff = abs(target - value)
@@ -50,25 +59,7 @@ def closest_value(input_list: list, target: int) -> int:
     return closest
 
 
-def get_reference_limb(stage: int) -> str | None:
-    """From the stage, get the reference limb path"""
-    file = os.path.join(REFERENCE_LIMB_FOLDER, "Limb-rec_" + str(stage) + ".vtk") # type: ignore
-    if os.path.isfile(file):
-        return file
-    return None
-
-
-def _store_transformation_matrix(T, surface_path: str) -> str:
-
-    try:
-        transformation_path = surface_path.replace("_surface.vtk", "_rotation.mat")
-        T.write(transformation_path)
-    except Exception as e:
-        raise RuntimeError(f"Failed to write transformation matrix: {e}") from e
-
-    return transformation_path
-
-def _initialize_limbs_paths(experiment: Experiment, reference_stages):
+def _initialize_limbs_paths(experiment: Experiment, db_path: str) -> tuple[str, str]:
     base = experiment.base
     surface_name = experiment.surface_path
     stage = experiment.stage
@@ -78,14 +69,20 @@ def _initialize_limbs_paths(experiment: Experiment, reference_stages):
 
     surface_path = os.path.join(base, surface_name)
 
-    # Get the target stage
+    reference_stages = _get_reference_stages(db_path)
+    if not reference_stages:
+        raise RuntimeError("No reference limbs found in the database.")
+
     reference_stage = closest_value(reference_stages, stage)
-    refence_limb_path = get_reference_limb(reference_stage)
+    reference_limb_path = _get_reference_limb_path(db_path, reference_stage)
 
-    if refence_limb_path is None:
-        raise FileNotFoundError(f"No reference limb found for stage {reference_stage}")
+    if reference_limb_path is None:
+        raise FileNotFoundError(
+            f"No reference limb file found for stage {reference_stage} "
+            "(DB row missing, or the file it points to no longer exists on disk)."
+        )
 
-    return surface_path, refence_limb_path
+    return surface_path, reference_limb_path
 
 
 def _rotate_limb(
@@ -96,20 +93,22 @@ def _rotate_limb(
 ) -> str | tuple[Any, Any, str]:
 
     # Get the Surfaces
-    source = Mesh(surface_path).color(theme("palette.limb", "#000000"))  # .scale(1.1)
-    target = Mesh(reference_limb_path).cut_with_plane(origin=(1, 0, 0)).alpha(0.5).c(theme("palette.channel0", "#000000"))
+    source = Mesh(surface_path).color(theme("limblab.limb", "#000000"))
+    target = (
+        Mesh(reference_limb_path)
+        .cut_with_plane(origin=(1, 0, 0))
+        .alpha(0.5)
+        .c(theme("limblab.channel0", "#000000"))
+    )
 
     # Store the Transformation
     T = source.apply_transform_from_actor()  # type: ignore
 
     params: dict[str, Any] = dict(shape="1|2", sharecam=False)
-    kwargs = generate_kwargs(
-        params=params, renderer=renderer, outside_class=outside_class
-    )
+    kwargs = generate_kwargs(params=params, renderer=renderer, outside_class=outside_class)
 
     plt = Plotter(**kwargs)  # type: ignore
 
-    # Set the camera positions for the three views
     plt.at(2).camera = {
         "position": (727.482, -9177.46, 178.073),
         "focal_point": (727.482, 387.830, 178.073),
@@ -128,11 +127,10 @@ def _rotate_limb(
         "clipping_range": (8305.31, 11134.5),
     }
 
-    plt.at(2).add(source.alpha(0.4), target.alpha(0.6)) # type: ignore
-    plt.at(1).add(source.alpha(0.4), target.alpha(0.6)) # type: ignore
-    plt.at(0).add(source.alpha(0.4), target.alpha(0.6)) # type: ignore
+    plt.at(2).add(source.alpha(0.4), target.alpha(0.6))  # type: ignore
+    plt.at(1).add(source.alpha(0.4), target.alpha(0.6))  # type: ignore
+    plt.at(0).add(source.alpha(0.4), target.alpha(0.6))  # type: ignore
 
-    # Add instructions as Text2D instead of using plt.instructions.text()
     instructions = Text2D(
         "Toggle 'a' for transformation mode\n"
         "Use mouse to rotate\n"
@@ -144,12 +142,10 @@ def _rotate_limb(
         s=1.2,
     )
 
-    # Add instructions to the main plotter
     if renderer == "pyqt":
         plt.show(axes=14, interactive=False)
         return plt, source, surface_path
 
-    # Standalone behaviour (unchanged)
     plt += instructions
     plt.show(axes=14).interactive()
     plt.close()
@@ -161,20 +157,17 @@ def _rotate_limb(
 
 def rotate_limb(
     experiment: Experiment,
+    db_path: str,
     renderer: Literal["pyqt"] | None = None,
     outside_class: Any | None = None,
 ) -> str | tuple[Any, Any, str]:
-    """
-    Rotate the limb to a standard orientation.
-    This function is a placeholder and should be implemented with the actual rotation logic.
-    """
-    #print("WE are here!")
+    """Rotate the limb to a standard orientation, using a reference limb
+    looked up from the database rather than a hardcoded folder."""
     settings.enable_default_keyboard_callbacks = True
-    surface_path, refence_limb_path = _initialize_limbs_paths(
-        experiment, reference_stages
-    )
-    
-    return _rotate_limb(surface_path, refence_limb_path, renderer, outside_class)
+
+    surface_path, reference_limb_path = _initialize_limbs_paths(experiment, db_path)
+
+    return _rotate_limb(surface_path, reference_limb_path, renderer, outside_class)
 
 
 # def _morph_limb(

@@ -567,7 +567,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
             if exp_obj is None:
                 continue
 
-            display_name = self.experiment_names.get(path, os.path.basename(path))
+            displayed_name = self.experiment_names.get(path, os.path.basename(path))
             channels = exp_obj.channels if hasattr(exp_obj, 'channels') else []
 
             parent = QTreeWidgetItem(tree)
@@ -578,7 +578,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
             name_widget = QWidget()
             name_layout = QHBoxLayout(name_widget)
             name_layout.setContentsMargins(8, 6, 8, 6)
-            name_label = QLabel(display_name)
+            name_label = QLabel(displayed_name)
             name_label.setStyleSheet(f"color: {theme('palette.textPrimary', '#FFFFFF')}; font-size: {theme('typography.fontSizeLarge', 18)}px;")
             channel_info = QLabel(f"({len(channels)} channels)")
             channel_info.setStyleSheet(f"color: {theme('palette.textSecondary', '#A0A0A0')}; font-size: {theme('typography.fontSizeSmall', 12)}px;")
@@ -607,7 +607,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
 
             view_btn = make_small_btn('View', theme('palette.accent', '#0D7C66'), theme('palette.primaryHover', '#41B3A2'), lambda checked=False, p=path: self._view_experiment(p))
             add_ch_btn = make_small_btn('+Channel', theme('palette.secondary', '#54278F'), theme('palette.secondaryHover', '#756BB1'), lambda checked=False, p=path: self._add_channel_to_existing(p))
-            del_btn = make_small_btn('Delete', theme('palette.error', '#A6284F'), theme('palette.error', '#C9302C'), lambda checked=False, p=path, n=display_name: self._delete_experiment(p,n))
+            del_btn = make_small_btn('Delete', theme('palette.error', '#A6284F'), theme('palette.error', '#C9302C'), lambda checked=False, p=path, n=displayed_name: self._delete_experiment(p,n))
             rename_btn = make_small_btn('Rename', theme('palette.error', "#3AAC58"), theme('palette.error', "#58C92C"), lambda checked=False, p=path: self._rename_experiment(p))
 
             act_layout.addWidget(view_btn)
@@ -729,36 +729,20 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
 
 
     def show_viz(self):
+        self.action_bar.setVisible(False)
         self._show_busy('Loading volume...')
         #visualization of hte uploaded users channel!
         #self.current_experiment = self.new_exp#from create new experiment function, as the user uploads!
 
         self.navigate_to(lambda: self.visualizer.show(self.current_experiment))
         
-        self._hide_busy()
-        if (
-            self.workflow_state.get("align_done")
-            and self.align.source is not None
-            and self.align.surface_path is not None
-        ):
-            self._show_final_aligned_mesh()
+      
 
-        elif (
-            self.workflow_state.get("clean_done")
-            and self.workflow_state.get("last_cleaned_channel")
-            and self.workflow_state["last_cleaned_channel"] != "DAPI"
-        ):
-            self._show_cleaned_channel_preview()
-        else:
-            self._show_raw_volume_preview(self.current_experiment)
-
-        
-
-        
+    ''''
     def _show_final_aligned_mesh(self):
         """Show the fully processed (aligned) limb mesh — final pipeline output."""
         try:
-            mesh = Mesh(str(self.align.surface_path))
+            mesh = Mesh(str())
             T = self.align.source.transform # type: ignore
             mesh.apply_transform(T)
 
@@ -796,31 +780,9 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
             print(f"Error loading cleaned channel preview: {e}")
 
 
-    def _show_raw_volume_preview(self, experiment):
-        """First-look, non-processed view of the experiment's raw volume."""
-        channels = experiment.channels or []
-        if not channels:
-            print(f"No channels found for experiment: {experiment.experiment_id}")
-            return
+    
 
-        dapi_channel = next(
-            (ch for ch in channels if ch.channel_name.upper() == "DAPI"), None
-        )
-        channel = dapi_channel or channels[0]
-
-        full_path = os.path.join(experiment.base, channel.path)
-        if not os.path.exists(full_path):
-            print(f"File not found: {full_path}")
-            return
-
-        try:
-            self.viz_plotter = preview_volume(
-                raw_volume_path=full_path,
-                renderer="pyqt",
-                outside_class=self,
-            )
-        except Exception as e:
-            print(f"Error loading volume preview: {e}")
+        '''
 
 
     def update_viewer(self, filepath):
@@ -967,7 +929,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
                 if exp_data:
                     self.experiment_metadata[exp_id] = exp_data
                     # Use the persisted display name if set, otherwise fall back to the id
-                    self.experiment_names[exp_id] = exp_data.display_name or exp_id
+                    self.experiment_names[exp_id] = exp_data.displayed_name or exp_id
 
             print(f"Loaded {len(self.experiments)} experiments from database")
 
@@ -995,13 +957,13 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
                 QMessageBox.warning(self, "Error", f"Experiment '{path}' not found in database.")
 
     # DELETE FUNCTION CALLS DATABASE DELETE FUNCTION, AUXILIAR UI
-    def _delete_experiment(self, experiment_id, display_name):
+    def _delete_experiment(self, experiment_id, displayed_name):
         """Delete an experiment from the database."""
         # Confirm with user
         reply = QMessageBox.question(
             self,
             "Delete Experiment",
-            f"Are you sure you want to delete experiment '{display_name}'?\nThis implies deleting all its associated channels from the database entry.",
+            f"Are you sure you want to delete experiment '{displayed_name}'?\nThis implies deleting all its associated channels from the database entry.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
 
@@ -1021,13 +983,13 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
                 # Refresh the UI
                 self.show_exp()
                 QMessageBox.information(
-                    self, "Success", f"Deleted experiment: {display_name}"
+                    self, "Success", f"Deleted experiment: {displayed_name}"
                 )
             else:
                 QMessageBox.warning(
                     self,
                     "Error",
-                    f"Experiment '{display_name}' not found in database.",
+                    f"Experiment '{displayed_name}' not found in database.",
                 )
 
 
