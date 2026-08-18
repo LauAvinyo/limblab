@@ -85,8 +85,16 @@ class StageController:
 
         self.window.log_pipeline(f"Stage confirmed: {stage}")
 
+        self._go_next_from_stage()
+
+
+
     def _go_next_from_stage(self):
-        if not self.window.workflow_state["stage_done"]:
-            QMessageBox.warning(self.window, "Stage required", "Please select and confirm a stage before proceeding to Alignment.")
+        if self.experiment.surface_path is None and self.experiment.surface_isovalue is None:
+            QMessageBox.warning(self.window, "Stage required", 
+                                "Please select and confirm a stage before proceeding to Alignment.")
             return
-        self.window.navigate_to(lambda: self.window.align.show(self.window.current_experiment))
+                
+        else:
+            self.window._show_message(f"Staging complete!\nFinally, align your limb volume")
+            self.window.navigate_to(lambda: self.window.align.show(self.window.current_experiment))

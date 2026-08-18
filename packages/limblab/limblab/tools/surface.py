@@ -10,7 +10,7 @@ from vedo.pyplot import histogram
 from limblab.exceptions import VolumeProcessingError
 from limblab.models import Channel, Experiment
 from limblab.utils import generate_kwargs
-
+from limblab.design import theme
 
 def auto_isovalue(raw_volume_path: Path) -> float:
     """Automatically determine isovalue from volume histogram."""
@@ -28,7 +28,7 @@ def pick_isovalue(
     vol = Volume(str(raw_volume_path))
 
 
-    params: dict[str, Any] = dict(use_gpu=True, c="green", alpha=0.6)
+    params: dict[str, Any] = dict(use_gpu=True, c=theme("limblab.surface"), alpha=0.6)
     kwargs = generate_kwargs(
         params=params, renderer=renderer, outside_class=outside_class
     )
@@ -37,10 +37,10 @@ def pick_isovalue(
 
     #allows to extracte the selected isovalue through the vedo slider
     if renderer == "pyqt":
-        plt.show(axes=7, bg2="lb", interactive=False)
+        plt.show(axes=7, interactive=False)
         return plt
 
-    plt.show(axes=7, bg2="lb").interactive()
+    plt.show(axes=7)
     iso_value = plt.sliders[0][0].value
     plt.close()
     return float(iso_value)

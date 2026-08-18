@@ -8,13 +8,15 @@
     "textPrimary": "#FFFFFF",
     "textSecondary": "#A0A0A0",
     "textDisabled": "#666666",
-    "primary": "#fb8f00",
+    "primary": "#0D7C66",
     "primaryHover": "#41B3A2",
     "secondary": "#54278F",
     "secondaryHover": "#756BB1",
     "accent": "#5FBF9F",
-    "warning": "#FF6B6B",
-    "limb": "#FF7F11",
+    "warning": "#FF6B6B"
+  }, 
+  "limblab": {
+    "surface": "#FF7F11",
     "channel0": "#B0DB43",
     "channel1": "#DB43B0",
     "channel2": "#43B0DB",

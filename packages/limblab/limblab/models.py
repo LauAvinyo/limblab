@@ -44,7 +44,6 @@ class Experiment(SQLModel, table=True):
     surface_isovalue: Optional[int] = None
     stage: Optional[int] = None
     transformation_matrix_path: Optional[str] = None
-    rotation_matrix_path : Optional[str] = None
     linear_transform: Optional[str] = None
     nonlinear_transform: Optional[str] = None
 

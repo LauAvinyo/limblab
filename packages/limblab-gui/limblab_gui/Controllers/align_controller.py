@@ -113,8 +113,7 @@ class AlignController:
             return
 
         self.experiment.transformation_matrix_path = transformation_path
-        #################self.experiment.rotation_matrix_path = ROTATION MATRIX ????????????????????????????????????????????????????????????
-
+        
         save_experiment(self.window.db_path, self.experiment)
 
         self.window.workflow_state["align_done"] = True
@@ -128,13 +127,19 @@ class AlignController:
             f"Alignment completed.\nMatrix written to:\n{transformation_path}"
         )
 
-    def _go_next_from_align(self):
-        if not self.window.workflow_state["align_done"]:
-            QMessageBox.warning(
-                self.window,
-                "Alignment required",
-                "Please confirm an alignment before continuing.",
-            )
-            return
+        self._go_next_from_align()
 
-        self.window.navigate_to(lambda: self.window.show_viz)
+
+    def _go_next_from_align(self): 
+        print(self.experiment.transformation_path)           
+        if self.experiment.transformation_path is None :
+            QMessageBox.warning(
+                                    self.window,
+                                    "Alignment required",
+                                    "Please confirm an alignment before continuing.",
+                                )
+            return
+        else:
+            self.window._show_message(f"Alignment was performed!\nYou can now Visualize your limb surface")
+            self.window.navigate_to(lambda: self.window.visualizer.show(self.window.current_experiment))
+

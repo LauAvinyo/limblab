@@ -25,7 +25,7 @@ def pick_isovalues(
 
     vol = Volume(str(raw_volume_path))
 
-    params: dict[str, Any] = dict(use_gpu=True, bg="white", c="green", alpha=0.6)
+    params: dict[str, Any] = dict(use_gpu=True, bg="black", c="blue", alpha=0.6)
     kwargs = generate_kwargs(
         params=params, renderer=renderer, outside_class=outside_class
     )

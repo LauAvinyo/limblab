@@ -23,7 +23,7 @@ secondary = theme("palette.secondary", "#1b263b")
 background = theme("palette.background", "#fb8f00")
 
 
-
+#function call from controller -> raycast(self.experiment, channel_name=channel.channel_name, plotter=plotter)
 def _raycast(
     volume_path: str,
     renderer: Optional[Literal["pyqt"]] = None,
@@ -57,12 +57,9 @@ def raycast(
     plotter: Optional[Plotter] = None,   # <-- new parameter
 ) -> None:
 
-    channels = experiment.channels
-    channel = ""
-    for i in channels:
-        if i.channel_name == channel_name:
-            print(i)
-            channel: Channel = i 
+    channel = next((c for c in experiment.channels if c.channel_name == channel_name), None)
+    if channel is None:
+        raise ValueError(f"No channel named '{channel_name}' found on this experiment.")
 
     volume_path = channel.path
     _raycast(volume_path, renderer, outside_class, plotter=plotter)

@@ -60,10 +60,13 @@ class SurfaceController:
 
         self.window._refresh_pipeline_actions(current_step="Surface")
 
+        print(experiment.channels)
         dapi_channel = next(
-            (ch for ch in (experiment.channels or []) if ch.channel_name.upper() == "DAPI"),
+            (ch for ch in experiment.channels if ch.channel_name == "DAPI"),
             None,
         )
+        print(dapi_channel)
+
         if dapi_channel is None:
             QMessageBox.critical(self.window, "Surface extraction error", "No DAPI channel found.")
             return
@@ -108,6 +111,7 @@ class SurfaceController:
 
         if self.plotter is None:
             QMessageBox.critical(self.window, "Surface extraction error", "No isosurface preview available.")
+            self.window._hide_busy()
             return
             #isovalue gets extracted from the vedo renderer se4lected value (slider)
            
@@ -123,7 +127,7 @@ class SurfaceController:
 
     def _on_extraction_done(self, surface_path, isovalue):
         assert self.experiment is not None
-        self.experiment.surface_path = os.path.basename(str(surface_path))#############DATABASE action.
+        self.experiment.surface_path = os.path.basename(str(surface_path))
         self.experiment.surface_isovalue = int(isovalue)
         save_experiment(self.window.db_path, self.experiment)
 
@@ -131,16 +135,24 @@ class SurfaceController:
         self.window._refresh_pipeline_actions(current_step="Surface")
 
         self.window.log_pipeline(f"Surface extracted (isovalue={isovalue:.3f}).\nWritten to:\n{surface_path}")
+        print('!!!')
+
+        self._go_next_from_surface()
+
 
     #from main
     def _go_next_from_surface(self):
+        print('!!!!')
+        print(self.experiment.surface_path)
         """Guard for Surface -> Stage: must have extracted a surface."""
-        if not self.window.workflow_state["surface_done"]:
+        if self.experiment.surface_path is None and self.experiment.surface_isovalue is None:
+
             QMessageBox.warning(
                 self.window,
                 "Surface required",
                 "Please extract a surface before proceeding to Stage.",
             )
             return
-
-        self.window.navigate_to(lambda: self.window.stage.show(self.window.current_experiment))
+        else:
+            self.window._show_message("Surface Extraction was performed!\nYou can now stage your limb volume")
+            self.window.navigate_to(lambda: self.window.stage.show(self.window.current_experiment))

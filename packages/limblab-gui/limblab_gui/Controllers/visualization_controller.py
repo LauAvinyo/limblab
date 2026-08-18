@@ -74,6 +74,7 @@ class VisualizationController:
     # ------------------------------------------------------------------
     def show(self,experiment):
         self.experiment = experiment
+
         container = self.window._build_workflow_container(
                         next_label="Clean",
                         next_callback=self._go_next_from_viz,
@@ -187,8 +188,5 @@ class VisualizationController:
 
 
     def _go_next_from_viz(self):
-        if self.window.workflow_state["last_cleaned_channel"] == "DAPI":
-
+    #the user will always be abele to clean and process any channel from the current experimetn!
             self.window.navigate_to(lambda: self.window.surface.show(self.window.current_experiment))
-        else:
-            self.window.navigate_to(self.window.show_viz)

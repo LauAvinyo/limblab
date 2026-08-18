@@ -79,8 +79,9 @@ def _stage_limb(
         elif event.keypress == "r":
             plt.reset_camera().render()
 
-        elif event.keypress == "q":
-            plt.close()
+        #ja no cal!
+        #elif event.keypress == "q":
+            #`plt.close()
 
     params: dict[str, Any] = {
         "title": "3D Stager", "N": 2, "sharecam": 0, "size": (2000, 1000), "axes": 14
@@ -97,8 +98,8 @@ def _stage_limb(
             "Right-click to remove it\n"
             "Press 'c' to clear all points\n"
             "Press 's' to stage the limb\n"
-            "Press 'r' to reset camera\n"
-            "Press 'q' to quit"
+            "Press 'r' to reset camera"
+            #"Press 'q' to quit"
         
     )
     plt.add_callback("on keypress", kfunc)
@@ -139,7 +140,7 @@ def stage_limb_embedded(experiment: Experiment, renderer: str = "pyqt", outside_
 
     check_connection(STAGING_URL)
 
-    surface_name = experiment.surface
+    surface_name = experiment.surface_path
     base = experiment.base
     if surface_name is None or base is None:
         raise ValueError(
@@ -157,7 +158,7 @@ def stage_limb(experiment: Experiment) -> int:
 
     check_connection(STAGING_URL)
 
-    surface_name = experiment.surface
+    surface_name = experiment.surface_path
     base = experiment.base
     if surface_name is None or base is None:
         raise ValueError(

@@ -47,9 +47,11 @@ class CleanController:
         # picker right away — no need to click "Load Volume" first.
         #
         self.window._refresh_pipeline_actions(current_step="Clean")
+        
 
         #TODO change this for any current volume cleaning, any channel. So if teh user wants to remove the surface they can
         #upload here the DAPI and proceed, if not, if htey onlly have a gene channel, its ok, they can clean volume and proeceed with
+        ''''
         has_dapi = any(
             ch.channel_name.upper() == "DAPI" for ch in (self.experiment.channels or [])
         )
@@ -57,6 +59,23 @@ class CleanController:
             self.clean_widgets["channel"].setCurrentText("DAPI")
             self._load_volume_for_picking()
 
+        '''
+
+
+        # If the experiment already has a channel loaded (any channel, not
+        # just DAPI), select it in the dropdown so the picker loads the
+        # channel that's actually on the experiment, not just whatever the
+        # combo box defaults to.
+        existing_channels = {
+            ch.channel_name.upper() for ch in (self.experiment.channels or [])
+        }
+        combo = self.clean_widgets["channel"]
+        for i in range(combo.count()):
+            if combo.itemText(i).upper() in existing_channels:
+                combo.setCurrentIndex(i)
+                break
+
+        self._load_volume_for_picking()
 
         self.window._hide_busy()
 
@@ -218,26 +237,44 @@ class CleanController:
                 low_res_size=self.clean_widgets["low_res_size"].value(),
             )
 
+
             new_channel = clean(
                 experiment=self.experiment,
                 raw_volume_path=self.raw_volume_path,
                 channel_name=self.channel_name,
                 params=clean_params
             )
+ 
+        #clean() returns a new created channel, must be overwritten!
 
         except Exception as e:
             QMessageBox.critical(self.window, "Clean error", str(e))
             return
     
-
         new_channel.clean_isovalue_min = clean_params.v0
         new_channel.clean_isovalue_max = clean_params.v1
-        new_channel.clean_path = new_channel.path  
+        new_channel.clean_path = new_channel.path
 
-        print('DEBUG!!!')
+
+        # clean() may return a detached Channel object rather than the same
+        # instance held in self.experiment.channels — replace the matching
+        # entry in place (or append if it's genuinely new) so the mutations
+        # above are actually what gets persisted.
+        existing_idx = next(
+            (i for i, ch in enumerate(self.experiment.channels)
+             if ch.channel_name == new_channel.channel_name),
+            None,
+        )
+        
+        if existing_idx is not None:
+            self.experiment.channels[existing_idx] = new_channel
+        else:
+            self.experiment.channels.append(new_channel)
+
 
         save_experiment(self.window.db_path, self.experiment)
 
+    
         self.window.workflow_state["clean_done"] = True
         self.window.workflow_state["last_cleaned_channel"] = new_channel.channel_name
 
@@ -249,19 +286,26 @@ class CleanController:
             f"Cleaned {new_channel.channel_name} (v0={new_channel.clean_isovalue_min}, v1={new_channel.clean_isovalue_max}).\n"
             f"Written to:\n{new_channel.path}"
         )
-
         self.window._hide_busy()
 
+        self._go_next_from_clean(new_channel)
 
-    def _go_next_from_clean(self):
-        if not self.window.workflow_state["clean_done"]:
+        
+
+    def _go_next_from_clean(self, new_channel):
+        if new_channel.clean_isovalue_min and new_channel.clean_isovalue_max == None:
+        #if not self.window.workflow_state["clean_done"]:
             QMessageBox.warning(
                 self.window, "Clean required",
                 "Please clean a channel before continuing.",
             )
             return
 
-        if self.window.workflow_state["last_cleaned_channel"] == "DAPI":
+        if new_channel.channel_name == 'DAPI':
+        #if self.window.workflow_state["last_cleaned_channel"] == "DAPI":
+            self.window._show_message(f"Your selected volume was properly cleaned!\nYou can keep processing your DAPI channel")
             self.window.navigate_to(lambda: self.window.surface.show(self.window.current_experiment))
+
         else:
-            self.window.navigate_to(self.window.show_viz)
+            self.window._show_message(f"Your selected volume was properly cleaned!\nChannel now is ready for Visualization")
+            self.window.navigate_to(lambda: self.window.visualizer.show(self.window.current_experiment))

@@ -22,7 +22,7 @@ def preview_volume(
 
     vol.spacing(spacing)
 
-    vol.resize([524] * 3)
+    vol.resize([524 // 2] * 3)
 
     params: dict[str, Any] = dict(bg="black")
     kwargs = generate_kwargs(

@@ -68,10 +68,9 @@ def _store_transformation_matrix(T, surface_path: str) -> str:
 
     return transformation_path
 
-
 def _initialize_limbs_paths(experiment: Experiment, reference_stages):
     base = experiment.base
-    surface_name = experiment.surface
+    surface_name = experiment.surface_path
     stage = experiment.stage
 
     if surface_name is None or stage is None or base is None:

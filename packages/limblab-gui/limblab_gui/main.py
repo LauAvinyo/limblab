@@ -27,8 +27,8 @@ from limblab.models import Channel, Experiment
 from mixin.NavigationMixin import NavigationMixin
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import (
-    QAction, QIcon
-)
+    QAction, QIcon)
+
 from PyQt6.QtWidgets import (
     QComboBox,
     QDialog,
@@ -49,6 +49,7 @@ from PyQt6.QtWidgets import (
     QTreeWidgetItem,
     QVBoxLayout,
     QWidget,
+    QApplication
 )
 from utils import (
     create_back_button,
@@ -179,13 +180,12 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         self.align = AlignController(self)
         self.stage = StageController(self) 
 
-        #self.current_experiment = experiment   # set when the user picks a real experiment
-        
-        self._build_permanent_chrome()
-
         #visualizations!
         self.visualizer = VisualizationController(self)
 
+        #self.current_experiment = experiment   # set when the user picks a real experiment
+        
+        self._build_permanent_chrome()
 
         # self.navigate_to(lambda:self.align.show(experiment))
         self.navigate_to(self.show_home)
@@ -883,21 +883,32 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
   
 
     def _show_busy(self, message):
-            self._busy_dialog = QDialog(self)
-            self._busy_dialog.setWindowTitle("Please wait")
-            self._busy_dialog.setModal(True)
-            self._busy_dialog.setStyleSheet(f"background-color: {theme('palette.surface', '#1E1E1E')}; color: {theme('palette.textPrimary', '#FFFFFF')};")
-            layout = QVBoxLayout(self._busy_dialog)
-            layout.addWidget(create_label(message, f"color: {theme('palette.textPrimary', '#FFFFFF')}; font-size: {theme('typography.fontSizeBase', 14)}px;"))
-            self._busy_dialog.setFixedSize(320, 100)
-            self._busy_dialog.show()
-            from PyQt6.QtWidgets import QApplication
-            QApplication.processEvents()
+        self._busy_dialog = QDialog(self)
+        self._busy_dialog.setWindowTitle("Please wait")
+        self._busy_dialog.setModal(True)
+        self._busy_dialog.setStyleSheet(f"background-color: {theme('palette.surface', '#1E1E1E')}; color: {theme('palette.textPrimary', '#FFFFFF')};")
+        layout = QVBoxLayout(self._busy_dialog)
+        layout.addWidget(create_label(message, f"color: {theme('palette.textPrimary', '#FFFFFF')}; font-size: {theme('typography.fontSizeBase', 14)}px;"))
+        self._busy_dialog.setFixedSize(320, 100)
+        self._busy_dialog.show()
+        QApplication.processEvents()
 
     def _hide_busy(self):
         if getattr(self, "_busy_dialog", None) is not None:
             self._busy_dialog.close()
             self._busy_dialog = None
+
+    def _show_message(self, message):
+        self._busy_dialog = QDialog(self)
+        self._busy_dialog.setWindowTitle("LimbLab")
+        self._busy_dialog.setModal(True)
+        self._busy_dialog.setStyleSheet(f"background-color: {theme('palette.surface', '#1E1E1E')}; color: {theme('palette.textPrimary', '#FFFFFF')};")
+        layout = QVBoxLayout(self._busy_dialog)
+        layout.addWidget(create_label(message, f"color: {theme('palette.textPrimary', '#FFFFFF')}; font-size: {theme('typography.fontSizeBase', 14)}px;"))
+        self._busy_dialog.setFixedSize(320, 100)
+        self._busy_dialog.show()
+        QApplication.processEvents()
+    
 
 
 
