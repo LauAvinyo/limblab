@@ -5,6 +5,7 @@ import os
 import traceback
 from pathlib import Path
 from types import SimpleNamespace
+from PyQt6.QtCore import Qt
 
 import vtkmodules
 from components.terminal_paper import TerminalPaperWidget
@@ -13,7 +14,6 @@ from controllers.align_controller import AlignController
 from controllers.clean_controller import CleanController
 from controllers.stage_controller import StageController
 from controllers.surface_controller import SurfaceController
-from limblab import preview_volume
 from limblab.database import (
     delete_experiment,
     get_experiment,
@@ -21,8 +21,16 @@ from limblab.database import (
     list_experiments,
     save_experiment,
     delete_channel,
-    rename_experiment
+    rename_experiment,
+    seed_reference_limbs
 )
+
+from typing import Any
+
+from limblab.design import theme
+from limblab.models import Experiment
+from limblab.utils import generate_kwargs
+
 from limblab.models import Channel, Experiment
 from mixin.NavigationMixin import NavigationMixin
 from PyQt6.QtCore import Qt
@@ -69,7 +77,7 @@ import webbrowser
 from controllers.visualization_controller import VisualizationController
 
 
-
+''''
 env = {}
 with open("../../../.env") as f:
     for line in f:
@@ -89,6 +97,8 @@ with open("../../../.env") as f:
 TEST_BASE_PATH = env["TEST_BASE_PATH"]
 TEST_SURFACE_PATH = env["TEST_SURFACE_PATH"]
 TEST_DAPI_FILENAME = env["TEST_DAPI_FILENAME"]
+
+'''
 
 #for the test experiment i added the channels manually 
 
@@ -129,11 +139,15 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         # DATABASE
         self.db_path = Path("experiments.db")
 
+
         #each time the app is loadde a new db is created TESTING!!!   
-        init_db(self.db_path)  # Creates empty database with schema only
+        #init_db(self.db_path)  # Creates empty database with schema only
         print(f"Created empty database: {self.db_path}")
 
-    
+        seed_reference_limbs(self.db_path)
+        print('created db reference limb access!')
+
+
         self._load_experiments_from_db()
         # DATABASE END
         ##############
@@ -389,7 +403,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         left_panel = QWidget()
         get_started_btn = create_styled_button(
             "Get Started",
-            color=theme("palette.primary", "#fb8f00"),
+            color=theme("palette.primary", "#0D7C66"),
             hover_color=theme("palette.primaryHover", "#41B3A2"),
             size=50,
         )
@@ -441,10 +455,16 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
 
         self.frame = QFrame()
         self.vtkWidget = QVTKRenderWindowInteractor(self.frame)
+        self.vtk_widget = self.vtkWidget
 
-        self.plt = Plotter(qt_widget=self.vtkWidget)
+        self.limb_home = Mesh("Limb-rec_281.vtk").c(theme("limblab.surface"))
+        
+        params: dict[str, Any] = dict(shape="1|2", sharecam=False, bg = theme("palette.background"))
+        kwargs = generate_kwargs(params=params, renderer='pyqt', outside_class=self)
+        
+        self.plt = Plotter(**kwargs)
+
         # Create vedo renderer and add objects and callbacks
-        self.limb_home = Mesh("Limb-rec_281.vtk").c(theme("palette.primary"))
         
         container = QWidget()
         container.setStyleSheet(f"background-color: {theme('palette.background', '#141414')};")
@@ -493,7 +513,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         self.label_library = create_label("Access Limb Library", f"color: {theme('palette.textPrimary', '#FFFFFF')}; font-size: {theme('typography.fontSizeHero', 40)}px;")
         self.button_library = create_styled_button(
             "View Experiments",
-            color=theme("palette.accent", "#5FBF9F"),
+            color=theme("palette.accent", "#0D7C66"),
             hover_color=theme("palette.primaryHover", "#41B3A2"),
         )
         self.button_library.clicked.connect(lambda: self.navigate_to(self.show_exp))
@@ -533,10 +553,11 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
 
     def show_exp(self):
         self.action_bar.setVisible(False)
-
+        ''''
         if not self.db_path.exists():
             # Database doesn't exist, create it with test data
             init_db(self.db_path)
+            
             print("Created new database with data")
         else:
             # Database exists, check if it has any experiments
@@ -548,7 +569,8 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
                 print(f"Found {experiments} existing experiments")
 
         self._load_experiments_from_db()
-        # load database! TESTING
+        # load database! TESTING\
+        '''
 
         top_row = QHBoxLayout()
         top_row.addWidget(create_back_button(self.go_back))
@@ -680,7 +702,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         
         self.refresh_btn = create_styled_button(
             '↻ Refresh',
-            color=theme('palette.accent', '#5FBF9F'),
+            color=theme('palette.accent', '#0D7C66'),
             hover_color=theme('palette.primaryHover', '#41B3A2'),
         )
 
@@ -709,7 +731,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         # Add the buttons row with some spacing
         main_layout.addSpacing(10)
         main_layout.addLayout(buttons_row)
-        main_layout.addStretch(1)  # Extra stretch at bottom
+        main_layout.addStretch(1)  # Extra stretch at bottomadd.
         main_layout.setContentsMargins(30, 20, 30, 5)
 
         self.setCentralWidget(container)
@@ -727,14 +749,14 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         self.show_exp()
         QMessageBox.information(self, "Refreshed", "Experiment list updated.")
 
-
     def show_viz(self):
         self.action_bar.setVisible(False)
-        self._show_busy('Loading volume...')
+        
         #visualization of hte uploaded users channel!
-        #self.current_experiment = self.new_exp#from create new experiment function, as the user uploads!
 
-        self.navigate_to(lambda: self.visualizer.show(self.current_experiment))
+        #Calling navigate_to() again here double-pushed the nav stack and left th previous screen's central widget instead of being replaced
+        self.visualizer.show(self.current_experiment)
+
         
       
 
@@ -860,19 +882,35 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
             self._busy_dialog.close()
             self._busy_dialog = None
 
+
+
+
+
+#trying things to click anywhere on the screen to make this pop up message dissappear
+
+
     def _show_message(self, message):
-        self._busy_dialog = QDialog(self)
-        self._busy_dialog.setWindowTitle("LimbLab")
-        self._busy_dialog.setModal(True)
-        self._busy_dialog.setStyleSheet(f"background-color: {theme('palette.surface', '#1E1E1E')}; color: {theme('palette.textPrimary', '#FFFFFF')};")
+        self._busy_dialog = QWidget(self)
+        self._busy_dialog.setWindowFlags(
+            Qt.WindowType.FramelessWindowHint | Qt.WindowType.Popup
+        )
+        self._busy_dialog.setStyleSheet(
+            f"background-color: {theme('palette.surface', '#1E1E1E')}; "
+            f"color: {theme('palette.textPrimary', '#FFFFFF')}; "
+            f"border: 1px solid {theme('palette.border', '#3A3A3A')};"
+        )
         layout = QVBoxLayout(self._busy_dialog)
-        layout.addWidget(create_label(message, f"color: {theme('palette.textPrimary', '#FFFFFF')}; font-size: {theme('typography.fontSizeBase', 14)}px;"))
+        layout.addWidget(create_label(
+            message,
+            f"color: {theme('palette.textPrimary', '#FFFFFF')}; "
+            f"font-size: {theme('typography.fontSizeBase', 14)}px;"
+        ))
         self._busy_dialog.setFixedSize(320, 100)
         self._busy_dialog.show()
+        self._busy_dialog.raise_()
+        self._busy_dialog.activateWindow()
         QApplication.processEvents()
     
-
-
 
 
     # ------------------------------------------------------------------

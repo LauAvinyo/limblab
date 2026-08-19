@@ -4,8 +4,7 @@ from vedo import Volume, Plotter
 from limblab.utils import generate_kwargs
 
 from typing import Optional, Any, Literal
-from limblab.params import CleanParams
-
+from limblab.design import theme
 
 
 def preview_volume(
@@ -24,7 +23,7 @@ def preview_volume(
 
     vol.resize([524 // 2] * 3)
 
-    params: dict[str, Any] = dict(bg="black")
+    params: dict[str, Any] = dict(bg = theme("palett.background"))
     kwargs = generate_kwargs(
         params=params, renderer=renderer, outside_class=outside_class
     )

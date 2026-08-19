@@ -50,9 +50,12 @@ class AlignController:
         self.window._refresh_pipeline_actions(current_step="Align")
 
         # Start alignment viewer
+            
+        
         try:
             self.plotter, self.source, self.surface_path = rotate_limb(
                 experiment=experiment,
+                db_path = str(self.window.db_path),#the main window path for our database is a Path object, and rotate_limb takes a str argument for it!
                 renderer="pyqt",
                 outside_class=self.window,
             )
@@ -124,14 +127,14 @@ class AlignController:
         self.window._refresh_pipeline_actions(current_step="Align")
 
         self.window.log_pipeline(
-            f"Alignment completed.\nMatrix written to:\n{transformation_path}"
+            f"Alignment completed.\nMatrix written to:\n{self.experiment.transformation_matrix_path}"
         )
 
         self._go_next_from_align()
 
 
     def _go_next_from_align(self): 
-        print(self.experiment.transformation_path)           
+               
         if self.experiment.transformation_path is None :
             QMessageBox.warning(
                                     self.window,
@@ -141,5 +144,5 @@ class AlignController:
             return
         else:
             self.window._show_message(f"Alignment was performed!\nYou can now Visualize your limb surface")
-            self.window.navigate_to(lambda: self.window.visualizer.show(self.window.current_experiment))
+            self.visualizer.show(self.current_experiment)
 

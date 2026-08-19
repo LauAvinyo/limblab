@@ -28,7 +28,7 @@ def pick_isovalue(
     vol = Volume(str(raw_volume_path))
 
 
-    params: dict[str, Any] = dict(use_gpu=True, c=theme("limblab.surface"), alpha=0.6)
+    params: dict[str, Any] = dict(use_gpu=True, bg = theme("palett.background"), c=theme("limblab.surface"), alpha=0.6)
     kwargs = generate_kwargs(
         params=params, renderer=renderer, outside_class=outside_class
     )

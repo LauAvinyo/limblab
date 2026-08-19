@@ -60,12 +60,10 @@ class SurfaceController:
 
         self.window._refresh_pipeline_actions(current_step="Surface")
 
-        print(experiment.channels)
         dapi_channel = next(
             (ch for ch in experiment.channels if ch.channel_name == "DAPI"),
             None,
         )
-        print(dapi_channel)
 
         if dapi_channel is None:
             QMessageBox.critical(self.window, "Surface extraction error", "No DAPI channel found.")
@@ -135,14 +133,12 @@ class SurfaceController:
         self.window._refresh_pipeline_actions(current_step="Surface")
 
         self.window.log_pipeline(f"Surface extracted (isovalue={isovalue:.3f}).\nWritten to:\n{surface_path}")
-        print('!!!')
 
         self._go_next_from_surface()
 
 
     #from main
     def _go_next_from_surface(self):
-        print('!!!!')
         print(self.experiment.surface_path)
         """Guard for Surface -> Stage: must have extracted a surface."""
         if self.experiment.surface_path is None and self.experiment.surface_isovalue is None:

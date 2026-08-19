@@ -12,7 +12,8 @@ from .database import (
     save_experiment,
     update_experiment,
     delete_channel,
-    rename_experiment
+    rename_experiment,
+    seed_reference_limbs
 )
 
 #Design logistics
@@ -76,7 +77,8 @@ __all__ = [
     'slices',
     'file2dic',
     'pick_evenly_distributed_values',
-    'styles'
+    'styles',
+    'seed_reference_limbs'
     
 ]
 #les funcions privades s-haurien de poder ficar aqui????

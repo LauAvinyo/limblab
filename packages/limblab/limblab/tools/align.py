@@ -93,7 +93,8 @@ def _rotate_limb(
 ) -> str | tuple[Any, Any, str]:
 
     # Get the Surfaces
-    source = Mesh(surface_path).color(theme("limblab.limb", "#000000"))
+    source = Mesh(surface_path).c(theme("limblab.surface"))  
+
     target = (
         Mesh(reference_limb_path)
         .cut_with_plane(origin=(1, 0, 0))
@@ -104,7 +105,7 @@ def _rotate_limb(
     # Store the Transformation
     T = source.apply_transform_from_actor()  # type: ignore
 
-    params: dict[str, Any] = dict(shape="1|2", sharecam=False)
+    params: dict[str, Any] = dict(shape="1|2", sharecam=False, bg = theme("palett.background"))
     kwargs = generate_kwargs(params=params, renderer=renderer, outside_class=outside_class)
 
     plt = Plotter(**kwargs)  # type: ignore

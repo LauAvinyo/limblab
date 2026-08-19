@@ -29,7 +29,7 @@ def _stage_limb(
     outside_class: Any | None = None,
 ) -> int:
 
-    msh = Mesh(surface).c(theme("pallete.limb")).alpha(0.8)  # type: ignore
+    msh = Mesh(surface).c(theme("limblab.surface")).alpha(0.8)  # type: ignore
     txt = Text2D(pos="top-center", bg="yellow5", s=1.5)
 
     result: dict[str, Any] = {"stage": None}  # container to hold the staged value
@@ -83,9 +83,8 @@ def _stage_limb(
         #elif event.keypress == "q":
             #`plt.close()
 
-    params: dict[str, Any] = {
-        "title": "3D Stager", "N": 2, "sharecam": 0, "size": (2000, 1000), "axes": 14
-    }
+    params: dict[str, Any] = dict(bg = theme("palett.background"), title = "3D Stager", N = 2,
+                                  sharecam= 0, size= (2000, 1000), axes= 14)
     kwargs = generate_kwargs(
         params=params, renderer=renderer, outside_class=outside_class
     )

@@ -1,8 +1,9 @@
 import os
 
+from pathlib import Path
+
 from PyQt6.QtWidgets import (
     QComboBox,
-    QDialog,
     QFrame,
     QHBoxLayout,
     QMessageBox,
@@ -79,9 +80,10 @@ class VisualizationController:
 
     # ------------------------------------------------------------------
     def show(self,experiment):
-
         self.window.action_bar.setVisible(False)
-        self.window._hide_busy()
+
+        self.window._show_busy('Loading volume...')
+        
         #already called from show_viz window
         self.current_experiment = experiment
 
@@ -99,34 +101,55 @@ class VisualizationController:
         self._current_vtk_widget = self.window.vtkWidget
         self.vtk_widget = self.window.vtkWidget  # kept for the helpers below
 
+        
+
         # --- realize the widget before any Plotter is built around it ---
 
+        old_central = self.window.centralWidget()
         self.window.setCentralWidget(workflow_container)
-        self.window.show()
-        QApplication.processEvents()
+        if old_central is not None and old_central is not workflow_container:
+            # Qt detaches the outgoing central widget but doesn't delete it,
+            # so without this it can keep rendering in its old spot (this is
+            # what showed show_exp underneath the visualizer).
+            old_central.setParent(None)
+            old_central.deleteLater()
 
         exp = self.current_experiment
+
         if exp.surface_path and os.path.exists(exp.surface_path):
+            #the channel has been cleaned and it ssurface has been extracted (DAPI)
             T = None
             if exp.transformation_matrix_path and os.path.exists(exp.transformation_matrix_path):
-                T = np.load(exp.transformation_matrix_path)
-            self._show_preview(exp.surface_path, transform=T)
+                #align has been also done!
 
-        else:
-            # Pick a channel (e.g., DAPI or first)
+                T = np.load(exp.transformation_matrix_path)
+                print(T)
+
+                self._show_preview(exp.surface_path, transform=T)
+
+
+            else: #the channel has only been cleaned and extracted 
+                self._show_preview(exp.surface_path)
+            
+
+        else:#the channel has only been cleaned or its the raw volume (vti / tiff)
             channels = exp.channels or []
             if channels:
                 dapi = next((ch for ch in channels if ch.channel_name.upper() == "DAPI"), None)
                 channel = dapi or channels[0]
-                # Use cleaned path if available, else raw path
+                        # Use cleaned path if available, else raw path
                 path_attr = "clean_path" if getattr(channel, "clean_path", None) else "path"
                 full_path = Path(exp.base) / getattr(channel, path_attr)
                 if full_path.exists():
                     self._show_preview(full_path)
 
+#once tthe limb visualization is loaded we can show the window!
+        
+        self.window._hide_busy()
+        self.window.show()
+        
+        QApplication.processEvents()
         self.window._refresh_pipeline_actions(current_step="Visualize")
-
-  
 
     def _on_show_clicked(self):                
         if not self.current_experiment or not self.current_experiment.channels:
@@ -158,6 +181,7 @@ class VisualizationController:
     def _validate_channel(self, channel):
         """Gate visualization on the channel actually being cleaned/processed.
         Same rule for DAPI and gene channels: no clean_path, no viz."""
+
         is_dapi = channel.channel_name.upper() == "DAPI"
         clean_path = getattr(channel, "clean_path", None)
 
@@ -175,7 +199,7 @@ class VisualizationController:
         full_path = os.path.join(self.current_experiment.base, clean_path)
         if not os.path.exists(full_path):
             return False, (
-                f"The cleaned file for '{channel.channel_name}' is missing on disk:\n{full_path}"
+                f"The cleaned file {full_path}\n for '{channel.channel_name}' is missing :"
             )
 
         return True, ""
@@ -202,7 +226,6 @@ class VisualizationController:
 
 
         QApplication.processEvents()   # force layout/geometry + native window creation
-
 
         frame = QFrame()
         vtk_widget = QVTKRenderWindowInteractor(frame)
@@ -270,6 +293,8 @@ class VisualizationController:
        
 
     def _go_next_from_viz(self):
+        #visualization has been done and we get back to the initial visualization page!
+
         # Navigate to Clean stage (you already do this)
         self.window.navigate_to(lambda: self.window.clean.show(self.window.current_experiment))
 
@@ -282,6 +307,7 @@ class VisualizationController:
                 import numpy as np
                 T = np.load(exp.transformation_matrix_path)
             self._show_preview(exp.surface_path, transform=T)
+
         else:
             # Fallback: show a volume (raw or cleaned)
             # Pick a channel – preferably the last cleaned, else DAPI, else first
@@ -298,7 +324,7 @@ class VisualizationController:
                 if full_path.exists():
                     self._show_preview(full_path)
 
-         #   self._show_final_aligned_mesh(self.current_experiment)
+        
         if any(
             getattr(ch, "clean_isovalue_min", None) is not None
             for ch in (self.current_experiment.channels or [])
@@ -310,18 +336,13 @@ class VisualizationController:
 
 
     def _show_preview(self, file_path, transform=None):
-        """
-        Unified preview: handles .vti (volume) and .vtk (mesh) files.
-        """
-        from pathlib import Path
-        import os
-
+        
         file_path = Path(file_path)
         if not file_path.exists():
             print(f"File not found: {file_path}")
             return
 
-        ext = file_path.suffix.lower()
+        #ext = file_path.suffix.lower()
 
         # Ensure we have a valid VTK widget (use the one from the main view)
         vtk_widget = getattr(self, "vtk_widget", None)
@@ -329,23 +350,25 @@ class VisualizationController:
             print("No VTK widget available – cannot show preview.")
             return
 
+        ext = file_path.suffix.lower()
+
         try:
-            if ext == ".vti":
-                # Volume preview (raw or cleaned)
-                self.viz_plotter = preview_volume(
-                    raw_volume_path=file_path,
-                    renderer="pyqt",
-                    outside_class=self,
-                    qt_widget=vtk_widget,          # pass the widget
-                )
-            elif ext == ".vtk":
+            if ext == ".vtk":#already cleaned volume -> showing extracted surface!
                 # Surface mesh preview
                 mesh = Mesh(str(file_path))
                 if transform is not None:
                     mesh.apply_transform(transform)
+
                 self.viz_plotter = Plotter(qt_widget=vtk_widget)
                 self.viz_plotter.show(mesh)
+
+        
+            #raw preview!
             else:
-                print(f"Unsupported file type: {ext} (only .vti and .vtk supported)")
+                self.viz_plotter = preview_volume(
+                            raw_volume_path=file_path,
+                            renderer="pyqt",
+                            outside_class=self
+                )
         except Exception as e:
             print(f"Error showing preview: {e}")

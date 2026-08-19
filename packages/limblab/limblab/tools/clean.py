@@ -10,6 +10,8 @@ from limblab.utils import generate_kwargs
 
 from typing import Optional, Any, Literal
 
+from limblab.design import theme
+
 
 def pick_isovalues(
     raw_volume_path: Path,
@@ -25,7 +27,7 @@ def pick_isovalues(
 
     vol = Volume(str(raw_volume_path))
 
-    params: dict[str, Any] = dict(use_gpu=True, bg="black", c="blue", alpha=0.6)
+    params: dict[str, Any] = dict(use_gpu=True, bg = theme("palette.background"), c=theme("limblab.surface"), alpha=0.6)
     kwargs = generate_kwargs(
         params=params, renderer=renderer, outside_class=outside_class
     )
@@ -37,6 +39,7 @@ def pick_isovalues(
         return plt  # caller reads plt.sliders[0][0].value on demand
 
     # Standalone behaviour (unchanged)
+    #no need to add sliders in the vedo plotter! these are selected through UI
     txt = Text2D(pos="top-center", bg="yellow5", s=1.5)
     plt += txt
 

@@ -4,6 +4,7 @@ from sqlalchemy import JSON, Column
 from sqlmodel import Field, Relationship, SQLModel
 
 
+
 class Channel(SQLModel, table=True):
     """Database table for dynamic image channels."""
 

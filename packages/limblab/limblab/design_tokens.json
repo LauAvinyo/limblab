@@ -1,6 +1,6 @@
 {
   "palette": {
-    "background": "#141414",
+    "background": "#black",
     "surface": "#1E1E1E",
     "panel": "#2A2A2A",
     "panelAlt": "#181818",
@@ -16,7 +16,7 @@
     "warning": "#FF6B6B"
   }, 
   "limblab": {
-    "surface": "#FF7F11",
+    "surface": "blue",
     "channel0": "#B0DB43",
     "channel1": "#DB43B0",
     "channel2": "#43B0DB",
