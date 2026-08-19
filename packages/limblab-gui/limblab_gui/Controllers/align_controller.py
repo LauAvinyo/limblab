@@ -129,12 +129,11 @@ class AlignController:
         self.window.log_pipeline(
             f"Alignment completed.\nMatrix written to:\n{self.experiment.transformation_matrix_path}"
         )
-
+        print('hola')
         self._go_next_from_align()
 
 
     def _go_next_from_align(self): 
-               
         if self.experiment.transformation_path is None :
             QMessageBox.warning(
                                     self.window,
@@ -143,6 +142,7 @@ class AlignController:
                                 )
             return
         else:
+            print('@')
             self.window._show_message(f"Alignment was performed!\nYou can now Visualize your limb surface")
-            self.visualizer.show(self.current_experiment)
+            self.window.visualizer.show(self.current_experiment)
 

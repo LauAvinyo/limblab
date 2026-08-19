@@ -10,6 +10,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from typing import Any
 from utils import create_back_button
 from vedo import Plotter
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
@@ -28,6 +29,11 @@ from limblab import preview_volume
 from vedo import Mesh
 from pathlib import Path
 import numpy as np
+from vedo import LinearTransform , Volume
+
+from vedo.applications import IsosurfaceBrowser
+from limblab.utils import generate_kwargs
+from limblab.design import theme
 
 class VisualizationController:
     MODES = {
@@ -79,7 +85,9 @@ class VisualizationController:
         return bar
 
     # ------------------------------------------------------------------
-    def show(self,experiment):
+
+    def show_experiment(self,experiment):
+
         self.window.action_bar.setVisible(False)
 
         self.window._show_busy('Loading volume...')
@@ -114,34 +122,48 @@ class VisualizationController:
             old_central.setParent(None)
             old_central.deleteLater()
 
-        exp = self.current_experiment
+        try:
+            exp = self.current_experiment
+            if exp.surface_path :#dapi has been processed
+                T = None
 
-        if exp.surface_path and os.path.exists(exp.surface_path):
-            #the channel has been cleaned and it ssurface has been extracted (DAPI)
-            T = None
-            if exp.transformation_matrix_path and os.path.exists(exp.transformation_matrix_path):
-                #align has been also done!
+                if exp.transformation_matrix_path and os.path.exists(exp.transformation_matrix_path):#alignment has been completed!
 
-                T = np.load(exp.transformation_matrix_path)
-                print(T)
+                    #T = LinearTransform(str(exp.transformation_matrix_path))
 
-                self._show_preview(exp.surface_path, transform=T)
+                #self._show_preview(exp.surface_path, transform=T)
+
+                #TODO temporal fix -> cutre asf
+                    vol = Volume(str(exp.surface_path))
+                    params: dict[str, Any] = dict(use_gpu=True, bg = theme("palette.background"), c=theme("limblab.surface"), alpha=0.6)
+                    kwargs = generate_kwargs(
+                            params=params, renderer='pyqt', outside_class=self.window
+                    )
+                    
+                    plt = IsosurfaceBrowser(vol.color((255, 127, 17, 0)),**kwargs)
+                    
+                    plt.show(axes=7, interactive=False)
+                    #direclty perform the plot
+            else:
+                channels = exp.channels or []
+                if channels:
+                    dapi = next((ch for ch in channels if ch.channel_name.upper() == "DAPI"), None)
+                    channel = dapi or channels[0]
+                    path_attr = "clean_path" if getattr(channel, "clean_path", None) else "path"
+                    full_path = Path(exp.base) / getattr(channel, path_attr)
+                    if full_path.exists():
+                        self._show_preview(full_path)
 
 
-            else: #the channel has only been cleaned and extracted 
-                self._show_preview(exp.surface_path)
-            
+        except Exception as e:
+            print(f"Error preparing visualization preview: {e}")
 
-        else:#the channel has only been cleaned or its the raw volume (vti / tiff)
-            channels = exp.channels or []
-            if channels:
-                dapi = next((ch for ch in channels if ch.channel_name.upper() == "DAPI"), None)
-                channel = dapi or channels[0]
-                        # Use cleaned path if available, else raw path
-                path_attr = "clean_path" if getattr(channel, "clean_path", None) else "path"
-                full_path = Path(exp.base) / getattr(channel, path_attr)
-                if full_path.exists():
-                    self._show_preview(full_path)
+        finally:
+            # Always recover the UI, even if the preview above blew up.
+            self.window._hide_busy()
+            self.window.show()
+            QApplication.processEvents()
+            self.window._refresh_pipeline_actions(current_step="Visualize")
 
 #once tthe limb visualization is loaded we can show the window!
         
@@ -150,6 +172,62 @@ class VisualizationController:
         
         QApplication.processEvents()
         self.window._refresh_pipeline_actions(current_step="Visualize")
+
+
+#channel specific visualization!
+    def show_channel(self, experiment, channel):
+
+        self.window.action_bar.setVisible(False)
+        
+        self.window._show_busy('Loading volume...')
+
+        self.current_experiment = experiment
+        self.current_channel = channel
+              
+        workflow_container = self.window._build_workflow_container(
+                    next_label="Clean",
+                    next_callback=self._go_next_from_viz,
+                    back_guard=None,
+                    current_step="Visualize",
+                    action_widget=self.build_action_bar(self.current_experiment),
+                )
+        
+        self._current_frame = self.window.frame
+        self._current_vtk_widget = self.window.vtkWidget
+        self.vtk_widget = self.window.vtkWidget  # kept for the helpers below
+        
+                
+        
+                # --- realize the widget before any Plotter is built around it ---
+        
+        old_central = self.window.centralWidget()
+        self.window.setCentralWidget(workflow_container)
+        if old_central is not None and old_central is not workflow_container:
+                    # Qt detaches the outgoing central widget but doesn't delete it,
+                    # so without this it can keep rendering in its old spot (this is
+                    # what showed show_exp underneath the visualizer).
+            old_central.setParent(None)
+            old_central.deleteLater()
+
+
+
+
+
+        
+        path_attr = "clean_path" if getattr(channel, "clean_path", None) else "path"
+        full_path = Path(experiment.base) / getattr(channel, path_attr)
+        print(full_path)
+        if full_path.exists():
+            print('HERE')
+            self._show_preview(full_path)
+
+        self.window._hide_busy()
+        self.window.show()
+                
+        QApplication.processEvents()
+        self.window._refresh_pipeline_actions(current_step="Visualize")
+
+
 
     def _on_show_clicked(self):                
         if not self.current_experiment or not self.current_experiment.channels:
@@ -285,7 +363,7 @@ class VisualizationController:
         self._current_vtk_widget = None
         self._current_frame = None
 
-        self.window.navigate_to(lambda: self.show(self.current_experiment))
+        self.visualizer.show(self.current_experiment)
 
 
             # Keep a ref so Qt doesn't garbage-collect the dialog out from under
@@ -362,6 +440,10 @@ class VisualizationController:
                 self.viz_plotter = Plotter(qt_widget=vtk_widget)
                 self.viz_plotter.show(mesh)
 
+
+            if ext == '.vti': ...
+        
+
         
             #raw preview!
             else:
@@ -372,3 +454,4 @@ class VisualizationController:
                 )
         except Exception as e:
             print(f"Error showing preview: {e}")
+

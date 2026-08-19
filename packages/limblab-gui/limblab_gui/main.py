@@ -141,7 +141,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
 
 
         #each time the app is loadde a new db is created TESTING!!!   
-        #init_db(self.db_path)  # Creates empty database with schema only
+        init_db(self.db_path)  # Creates empty database with schema only
         print(f"Created empty database: {self.db_path}")
 
         seed_reference_limbs(self.db_path)
@@ -571,6 +571,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         self._load_experiments_from_db()
         # load database! TESTING\
         '''
+        self._load_experiments_from_db()
 
         top_row = QHBoxLayout()
         top_row.addWidget(create_back_button(self.go_back))
@@ -749,15 +750,17 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         self.show_exp()
         QMessageBox.information(self, "Refreshed", "Experiment list updated.")
 
-    def show_viz(self):
+    def show_viz_experiment(self):
         self.action_bar.setVisible(False)
-        
         #visualization of hte uploaded users channel!
-
         #Calling navigate_to() again here double-pushed the nav stack and left th previous screen's central widget instead of being replaced
-        self.visualizer.show(self.current_experiment)
+        self.visualizer.show_experiment(self.current_experiment)
 
-        
+    def show_viz_channel(self, channel):
+        print('!!!')
+        self.action_bar.setVisible(False)
+        self.visualizer.show_channel(self.current_experiment, channel)
+
       
 
     ''''
@@ -1093,7 +1096,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
             is_cleaned = bool(ch and ch.path.lower().endswith(".vti"))
             self.workflow_state["last_cleaned_channel"] = channel_name if is_cleaned else None
 
-            self.navigate_to(self.show_viz)
+            self.navigate_to(self.show_viz_channel(ch))
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to view channel: {e}")
 
@@ -1107,7 +1110,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
 
         try:
             self._set_current_experiment(exp_obj)
-            self.navigate_to(self.show_viz)
+            self.navigate_to(self.show_viz_experiment)
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to view experiment: {e}")
 

@@ -76,7 +76,7 @@ class MenuUtils:
                     self.workflow_state.get(self.STEP_DONE_FLAG[s])
                     for s in self.PIPELINE_STEPS[:idx] if s in self.STEP_DONE_FLAG
                 )
-            act.setText(("✓ " if is_done else "🔒 " if not is_reachable else "") + step)
+            act.setText(("✓ " if is_done else '🔒︎ ' if not is_reachable else "") + step)
             act.setEnabled(is_reachable)
             act.setChecked(step == current_step)
 
@@ -127,7 +127,7 @@ class MenuUtils:
 
         menu_bar = self.menuBar()
         menu_bar.setStyleSheet(f"""
-                QMenuBar {{ background-color: {theme('palette.background', '#141414')};
+                QMenuBar {{ background-color: {theme('#123467', '#141414')};
                             color: {theme('palette.textSecondary', '#A0A0A0')}; border: none; }}
                 QMenuBar::item:selected {{ background-color: {theme('palette.panel', '#2A2A2A')};
                             color: {theme('palette.textPrimary', '#FFFFFF')}; border-radius: 4px; }}
@@ -184,8 +184,6 @@ class MenuUtils:
 
         self._refresh_pipeline_actions(current_step=step)
         self.log_pipeline(f"Reset workflow state from '{step}' onward — redoing this step.")
-
-
 
 
     def _build_side_panel(self):

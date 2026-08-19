@@ -45,7 +45,7 @@ class CleanController:
         # If the experiment already has a DAPI channel (e.g. loaded from DB,
         # or your test experiment), auto-select it and load it into the
         # picker right away — no need to click "Load Volume" first.
-        #
+
         self.window._refresh_pipeline_actions(current_step="Clean")
         
 

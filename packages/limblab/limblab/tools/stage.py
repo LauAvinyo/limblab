@@ -83,7 +83,7 @@ def _stage_limb(
         #elif event.keypress == "q":
             #`plt.close()
 
-    params: dict[str, Any] = dict(bg = theme("palett.background"), title = "3D Stager", N = 2,
+    params: dict[str, Any] = dict(bg = theme("palette.background"), title = "3D Stager", N = 2,
                                   sharecam= 0, size= (2000, 1000), axes= 14)
     kwargs = generate_kwargs(
         params=params, renderer=renderer, outside_class=outside_class

@@ -23,7 +23,7 @@ def preview_volume(
 
     vol.resize([524 // 2] * 3)
 
-    params: dict[str, Any] = dict(bg = theme("palett.background"))
+    params: dict[str, Any] = dict(bg = theme("palette.background"))
     kwargs = generate_kwargs(
         params=params, renderer=renderer, outside_class=outside_class
     )

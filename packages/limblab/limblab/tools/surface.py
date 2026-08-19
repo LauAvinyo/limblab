@@ -28,7 +28,7 @@ def pick_isovalue(
     vol = Volume(str(raw_volume_path))
 
 
-    params: dict[str, Any] = dict(use_gpu=True, bg = theme("palett.background"), c=theme("limblab.surface"), alpha=0.6)
+    params: dict[str, Any] = dict(use_gpu=True, bg = theme("palette.background"), c=theme("limblab.surface"), alpha=0.6)
     kwargs = generate_kwargs(
         params=params, renderer=renderer, outside_class=outside_class
     )
@@ -61,13 +61,7 @@ def extract_surface(
     isovalue: float,
     decimate_fraction: float = 0.005,
 ) -> Path:
-    """
-    Deterministic surface extraction given an explicit isovalue.
-    No interactivity, no histogram/auto logic — caller decides isovalue.
-
-    Returns the path to the saved surface mesh.
-    """
-
+ 
     nuclei_channel_path = get_nuclei_channel_path(experiment=experiment)
 
     vol = Volume(str(nuclei_channel_path))
@@ -75,10 +69,22 @@ def extract_surface(
     surface.decimate(decimate_fraction)
 
     out_path = nuclei_channel_path.with_name(nuclei_channel_path.stem + "_surface.vtk")
-    #the selected volume gets outputed as a .vtk volume!
 
     try:
-        surface.write(str(out_path))
+        # vedo's surface.write() defaults to legacy VTK File Format 5.1 on
+        # newer VTK, which older VTK builds (e.g. the one in the preview/
+        # visualizer environment) can't parse ("cannot create vtkDataSet").
+        # Writing via vtkPolyDataWriter with SetFileVersion(42) forces the
+        # broadly-compatible 4.2 format instead.
+        from vtkmodules.vtkIOLegacy import vtkPolyDataWriter
+
+        writer = vtkPolyDataWriter()
+        writer.SetFileName(str(out_path))
+        writer.SetInputData(surface.dataset)
+        writer.SetFileVersion(42)
+        writer.SetFileTypeToBinary()
+        
+        writer.Write()
     except Exception as e:
         raise VolumeProcessingError(f"Failed to write surface mesh: {e}") from e
 

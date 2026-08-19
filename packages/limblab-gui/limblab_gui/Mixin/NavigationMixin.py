@@ -93,7 +93,6 @@ class NavigationMixin:
         self.navigate_to(screen_func)
 
 
-
     def _handle_back(self, step, guard=None):
         """Go back, warning the user first if the current step isn't finished."""
         if guard is not None:
