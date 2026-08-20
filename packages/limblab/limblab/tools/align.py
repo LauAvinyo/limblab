@@ -92,6 +92,8 @@ def _rotate_limb(
     outside_class: Any | None = None,
 ) -> str | tuple[Any, Any, str]:
 
+    #print(surface_path)
+
     # Get the Surfaces
     source = Mesh(surface_path).c(theme("limblab.surface"))  
 

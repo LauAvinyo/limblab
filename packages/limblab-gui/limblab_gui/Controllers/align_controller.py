@@ -129,12 +129,11 @@ class AlignController:
         self.window.log_pipeline(
             f"Alignment completed.\nMatrix written to:\n{self.experiment.transformation_matrix_path}"
         )
-        print('hola')
         self._go_next_from_align()
 
 
     def _go_next_from_align(self): 
-        if self.experiment.transformation_path is None :
+        if self.experiment.transformation_matrix_path is None :
             QMessageBox.warning(
                                     self.window,
                                     "Alignment required",
