@@ -1,8 +1,8 @@
 from pathlib import Path
 from typing import List, Optional
+
 from sqlalchemy import JSON, Column
 from sqlmodel import Field, Relationship, SQLModel
-
 
 
 class Channel(SQLModel, table=True):
@@ -19,9 +19,9 @@ class Channel(SQLModel, table=True):
         default=None,
         sa_column=Column(JSON))
     
-    clean_isovalue_min : Optional[float]#no es pot tupla/millor aixi!
-    clean_isovalue_max : Optional[float]
-    clean_path : Optional[str]
+    clean_isovalue_min : float | None #no es pot tupla/millor aixi!
+    clean_isovalue_max : float | None
+    clean_path : str | None
 
     # Relationship back to parent experiment
     experiment: Optional["Experiment"] = Relationship(back_populates="channels")

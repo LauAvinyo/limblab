@@ -13,6 +13,7 @@ from PyQt6.QtWidgets import (
 )
 from utils import create_label, create_styled_button
 
+CURRENT_STEP = "Clean"
 
 class CleanController:
     def __init__(self, window):
@@ -33,7 +34,6 @@ class CleanController:
 
         container = self.window._build_workflow_container(
         next_label="Extract Surface",
-        next_callback=self._go_next_from_clean,
         back_guard=lambda: (
             self.window.workflow_state["clean_done"],
             "You haven't cleaned any volume yet.",
@@ -46,7 +46,7 @@ class CleanController:
         # or your test experiment), auto-select it and load it into the
         # picker right away — no need to click "Load Volume" first.
 
-        self.window._refresh_pipeline_actions(current_step="Clean")
+        self.window.navigation._refresh_pipeline_actions(current_step="Clean")
         
 
         #TODO change this for any current volume cleaning, any channel. So if teh user wants to remove the surface they can
@@ -244,6 +244,7 @@ class CleanController:
                 channel_name=self.channel_name,
                 params=clean_params
             )
+
  
         #clean() returns a new created channel, must be overwritten!
 
@@ -278,34 +279,36 @@ class CleanController:
         self.window.workflow_state["clean_done"] = True
         self.window.workflow_state["last_cleaned_channel"] = new_channel.channel_name
 
-        # Surface just became reachable — tell the persistent bar right now,
-        # don't wait for the next navigation to notice.
-        self.window._refresh_pipeline_actions(current_step="Clean")
-
         self.window.log_pipeline(
             f"Cleaned {new_channel.channel_name} (v0={new_channel.clean_isovalue_min}, v1={new_channel.clean_isovalue_max}).\n"
             f"Written to:\n{new_channel.path}"
         )
         self.window._hide_busy()
+        print("THE HIDING SHOULD HAVE PASSED!!")
 
-        self._go_next_from_clean(new_channel)
+        self.window._hide_busy()
+        self.window.workflow_checkpoints[CURRENT_STEP] = True
+        self.window.navigation._refresh_pipeline_actions(CURRENT_STEP, True)
+
+        # self._go_next_from_clean(new_channel)
+        
 
         
 
-    def _go_next_from_clean(self, new_channel):
-        if new_channel.clean_isovalue_min and new_channel.clean_isovalue_max == None:
-        #if not self.window.workflow_state["clean_done"]:
-            QMessageBox.warning(
-                self.window, "Clean required",
-                "Please clean a channel before continuing.",
-            )
-            return
+    # def _go_next_from_clean(self, new_channel):
+    #     if new_channel.clean_isovalue_min and new_channel.clean_isovalue_max == None:
+    #     #if not self.window.workflow_state["clean_done"]:
+    #         QMessageBox.warning(
+    #             self.window, "Clean required",
+    #             "Please clean a channel before continuing.",
+    #         )
+    #         return
 
-        if new_channel.channel_name == 'DAPI':
-        #if self.window.workflow_state["last_cleaned_channel"] == "DAPI":
-            self.window._show_message(f"Your selected volume was properly cleaned!\nYou can keep processing your DAPI channel")
-            self.window.navigate_to(lambda: self.window.surface.show(self.window.current_experiment))
+    #     if new_channel.channel_name == 'DAPI':
+    #     #if self.window.workflow_state["last_cleaned_channel"] == "DAPI":
+    #         self.window._show_message(f"Your selected volume was properly cleaned!\nYou can keep processing your DAPI channel")
+    #         self.window.navigate_to(lambda: self.window.surface.show(self.window.current_experiment))
 
-        else:
-            self.window._show_message(f"Your selected volume was properly cleaned!\nChannel now is ready for Visualization")
-            self.window.navigate_to(lambda: self.window.visualizer.show(self.window.current_experiment))
+    #     else:
+    #         self.window._show_message(f"Your selected volume was properly cleaned!\nChannel now is ready for Visualization")
+    #         self.window.navigate_to(lambda: self.window.visualizer.show(self.window.current_experiment))

@@ -1,0 +1,30 @@
+
+from config import *
+from limblab.design import theme
+from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import (
+    QPushButton,
+    QWidget,
+)
+
+
+def create_back_button(callback):
+    """Create a back button with consistent styling."""
+    back_button = QPushButton("←")
+    back_button.setFixedSize(30, 30)
+    back_button.setCursor(Qt.CursorShape.PointingHandCursor)
+    back_button.setStyleSheet(f"""
+        QPushButton {{
+            background-color: {theme('palette.panel', '#2A2A2A')}; color: {theme('palette.textPrimary', '#FFFFFF')};
+            font-size: 15px; border-radius: 15px;
+        }}
+        QPushButton:hover {{ background-color: {theme('palette.primaryHover', '#41B3A2')}; }}
+    """)
+    back_button.clicked.connect(callback)
+    return back_button
+
+
+
+class BackButton(QWidget):
+    def __init__(self):
+        pass

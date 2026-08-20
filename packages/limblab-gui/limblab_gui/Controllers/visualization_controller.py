@@ -5,6 +5,7 @@ from typing import Any
 import numpy as np
 from limblab import preview_volume
 from limblab.design import theme
+from limblab.models import Channel
 from limblab.utils import generate_kwargs
 from limblab.vis.isosurface import one_channel_isosurface
 from limblab.vis.probe import probe
@@ -20,7 +21,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 from utils import create_back_button, create_label, create_styled_button
-from vedo import LinearTransform, Mesh, Plotter, Volume
+from vedo import LinearTransform, Mesh, Plotter, Volume, printc
 from vedo.applications import IsosurfaceBrowser
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 
@@ -38,6 +39,7 @@ class VisualizationController:
         self.experiment = None
         self.channel_combo = None
         self.mode_combo = None
+        
 
     # ------------------------------------------------------------------
     def build_action_bar(self, experiment):
@@ -83,7 +85,6 @@ class VisualizationController:
       
         workflow_container = self.window._build_workflow_container(
             next_label="Clean",
-            next_callback=self._go_next_from_viz,
             back_guard=None,
             current_step="Visualize",
             action_widget=self.build_action_bar(experiment),
@@ -95,66 +96,61 @@ class VisualizationController:
 
         self.window.setCentralWidget(None)
         
-        self.window._refresh_pipeline_actions(current_step="Visualize")
+        self.window.navigation._refresh_pipeline_actions(current_step="Visualize")
         QApplication.processEvents()
         self.window.show()
 
         self.window.setCentralWidget(workflow_container)
 
     
-        surface_path = os.path.join(experiment.base, experiment.surface_path) #.replace('/','\\')
 
-        mesh = Mesh(surface_path).c(theme("limblab.surface"))
+        if experiment.surface_path is not None:
+            printc("SURFACE", c="pink")
+            surface_path = os.path.join(experiment.base, experiment.surface_path) #.replace('/','\\')
 
-        params: dict[str, Any] = dict(bg = theme("palette.background"))
-        kwargs = generate_kwargs(params=params, renderer='pyqt', outside_class=self.window)
-        
-        plt = Plotter(**kwargs)
+            mesh = Mesh(surface_path).c(theme("limblab.surface"))
 
-        plt.add(mesh)
-        
-        plt.show(interactive=False)
-    
-        plt.close()
+            params: dict[str, Any] = {"bg": theme("palette.background")}
+            kwargs = generate_kwargs(params=params, renderer='pyqt', outside_class=self.window)
+            plt = Plotter(**kwargs)
+            plt.add(mesh)
+            plt.show(interactive=False)
 
-        self.window._hide_busy()
+            self.window._hide_busy()
 
-
-#channel specific visualization!
-    def show_channel(self, experiment, channel):
-
-        self.window.action_bar.setVisible(False)
-        
-        self.window._show_busy('Loading volume...')
-        
-        workflow_container = self.window._build_workflow_container(
-                    next_label="Clean",
-                    next_callback=self._go_next_from_viz,
-                    back_guard=None,
-                    current_step="Visualize",
-                    action_widget=self.build_action_bar(experiment),
+        else:
+            printc("VOLUME", c="pink")
+            channel = None
+            for c in experiment.channels:
+                if c.channel_name == "DAPI":
+                    channel : Channel = c
+                    break
+            if channel is None:
+                QMessageBox.warning(
+                    self.window, 
+                    "There is no nucleous channel!!!",
+                    "Think again."
                 )
-        
-        self._current_frame = self.window.frame
-        self._current_vtk_widget = self.window.vtkWidget
-        self.vtk_widget = self.window.vtkWidget  # kept for the helpers below
-        
+                return
+
+            # Show clean DAPI
+            if channel.clean_path is not None: 
+                printc("     CLEAN", c="pink")
+                params: dict[str, Any] = {"bg": theme("palette.background")}
+                kwargs = generate_kwargs(params=params, renderer='pyqt', outside_class=self.window)
+                plt = Plotter(**kwargs)
+                clean_path = os.path.join(experiment.base, channel.clean_path)
+                print(clean_path)
+                volume = Volume(clean_path)
+                plt += volume
+                plt.show(interactive=True)
+
+            # Show unclean DAPI
+            else:
+                printc("     RAW", c="pink")
+                # volume_path = Path(os.path.join(experiment.base, channel.path))
+                # preview_volume(volume_path, "pyqt", self.window)
                 
-
-
-        
-        # path_attr = "clean_path" if getattr(channel, "clean_path", None) else "path"
-        # full_path = Path(experiment.base) / getattr(channel, path_attr)
-        # print(full_path)
-        # if full_path.exists():
-        #     print('HERE')
-        #     self._show_preview(full_path)
-
-        # self.window._hide_busy()
-        # self.window.show()
-                
-        # QApplication.processEvents()
-        # self.window._refresh_pipeline_actions(current_step="Visualize")
 
 
 
@@ -247,7 +243,7 @@ class VisualizationController:
         try:
             if mode == "raycast":
                 rc_plotter = raycast(
-                    self.experiment,
+                    self.window.experiment,
                     channel_name=channel.channel_name,
                     qt_widget=vtk_widget,
                 )
@@ -255,7 +251,7 @@ class VisualizationController:
 
             elif mode == 'isosurface':
                 iso_plotter = one_channel_isosurface(
-                                        self.experiment,
+                                        self.window.experiment,
                                         channel_name=channel.channel_name,
                                         qt_widget = vtk_widget
                                         
@@ -263,10 +259,10 @@ class VisualizationController:
                 self._current_plotter = iso_plotter
 
             elif mode == "slab":
-                dynamic_slab(self.experiment, channel_name=channel.channel_name)
+                dynamic_slab(self.window.experiment, channel_name=channel.channel_name)
 
             elif mode == "probe":
-                probe(self.experiment, channel_name=channel.channel_name)
+                probe(self.window.experiment, channel_names=[channel.channel_name])
 
    
 
@@ -300,112 +296,3 @@ class VisualizationController:
         self.show_experiment(self.experiment)
 
     
-    def _go_next_from_viz(self):
-        print('dead end')
-        #visualization has been done and we get back to the initial visualization page!
-
-        # # Navigate to Clean stage (you already do this)
-        # self.window.navigate_to(lambda: self.window.clean.show(self.window.experiment))
-
-        # # Now decide what to preview:
-        # exp = self.experiment
-        # if exp.surface_path and os.path.exists(exp.surface_path):
-        #     # Show aligned mesh if surface exists and has a transform
-        #     T = None
-        #     if exp.transformation_matrix_path and os.path.exists(exp.transformation_matrix_path):
-        #         import numpy as np
-        #         T = np.load(exp.transformation_matrix_path)
-        #     self._show_preview(exp.surface_path, transform=T)
-
-        # else:
-        #     # Fallback: show a volume (raw or cleaned)
-        #     # Pick a channel – preferably the last cleaned, else DAPI, else first
-        #     last_cleaned = self.window.workflow_state.get("last_cleaned_channel")
-        #     channel = None
-        #     if last_cleaned:
-        #         channel = next((ch for ch in exp.channels if ch.channel_name.upper() == last_cleaned.upper()), None)
-        #     if not channel:
-        #         channel = next((ch for ch in exp.channels if ch.channel_name.upper() == "DAPI"), None) or (exp.channels[0] if exp.channels else None)
-        #     if channel:
-        #         # Use the cleaned path if available, else raw path
-        #         path_attr = "clean_path" if getattr(channel, "clean_path", None) else "path"
-        #         full_path = Path(exp.base) / getattr(channel, path_attr)
-        #         if full_path.exists():
-        #             self._show_preview(full_path)
-
-        
-        # if any(
-        #     getattr(ch, "clean_isovalue_min", None) is not None
-        #     for ch in (self.current_experiment.channels or [])
-        # ):
-        #     self._show_cleaned_channel_preview()
-        # else:
-        #     self._show_raw_volume_preview(self.current_experiment)
-
-
-
-    def _show_preview(self, file_path, transform=None):
-        
-        file_path = Path(file_path)
-        if not file_path.exists():
-            print(f"File not found: {file_path}")
-            return
-
-        #ext = file_path.suffix.lower()
-
-        # Ensure we have a valid VTK widget (use the one from the main view)
-        vtk_widget = getattr(self, "vtk_widget", None)
-        if vtk_widget is None:
-            print("No VTK widget available – cannot show preview.")
-            return
-
-        ext = file_path.suffix.lower()
-
-        try:
-
-            #TEMPORAL FIX!!!
-
-
-            if ext == ".vtk":#already cleaned volume -> showing extracted surface!
-                # Surface mesh preview
-                print('this doestn work yet')
-                ''''
-                vol = Volume(str(file_path))
-                
-                
-                params: dict[str, Any] = dict(use_gpu=True, bg = theme("palette.background"), c=theme("limblab.surface"), alpha=0.6)
-                kwargs = generate_kwargs(
-                        params=params, renderer='pyqt', outside_class=self.window
-                    )
-                
-                plt = IsosurfaceBrowser(vol.color((255, 127, 17, 0)), **kwargs)
-                
-                    #allows to extracte the selected isovalue through the vedo slider
-                   
-                plt.show(axes=7, interactive=False)
-                plt.close()
-                '''
-
-            if ext == '.vti':
-                vol = Volume(str(file_path))
-                
-                params: dict[str, Any] = dict(use_gpu=True, bg = theme("palette.background"), c=theme("limblab.surface"))
-                kwargs = generate_kwargs(
-                        params=params, renderer='pyqt', outside_class=self.window
-                    )
-                
-                plt = IsosurfaceBrowser(vol, **kwargs)
-                plt.show(interactive=False)
-                plt.close()
-
-            
-            #raw preview!
-            else:
-                self.viz_plotter = preview_volume(
-                                raw_volume_path=file_path,
-                                renderer="pyqt",
-                                outside_class=self.window
-                )
-        except Exception as e:
-            print(f"Error showing preview: {e}")
-

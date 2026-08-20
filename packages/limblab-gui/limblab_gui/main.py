@@ -84,8 +84,8 @@ with open("../../../.env") as f:
 
 TEST_BASE_PATH = env["TEST_BASE_PATH"]
 TEST_SURFACE_PATH = env["TEST_SURFACE_PATH"]
-TEST_DAPI_FILENAME = env["TEST_DAPI_FILENAME"]
-
+TEST_DAPI_FILENAME = env["TEST_RAW"]
+TEST_DAPI_CLEAN = env["TEST_CLEAN"]
 
 
 #for the test experiment i added the channels manually 
@@ -100,18 +100,18 @@ EXPERIMENT = Experiment(
     side="F",
     position="L",
     species="mouse",
-    surface_path=TEST_SURFACE_PATH,
-    surface_isovalue=165,
-    stage=260,
+    # surface_path=TEST_SURFACE_PATH,
+    # surface_isovalue=165,
+    # stage=260,
     channels=[
         Channel(
             experiment_id="manual_test",
             channel_name="DAPI",
             path=TEST_DAPI_FILENAME,
-            clean_isovalue_min = 0,
-            clean_isovalue_max = 54,
-            current_state = "a", 
-            clean_path="a"
+            # clean_isovalue_min = 0,
+            # clean_isovalue_max = 54,
+            # current_state = "a", 
+            # clean_path=TEST_DAPI_CLEAN,
         )
     ],
 )
@@ -159,6 +159,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         self.navigation_stack = []
         self.current_screen = None
 
+        self.action_bar = None
         
         # ---- Workflow state ----
         # Tracks whether the required action for each step of the
@@ -168,14 +169,12 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         # navigation warnings (you're about to lose unsaved progress).
 
         #standard workflow state for any experiment
-        self.workflow_state = {
-            "clean_done": False,
-            "last_cleaned_channel": None,
-            "surface_done": False,
-            "stage_done": False,
-            "selected_stage": None,
-            "align_done": False,
-            "alignment_method": None,
+        self.workflow_checkpoints = {
+            "Clean": False,
+            "Surface": False,
+            "Stage": False,
+            "Align": False,
+            "Visualize": False # TODO: Think about this.
         }
         
 
@@ -187,7 +186,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
 
         self.navigation = NavigationController(self)
         
-        self._build_permanent_chrome()
+        self.navigation._build_permanent_chrome()
 
         # self.navigate_to(lambda:self.align.show(experiment))
         self.navigation.navigate_to(self.show_home)
@@ -378,7 +377,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
 
         self.limb_home = Mesh("Limb-rec_281.vtk").c(theme("limblab.surface"))
         
-        params: dict[str, Any] = dict(shape="1|2", sharecam=False, bg = theme("palette.background"))
+        params: dict[str, Any] = dict(bg = theme("palette.background"))
         kwargs = generate_kwargs(params=params, renderer='pyqt', outside_class=self)
         
         self.plt = Plotter(**kwargs)
@@ -405,7 +404,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         self.action_bar.setVisible(False)
 
         top_row = QHBoxLayout()
-        top_row.addWidget(create_back_button(self.go_back))
+        top_row.addWidget(create_back_button(self.navigation.go_back))
         top_row.addWidget(self.create_left_button())
         top_row.addStretch()
 
@@ -475,7 +474,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         self._load_experiments_from_db()
 
         top_row = QHBoxLayout()
-        top_row.addWidget(create_back_button(self.go_back))
+        top_row.addWidget(create_back_button(self.navigation.go_back))
         top_row.addWidget(self.create_left_button())
         top_row.addStretch()
 
@@ -562,13 +561,6 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
                 ch_act_layout.setContentsMargins(4, 2, 4, 2)
                 ch_act_layout.setSpacing(6)
 
-                ch_view = QToolButton()
-                ch_view.setText('View')
-                ch_view.setFixedSize(60, 26)
-                ch_view.setToolTip('View')
-                ch_view.setStyleSheet(f"background-color: {theme('palette.accent', '#5FBF9F')}; color: {theme('palette.textPrimary', '#FFFFFF')}; border-radius: 13px; font-size: 12px; padding: 0px 6px;")
-                ch_view.clicked.connect(lambda checked=False, p=path, c=ch_name: self._view_channel(p, c))
-
                 ch_del = QToolButton()
                 ch_del.setText('Delete')
                 ch_del.setFixedSize(70, 26)
@@ -576,7 +568,6 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
                 ch_del.setStyleSheet(f"background-color: {theme('palette.error', '#D9534F')}; color: {theme('palette.textPrimary', '#FFFFFF')}; border-radius: 13px; font-size: 12px; padding: 0px 6px;")
                 ch_del.clicked.connect(lambda checked=False, p=path, c=ch_name, cid=ch_id: self._delete_channel(p, c, cid))
 
-                ch_act_layout.addWidget(ch_view)
                 ch_act_layout.addWidget(ch_del)
                 tree.setItemWidget(child, 1, ch_act)
 
@@ -650,17 +641,6 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         self._load_experiments_from_db()
         self.show_user_experiment_list()
         QMessageBox.information(self, "Refreshed", "Experiment list updated.")
-
-    # def show_viz_experiment(self):
-    #     self.action_bar.setVisible(False)
-    #     #visualization of hte uploaded users channel!
-    #     #Calling navigate_to() again here double-pushed the nav stack and left th previous screen's central widget instead of being replaced
-        
-
-    def show_viz_channel(self, channel):
-        print('!!!')
-        self.action_bar.setVisible(False)
-        self.visualizer.show_channel(self.current_experiment, channel)
 
 
     def update_viewer(self, filepath):
@@ -846,7 +826,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
             success = rename_experiment(self.db_path, path, new_name.strip())
             if success:
                 self.experiment_names[path] = new_name.strip()
-                self.show_exp()
+                self.show_user_experiment_list()
             else:
                 QMessageBox.warning(self, "Error", f"Experiment '{path}' not found in database.")
 
@@ -875,7 +855,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
                     del self.experiment_metadata[experiment_id]
 
                 # Refresh the UI
-                self.show_exp()
+                self.show_user_experiment_list()
                 QMessageBox.information(
                     self, "Success", f"Deleted experiment: {displayed_name}"
                 )
@@ -885,22 +865,6 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
                     "Error",
                     f"Experiment '{displayed_name}' not found in database.",
                 )
-
-
-    def _click_channel_buttons(self, experiment_id, channel_name, button):
-        """Show actions menu for a specific channel inside an experiment."""
-        menu = QMenu(self)
-        menu.setStyleSheet(SECMENU_STYLE)
-
-        delete_act = QAction("Delete channel", self)
-        delete_act.triggered.connect(lambda: self._delete_channel(experiment_id, channel_name))
-        menu.addAction(delete_act)
-
-        view_act = QAction("View channel", self)
-        view_act.triggered.connect(lambda: self._view_channel(experiment_id, channel_name))
-        menu.addAction(view_act)
-
-        menu.exec(button.mapToGlobal(button.rect().bottomLeft()))
 
 
     def _delete_channel(self, experiment_id, channel_name, channel_id):
@@ -915,7 +879,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
             success = delete_channel(self.db_path, channel_id)
 
             if success:
-                self.show_exp()
+                self.show_user_experiment_list()
                 QMessageBox.information(
                     self, "Success", f"Deleted channel: {channel_name}"
                 )
@@ -925,33 +889,6 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
                     "Error",
                     f"Channel '{channel_name}' not found in database.",
                 )
-
-
-
-    def _view_channel(self, experiment_id, channel_name):
-        exp_obj = get_experiment(self.db_path, experiment_id)   # fresh DB read, not the cache
-        if not exp_obj:
-            QMessageBox.warning(self, "Error", "Experiment not found.")
-            return
-
-        try:
-            self._set_current_experiment(exp_obj)
-
-            # last_cleaned_channel drives _show_cleaned_channel_preview in show_viz,
-            # which expects a CLEANED (.vti) channel. Only set it if this channel
-            # actually is cleaned — otherwise let show_viz fall through to the raw
-            # preview branch instead of trying to load an unprocessed file as if
-            # it were finished output.
-            ch = next(
-                (c for c in (exp_obj.channels or []) if c.channel_name == channel_name),
-                None,
-            )
-            is_cleaned = bool(ch and ch.path.lower().endswith(".vti"))
-            self.workflow_state["last_cleaned_channel"] = channel_name if is_cleaned else None
-
-            self.navigate_to(self.show_viz_channel(ch))
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to view channel: {e}")
 
 
     def _view_experiment(self, experiment_id):
