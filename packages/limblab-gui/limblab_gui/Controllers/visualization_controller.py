@@ -1,8 +1,17 @@
 import os
-
 from pathlib import Path
+from typing import Any
 
+import numpy as np
+from limblab import preview_volume
+from limblab.design import theme
+from limblab.utils import generate_kwargs
+from limblab.vis.isosurface import one_channel_isosurface
+from limblab.vis.probe import probe
+from limblab.vis.raycast import raycast
+from limblab.vis.slab import dynamic_slab
 from PyQt6.QtWidgets import (
+    QApplication,
     QComboBox,
     QFrame,
     QHBoxLayout,
@@ -10,30 +19,11 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from typing import Any
-from utils import create_back_button
-from vedo import Plotter
+from utils import create_back_button, create_label, create_styled_button
+from vedo import LinearTransform, Mesh, Plotter, Volume
+from vedo.applications import IsosurfaceBrowser
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 
-from limblab.design import theme
-from limblab.vis.isosurface import one_channel_isosurface
-from limblab.vis.probe import probe
-from limblab.vis.raycast import raycast
-from limblab.vis.slab import dynamic_slab
-from utils import create_label, create_styled_button
-
-from PyQt6.QtWidgets import QApplication
-
-from limblab import preview_volume
-
-from vedo import Mesh
-from pathlib import Path
-import numpy as np
-from vedo import LinearTransform , Volume
-
-from vedo.applications import IsosurfaceBrowser
-from limblab.utils import generate_kwargs
-from limblab.design import theme
 
 class VisualizationController:
     MODES = {
@@ -86,13 +76,9 @@ class VisualizationController:
 
     # ------------------------------------------------------------------
 
-    def show_experiment(self,experiment):
+    def show_experiment(self, experiment):
         self.window.action_bar.setVisible(False)
         self.window._show_busy('Loading volume...')
-        print('show exp!')
-        
-        #already called from show_viz window
-        print(experiment)
 
       
         workflow_container = self.window._build_workflow_container(
@@ -109,14 +95,14 @@ class VisualizationController:
 
         self.window.setCentralWidget(None)
         
-        self.window.show()
-        
         self.window._refresh_pipeline_actions(current_step="Visualize")
         QApplication.processEvents()
+        self.window.show()
+
         self.window.setCentralWidget(workflow_container)
 
     
-        surface_path = os.path.join(experiment.base, experiment.surface_path).replace('/','\\')
+        surface_path = os.path.join(experiment.base, experiment.surface_path) #.replace('/','\\')
 
         mesh = Mesh(surface_path).c(theme("limblab.surface"))
 

@@ -5,7 +5,7 @@ import os
 import traceback
 from pathlib import Path
 from types import SimpleNamespace
-from PyQt6.QtCore import Qt
+from typing import Any
 
 import vtkmodules
 from components.terminal_paper import TerminalPaperWidget
@@ -15,29 +15,23 @@ from controllers.clean_controller import CleanController
 from controllers.stage_controller import StageController
 from controllers.surface_controller import SurfaceController
 from limblab.database import (
+    delete_channel,
     delete_experiment,
     get_experiment,
     init_db,
     list_experiments,
-    save_experiment,
-    delete_channel,
     rename_experiment,
-    seed_reference_limbs
+    save_experiment,
+    seed_reference_limbs,
 )
-
-from typing import Any
-
 from limblab.design import theme
-from limblab.models import Experiment
-from limblab.utils import generate_kwargs
-
 from limblab.models import Channel, Experiment
+from limblab.utils import generate_kwargs
 from mixin.NavigationMixin import NavigationMixin
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import (
-    QAction, QIcon)
-
+from PyQt6.QtGui import QAction, QIcon
 from PyQt6.QtWidgets import (
+    QApplication,
     QComboBox,
     QDialog,
     QDoubleSpinBox,
@@ -57,27 +51,21 @@ from PyQt6.QtWidgets import (
     QTreeWidgetItem,
     QVBoxLayout,
     QWidget,
-    QApplication
 )
-from utils import (
-    create_back_button,
-    create_label,
-    create_styled_button
-)
+from utils import create_back_button, create_label, create_styled_button
 from vedo import Mesh, Plotter
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 
 vtkmodules.qt.QVTKRWIBase = "QGLWidget"
 
-from menu_utils import MenuUtils
-
+import sys
 import webbrowser
 
-
+from controllers.navigate_controller import NavigationController
 from controllers.visualization_controller import VisualizationController
+from menu_utils import MenuUtils
+from vedo import printc
 
-
-''''
 env = {}
 with open("../../../.env") as f:
     for line in f:
@@ -98,12 +86,12 @@ TEST_BASE_PATH = env["TEST_BASE_PATH"]
 TEST_SURFACE_PATH = env["TEST_SURFACE_PATH"]
 TEST_DAPI_FILENAME = env["TEST_DAPI_FILENAME"]
 
-'''
+
 
 #for the test experiment i added the channels manually 
 
-''''
-experiment = Experiment(
+
+EXPERIMENT = Experiment(
     experiment_id="manual_test",
     base=TEST_BASE_PATH,
     spacing_x=1.0,
@@ -122,11 +110,11 @@ experiment = Experiment(
             path=TEST_DAPI_FILENAME,
             clean_isovalue_min = 0,
             clean_isovalue_max = 54,
-            
+            current_state = "a", 
+            clean_path="a"
         )
     ],
 )
-'''
 
 class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
     def __init__(self):
@@ -163,13 +151,15 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         self.experiment_names = {}
         self.pipeline_log = []
         self.param_values = {}
-        self.nav_stack = []
-        self.current_screen = None
-        self.active_categories = []
+        
         self.active_viz_sections = []
-        self.check_genes_viz = ["Hoxa11", "Sox9", "BMP2"]
-        self.filepath = None
 
+
+        # Navigation
+        self.navigation_stack = []
+        self.current_screen = None
+
+        
         # ---- Workflow state ----
         # Tracks whether the required action for each step of the
         # Viz -> Clean -> Surface -> Stage -> Align pipeline has been
@@ -193,91 +183,20 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         self.clean = CleanController(self)
         self.align = AlignController(self)
         self.stage = StageController(self) 
-
-        #visualizations!
         self.visualizer = VisualizationController(self)
 
-        #self.current_experiment = experiment   # set when the user picks a real experiment
+        self.navigation = NavigationController(self)
         
         self._build_permanent_chrome()
 
         # self.navigate_to(lambda:self.align.show(experiment))
-        self.navigate_to(self.show_home)
+        self.navigation.navigate_to(self.show_home)
 
-
-    ''''
-    def reset_database(self):
-        reply = QMessageBox.question(
-            self, "Reset database",
-            "This deletes all saved experiment records from the database.\n"
-            "Volume files on disk are NOT deleted.\n\nContinue?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
-        if reply != QMessageBox.StandardButton.Yes:
-            return
-
-        if self.db_path.exists():
-            self.db_path.unlink()
-        init_db(self.db_path)
-
-        self.experiments = []
-        self.experiment_metadata = {}
-        self.experiment_names = {}
-        self.current_experiment = None
-        self.filepath = None
-
-        self._load_experiments_from_db()
-        self.show_exp()
-    '''
 
 
     # ------------------------------------------------------------------
     # Menu Building Methods
     # ------------------------------------------------------------------
-    
-
-
-    ''''
-
-    def _build_file_menu(self, menu_bar):
-        """Build the File menu."""
-        file_menu = menu_bar.addMenu("&File")
-        actions = [
-            ("New experiment", "Ctrl+N"),
-            ("Open experiment", "Ctrl+O"),
-            ("Duplicate experiment", None),
-            (None, None),  # Separator
-            ("Import Limb", None),
-            ("Add Channel to experiment", None),
-            ("Import Reference Model", None),
-            ('Reset database', None),
-            (None, None),  # Separator
-            ("Export Cleaned Volume", None),
-            ("Export Surface Mesh", None),
-            ("Export Transformation Matrix", None),
-            ("Export Figure/Snapshot", None),
-            ("View pipe.log", None),
-            ("Save Current Experiment State", "Ctrl+S"),
-            (None, None),  # Separator
-            ("Delete experiment", None),
-        ]
-
-        for text, shortcut in actions:
-            if text is None:
-                file_menu.addSeparator()
-            else:
-                action = QAction(text, self)
-                if shortcut:
-                    action.setShortcut(shortcut)
-                if text == "Reset Database":
-                    action.triggered.connect(self.reset_database)
-                else:
-                    action.triggered.connect(self.menu_button_clicked)
-                file_menu.addAction(action)     
-
-    '''
-
-
 
     def create_left_button(self):
         """Create the left menu button with dropdown."""
@@ -408,7 +327,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
             size=50,
         )
         get_started_btn.clicked.connect(
-            lambda: self.navigate_to(self.show_first_screen)
+            lambda: self.navigation.navigate_to(self.show_first_screen)
         )
 
         label_main = QLabel("LimbLab")
@@ -487,11 +406,10 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
 
         top_row = QHBoxLayout()
         top_row.addWidget(create_back_button(self.go_back))
-        top_row.addWidget(self.
-                          create_left_button())
+        top_row.addWidget(self.create_left_button())
         top_row.addStretch()
 
-        # ---- Create New Experiment ----
+        # ---- Create New Experiment [UPLOAD] ----
         self.label_upload = create_label("Create New Experiment", f"color: {theme('palette.textPrimary', '#FFFFFF')}; font-size: {theme('typography.fontSizeHero', 40)}px;")
         self.button_upload = create_styled_button(
             "Upload TIF Volume",
@@ -509,14 +427,14 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         upload_desc.setWordWrap(True)
 
         
-        # ---- Library Access ----
+        # ---- Library Access [YOUR DATA] ----
         self.label_library = create_label("Access Limb Library", f"color: {theme('palette.textPrimary', '#FFFFFF')}; font-size: {theme('typography.fontSizeHero', 40)}px;")
         self.button_library = create_styled_button(
             "View Experiments",
             color=theme("palette.accent", "#0D7C66"),
             hover_color=theme("palette.primaryHover", "#41B3A2"),
         )
-        self.button_library.clicked.connect(lambda: self.navigate_to(self.show_exp))
+        self.button_library.clicked.connect(lambda: self.navigation.navigate_to(self.show_user_experiment_list))
 
         library_desc = create_label(
             "View and manage your existing experiments\n"
@@ -551,26 +469,9 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         self.setCentralWidget(container)
 
 
-    def show_exp(self):
-        self.action_bar.setVisible(False)
-        ''''
-        if not self.db_path.exists():
-            # Database doesn't exist, create it with test data
-            init_db(self.db_path)
-            
-            print("Created new database with data")
-        else:
-            # Database exists, check if it has any experiments
-            experiments = list_experiments(self.db_path)
-            if not experiments:
-                # Database exists but empty, generate test data
-                init_db(self.db_path)
-            else:
-                print(f"Found {experiments} existing experiments")
+    def show_user_experiment_list(self):
 
-        self._load_experiments_from_db()
-        # load database! TESTING\
-        '''
+        self.action_bar.setVisible(False)
         self._load_experiments_from_db()
 
         top_row = QHBoxLayout()
@@ -747,67 +648,19 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
     def _refresh_experiments(self):
         """Refresh the experiments list."""
         self._load_experiments_from_db()
-        self.show_exp()
+        self.show_user_experiment_list()
         QMessageBox.information(self, "Refreshed", "Experiment list updated.")
 
-    def show_viz_experiment(self):
-        self.action_bar.setVisible(False)
-        #visualization of hte uploaded users channel!
-        #Calling navigate_to() again here double-pushed the nav stack and left th previous screen's central widget instead of being replaced
-        self.visualizer.show_experiment(self.current_experiment)
+    # def show_viz_experiment(self):
+    #     self.action_bar.setVisible(False)
+    #     #visualization of hte uploaded users channel!
+    #     #Calling navigate_to() again here double-pushed the nav stack and left th previous screen's central widget instead of being replaced
+        
 
     def show_viz_channel(self, channel):
         print('!!!')
         self.action_bar.setVisible(False)
         self.visualizer.show_channel(self.current_experiment, channel)
-
-      
-
-    ''''
-    def _show_final_aligned_mesh(self):
-        """Show the fully processed (aligned) limb mesh — final pipeline output."""
-        try:
-            mesh = Mesh(str())
-            T = self.align.source.transform # type: ignore
-            mesh.apply_transform(T)
-
-            self.viz_plotter = Plotter(qt_widget=self.vtk_widget)
-            self.viz_plotter.show(mesh)
-        except Exception as e:
-            print(f"Error loading final aligned mesh: {e}")
-
-
-    def _show_cleaned_channel_preview(self):
-        """Show the cleaned (final) volume for a gene-only workflow."""
-        channel_name = self.workflow_state["last_cleaned_channel"]
-        channel = next(
-            (ch for ch in (self.current_experiment.channels or [])
-             if ch.channel_name.upper() == channel_name.upper()),
-            None,
-        )
-        if channel is None:
-            print(f"Cleaned channel '{channel_name}' not found on experiment.")
-            self._show_raw_volume_preview(self.current_experiment)
-            return
-
-        full_path = os.path.join(self.current_experiment.base, channel.path)
-        if not os.path.exists(full_path):
-            print(f"File not found: {full_path}")
-            return
-
-        try:
-            self.viz_plotter = preview_volume(
-                raw_volume_path=Path(full_path),
-                renderer="pyqt",
-                outside_class=self,
-            )
-        except Exception as e:
-            print(f"Error loading cleaned channel preview: {e}")
-
-
-    
-
-        '''
 
 
     def update_viewer(self, filepath):
@@ -1103,17 +956,20 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
 
     def _view_experiment(self, experiment_id):
         """View the selected experiment (show visualization)."""
-        exp_obj = get_experiment(self.db_path, experiment_id)   # fresh DB read, not the cache
-        if not exp_obj:
+        
+        experiment = get_experiment(self.db_path, experiment_id)
+        if not experiment:
             QMessageBox.warning(self, "Error", "Experiment not found.")
             return
 
-        try:
-            self._set_current_experiment(exp_obj)
-            self.navigate_to(self.show_viz_experiment)
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to view experiment: {e}")
+        # NOTE: THIS IS DEBUGGING #
+        experiment = EXPERIMENT
+        ###########################
 
+        
+        self._set_current_experiment(experiment)
+        self.navigation.navigate_to(lambda: self.visualizer.show_experiment(experiment))
+    
 
     def _infer_workflow_state(self, exp):
         """Derive pipeline progress from what's actually persisted on the
@@ -1190,8 +1046,6 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
                     self._add_channel_to_existing(exp_id)
                 return
 
-            # Get channel type
-            channel_name = limb_info['channel_type']
             
             # Create experiment
             new_exp = Experiment(
@@ -1205,10 +1059,9 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
                 channels=[
                     Channel(
                         experiment_id=exp_id,
-                        channel_name=channel_name,
+                        channel_name=limb_info['channel_type'],
                         path=os.path.basename(filepath),
-                        
-                    )
+                    ) # pyright: ignore[reportCallIssue]
                 ]
             )
 
