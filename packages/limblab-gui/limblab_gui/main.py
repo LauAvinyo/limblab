@@ -963,7 +963,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
             return
 
         # NOTE: THIS IS DEBUGGING #
-        experiment = EXPERIMENT
+        #experiment = EXPERIMENT
         ###########################
 
         
