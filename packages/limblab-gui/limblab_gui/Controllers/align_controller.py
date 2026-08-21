@@ -11,6 +11,7 @@ from PyQt6.QtWidgets import (
 from utils import create_styled_button
 from limblab.database import save_experiment
 
+CURRENT_STEP = 'Align'
 
 class AlignController:
     def __init__(self, window):
@@ -35,11 +36,11 @@ class AlignController:
 
         container = self.window._build_workflow_container(
             next_label="Visualize",
-            next_callback=self._go_next_from_align,
-            back_guard=lambda: (
-                self.window.workflow_state["align_done"],
-                "You haven't confirmed an alignment yet.",
-            ),
+            #next_callback=self._go_next_from_align,
+            # #back_guard=lambda: (
+            #     self.window.workflow_state["align_done"],
+            #     "You haven't confirmed an alignment yet.",
+            # ),
             action_widget=self._build_align_action_bar(),
         )
 
@@ -119,29 +120,31 @@ class AlignController:
         
         save_experiment(self.window.db_path, self.experiment)
 
-        self.window.workflow_state["align_done"] = True
-        self.window.workflow_state["alignment_method"] = "rigid"  # whatever you track
 
         # The step is now "done" — refresh the fixed action bar so the
         # checkmark/label updates immediately without touching the menu.
-        self.window._refresh_pipeline_actions(current_step="Align")
 
         self.window.log_pipeline(
             f"Alignment completed.\nMatrix written to:\n{self.experiment.transformation_matrix_path}"
         )
-        self._go_next_from_align()
+
+        self.window.workflow_checkpoints[CURRENT_STEP] = True
+        self.window.navigation._refresh_pipeline_actions(CURRENT_STEP, True)
 
 
-    def _go_next_from_align(self): 
-        if self.experiment.transformation_matrix_path is None :
-            QMessageBox.warning(
-                                    self.window,
-                                    "Alignment required",
-                                    "Please confirm an alignment before continuing.",
-                                )
-            return
-        else:
-            print('@')
-            self.window._show_message(f"Alignment was performed!\nYou can now Visualize your limb surface")
-            self.window.visualizer.show(self.current_experiment)
+        # self._go_next_from_align()
+
+
+    # def _go_next_from_align(self): 
+    #     if self.experiment.transformation_matrix_path is None :
+    #         QMessageBox.warning(
+    #                                 self.window,
+    #                                 "Alignment required",
+    #                                 "Please confirm an alignment before continuing.",
+    #                             )
+    #         return
+    #     else:
+    #         print('@')
+    #         self.window._show_message(f"Alignment was performed!\nYou can now Visualize your limb surface")
+    #         self.window.visualizer.show(self.current_experiment)
 

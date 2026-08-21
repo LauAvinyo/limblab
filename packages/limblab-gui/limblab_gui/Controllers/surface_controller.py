@@ -15,6 +15,7 @@ from PyQt6.QtWidgets import (
 )
 from utils import create_label, create_styled_button
 
+CURRENT_STEP = 'Surface'
 
 class SurfaceExtractionWorker(QThread):
     finished = pyqtSignal(object)   # Path on success
@@ -49,16 +50,16 @@ class SurfaceController:
         """Surface screen. Top bar shows the Stage button (the next step)."""
         container = self.window._build_workflow_container(
             next_label="Stage",
-            next_callback=self._go_next_from_surface,
-            back_guard=lambda: (
-                self.window.workflow_state["surface_done"],
-                "You haven't extracted a surface yet.",
-            ),
+            #next_callback=self._go_next_from_surface,
+            # back_guard=lambda: (
+            #     self.window.workflow_state["surface_done"],
+            #     "You haven't extracted a surface yet.",
+            # ),
             action_widget=self._build_surface_action_bar(),
         )
         self.window.setCentralWidget(container)
 
-        self.window._refresh_pipeline_actions(current_step="Surface")
+        self.window.navigation._refresh_pipeline_actions(CURRENT_STEP)
 
         dapi_channel = next(
             (ch for ch in experiment.channels if ch.channel_name == "DAPI"),
@@ -115,40 +116,43 @@ class SurfaceController:
            
         isovalue = float(self.plotter.sliders[0][0].value) # type: ignore
         self._worker = SurfaceExtractionWorker(self.experiment, isovalue)
-        self._worker.finished.connect(lambda path: self._on_extraction_done(path, isovalue))
+        #self._worker.finished.connect(lambda path: self._on_extraction_done(path, isovalue))
         self._worker.failed.connect(lambda msg: QMessageBox.critical(self.window, "Surface extraction error", msg))
         self._worker.start()
 
-
+        self.window.log_pipeline(f"Surface extracted (isovalue={isovalue:.3f}).\nWritten to:\n{self.experiment.surface_path}")
         self.window._hide_busy()
+        self.window.workflow_checkpoints[CURRENT_STEP] = True
+        self.window.navigation._refresh_pipeline_actions(CURRENT_STEP, True)
 
 
-    def _on_extraction_done(self, surface_path, isovalue):
-        assert self.experiment is not None
-        self.experiment.surface_path = os.path.basename(str(surface_path))
-        self.experiment.surface_isovalue = int(isovalue)
-        save_experiment(self.window.db_path, self.experiment)
 
-        self.window.workflow_state["surface_done"] = True
-        self.window._refresh_pipeline_actions(current_step="Surface")
+    # def _on_extraction_done(self, surface_path, isovalue):
+    #     assert self.experiment is not None
+    #     self.experiment.surface_path = os.path.basename(str(surface_path))
+    #     self.experiment.surface_isovalue = int(isovalue)
+    #     save_experiment(self.window.db_path, self.experiment)
 
-        self.window.log_pipeline(f"Surface extracted (isovalue={isovalue:.3f}).\nWritten to:\n{surface_path}")
+    #     self.window.workflow_state["surface_done"] = True
+    #     self.window._refresh_pipeline_actions(current_step="Surface")
 
-        self._go_next_from_surface()
+    #     self.window.log_pipeline(f"Surface extracted (isovalue={isovalue:.3f}).\nWritten to:\n{surface_path}")
+
+    #     self._go_next_from_surface()
 
 
-    #from main
-    def _go_next_from_surface(self):
-        print(self.experiment.surface_path)
-        """Guard for Surface -> Stage: must have extracted a surface."""
-        if self.experiment.surface_path is None and self.experiment.surface_isovalue is None:
+    # #from main
+    # def _go_next_from_surface(self):
+    #     print(self.experiment.surface_path)
+    #     """Guard for Surface -> Stage: must have extracted a surface."""
+    #     if self.experiment.surface_path is None and self.experiment.surface_isovalue is None:
 
-            QMessageBox.warning(
-                self.window,
-                "Surface required",
-                "Please extract a surface before proceeding to Stage.",
-            )
-            return
-        else:
-            self.window._show_message("Surface Extraction was performed!\nYou can now stage your limb volume")
-            self.window.navigate_to(lambda: self.window.stage.show(self.window.current_experiment))
+    #         QMessageBox.warning(
+    #             self.window,
+    #             "Surface required",
+    #             "Please extract a surface before proceeding to Stage.",
+    #         )
+    #         return
+    #     else:
+    #         self.window._show_message("Surface Extraction was performed!\nYou can now stage your limb volume")
+    #         self.window.navigate_to(lambda: self.window.stage.show(self.window.current_experiment))

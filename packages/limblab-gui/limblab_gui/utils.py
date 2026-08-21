@@ -1,23 +1,23 @@
 
+import webbrowser
+
 import numpy as np
 import pyqtgraph.opengl as gl
+from config import *
 from limblab.design import theme
 from PyQt6.QtCore import QObject, Qt, pyqtSignal
+from PyQt6.QtGui import QAction, QIcon
 from PyQt6.QtWidgets import (
     QLabel,
+    QMenu,
     QPushButton,
     QSizePolicy,
     QSlider,
     QToolButton,
     QVBoxLayout,
     QWidget,
-    QMenu
 )
-import webbrowser
-from PyQt6.QtGui import (
-    QAction, QIcon)
-import webbrowser
-from config import *
+
 
 def create_styled_button(
     text: str,

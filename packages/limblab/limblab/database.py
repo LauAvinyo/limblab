@@ -1,10 +1,12 @@
-from pathlib import Path
-from typing import List, Optional
-from sqlmodel import Session, SQLModel, create_engine, select
-from limblab.models import Channel, Experiment
-import limblab
 import re
 import sqlite3
+from pathlib import Path
+from typing import List, Optional
+
+from sqlmodel import Session, SQLModel, create_engine, select
+
+import limblab
+from limblab.models import Channel, Experiment
 
 REFERENCE_LIMBS_DIR = Path(limblab.__file__).parent / "limb"
 
@@ -124,7 +126,7 @@ def rename_experiment(db_path: Path, experiment_id: str, new_name: str) -> bool:
     with Session(engine) as session:
         exp = session.get(Experiment, experiment_id)
         if exp:
-            exp.display_name = new_name
+            exp.displayed_name = new_name
             session.add(exp)
             session.commit()
             return True

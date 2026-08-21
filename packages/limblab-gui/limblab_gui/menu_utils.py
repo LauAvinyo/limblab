@@ -1,22 +1,19 @@
+import webbrowser
+
+from limblab.design import theme
+from mixin.NavigationMixin import NavigationMixin
+from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QMenu,
+    QScrollArea,
     QToolButton,
-    QWidget,
     QVBoxLayout,
-    QScrollArea
+    QWidget,
 )
-from PyQt6.QtGui import (
-    QAction)
-import webbrowser
-from limblab.design import theme
-from utils import (
-    create_back_button,
-    create_collapsible_section
-    
-)
-from mixin.NavigationMixin import NavigationMixin
+from utils import create_back_button, create_collapsible_section
+
 
 class MenuUtils:    
     def _build_home_topbar(self):
@@ -64,21 +61,6 @@ class MenuUtils:
 
         return bar
 
-    def _refresh_pipeline_actions(self, current_step=None):
-        self.action_bar.setVisible(True)
-        self._current_pipeline_step = current_step 
-
-        for idx, step in enumerate(self.PIPELINE_STEPS):
-            act = self._step_actions[step]
-            flag = self.STEP_DONE_FLAG.get(step)
-            is_done = bool(flag and self.workflow_state.get(flag))
-            is_reachable = all(
-                    self.workflow_state.get(self.STEP_DONE_FLAG[s])
-                    for s in self.PIPELINE_STEPS[:idx] if s in self.STEP_DONE_FLAG
-                )
-            act.setText(("✓ " if is_done else '🔒︎ ' if not is_reachable else "") + step)
-            act.setEnabled(is_reachable)
-            act.setChecked(step == current_step)
 
 
     def _build_resources_menu(self, menu):
@@ -107,83 +89,6 @@ class MenuUtils:
         contact.addAction(QAction("info@embl.es", self))
         return contact
 
-    def _build_view_menu(self, menu_bar):
-        """Build the View menu."""
-        view_menu = menu_bar.addMenu("&View")
-        view_menu.addAction(QAction("Visualization Mode", self))
-
-        viz_modes = ["Isosurface", "Slices", "Raycast", "Probe", "2D Projection Slab"]
-        for mode in viz_modes:
-            action = QAction(mode, self)  # , checkable=True
-            action.triggered.connect(lambda checked, m=mode: self.add_viz_section(m))
-            view_menu.addAction(action)#modification to select viz mode!!!
-        return view_menu
-
-
-    def _build_permanent_chrome(self):
-        if getattr(self, "_chrome_built", False):
-            return
-        self._chrome_built = True
-
-        menu_bar = self.menuBar()
-        menu_bar.setStyleSheet(f"""
-                QMenuBar {{ background-color: {theme('#123467', '#141414')};
-                            color: {theme('palette.textSecondary', '#A0A0A0')}; border: none; }}
-                QMenuBar::item:selected {{ background-color: {theme('palette.panel', '#2A2A2A')};
-                            color: {theme('palette.textPrimary', '#FFFFFF')}; border-radius: 4px; }}
-            """)
-
-        self.action_bar = self.addToolBar("Pipeline")
-        self.action_bar.setMovable(False)
-        self.action_bar.setStyleSheet(f"""
-                QToolBar {{ background-color: {theme('palette.background', '#141414')}; border: none; spacing: 4px; padding: 4px; }}
-                QToolButton {{ color: {theme('palette.textSecondary', '#A0A0A0')}; padding: 6px 14px; border-radius: 4px; }}
-                QToolButton:disabled {{ color: {theme('palette.textDisabled', '#3A3A3A')}; }}
-                QToolButton:checked {{ background-color: {theme('palette.panel', '#2A2A2A')}; color: {theme('palette.textPrimary', '#FFFFFF')}; }}
-            """)
-
-            # Same back button widget show_exp/show_first_screen use — real QWidget,
-            # so addWidget (not addAction).
-        self._active_back_guard = None
-        self.back_btn = create_back_button(
-            lambda: self._handle_back(self._current_pipeline_step, self._active_back_guard))
-        self.action_bar.addWidget(self.back_btn)
-        self.action_bar.addSeparator()
-
-        self._current_pipeline_step = None
-        self._step_actions = {}
-        for step in self.PIPELINE_STEPS:
-            act = QAction(step, self)
-            act.setCheckable(True)
-            act.triggered.connect(lambda checked=False, s=step: self.navigate_to_step(s, self._current_pipeline_step))
-            self.action_bar.addAction(act)
-            self._step_actions[step] = act
-
-        self.action_bar.setVisible(False)
-
-
-    def _reset_workflow_from(self, step):
-        """Clear *_done flags for `step` and everything after it, so the
-            toolbar re-locks those steps until they're redone. Called only after
-            the user has explicitly confirmed they want to overwrite prior output."""
-        idx = self.PIPELINE_STEPS.index(step)
-        for s in self.PIPELINE_STEPS[idx:]:
-            flag = self.STEP_DONE_FLAG.get(s)
-            if flag:
-                self.workflow_state[flag] = False
-
-            # fields that ride alongside the *_done flags
-        if idx <= self.PIPELINE_STEPS.index("Clean"):
-            self.workflow_state["last_cleaned_channel"] = None
-        if idx <= self.PIPELINE_STEPS.index("Stage"):
-            self.workflow_state["selected_stage"] = None
-        if idx <= self.PIPELINE_STEPS.index("Align"):
-            self.workflow_state["alignment_method"] = None
-            self.align.source = None
-            self.align.surface_path = None
-
-        self._refresh_pipeline_actions(current_step=step)
-        self.log_pipeline(f"Reset workflow state from '{step}' onward — redoing this step.")
 
 
     def _build_side_panel(self):
