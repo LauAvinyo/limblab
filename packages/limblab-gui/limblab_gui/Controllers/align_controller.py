@@ -9,7 +9,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 from utils import create_styled_button
-from limblab.database import save_experiment
+from limblab.database.crud import save_experiment
 
 CURRENT_STEP = 'Align'
 
@@ -48,7 +48,7 @@ class AlignController:
 
         # Chrome (menu bar + action bar) is built once in MainWindow.__init__.
         # Never rebuild it here — just tell the fixed bar which step is active.
-        self.window._refresh_pipeline_actions(current_step="Align")
+        self.window.navigation._refresh_pipeline_actions(current_step="Align")
 
         # Start alignment viewer
             

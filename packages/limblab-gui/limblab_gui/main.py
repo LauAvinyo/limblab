@@ -14,7 +14,7 @@ from controllers.align_controller import AlignController
 from controllers.clean_controller import CleanController
 from controllers.stage_controller import StageController
 from controllers.surface_controller import SurfaceController
-from limblab.database import (
+from limblab.database.crud import (
     delete_channel,
     delete_experiment,
     get_experiment,
@@ -22,8 +22,14 @@ from limblab.database import (
     list_experiments,
     rename_experiment,
     save_experiment,
-    seed_reference_limbs,
+    
 )
+
+from limblab.database.navigation import (
+    seed_reference_limbs,
+    delete_from_database_going_back_action,
+)
+
 from limblab.design import theme
 from limblab.models import Channel, Experiment
 from limblab.utils import generate_kwargs
@@ -133,12 +139,8 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         print(f"Created empty database: {self.db_path}")
 
         seed_reference_limbs(self.db_path)
-        print('created db reference limb access!')
-
-
-        self._load_experiments_from_db()
-        # DATABASE END
-        ##############
+        #called just once in the inizialization of hte app!
+        #init_db is called in show_user_expoeriment page
 
         ############
         # NAMESPACES
@@ -973,25 +975,25 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         if not limb_info:
             return
 
-        try:
-            exp_id = os.path.basename(filepath).split('.')[0]
+        
+        exp_id = os.path.basename(filepath).split('.')[0]
 
-            # Check if experiment already exists
-            if exp_id in self.experiments:
-                reply = QMessageBox.question(
+        # Check if experiment already exists
+        if exp_id in self.experiments:
+            reply = QMessageBox.question(
                     self,
                     "Experiment Exists",
                     f"Experiment '{exp_id}' already exists.\n"
                     "Do you want to add this channel to it instead?",
                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
                 )
-                if reply == QMessageBox.StandardButton.Yes:
+            if reply == QMessageBox.StandardButton.Yes:
                     self._add_channel_to_existing(exp_id)
-                return
+            return
 
             
             # Create experiment
-            new_exp = Experiment(
+        new_exp = Experiment(
                 experiment_id=exp_id,
                 base=os.path.dirname(filepath),
                 spacing_x=limb_info['spacing'][0], # type: ignore
@@ -1008,33 +1010,10 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
                 ]
             )
 
-            save_experiment(self.db_path, new_exp)
-            self._load_experiments_from_db()
-            self.navigate_to(self.show_exp)
-
-            # Show success message with next steps
-            next_steps = "Add more gene channels using the 'Add Channel' button."
-
-            if channel_name == "DAPI":
-                next_steps = "Add gene channels (Hoxa11, Sox9, BMP2, SHH) using the 'Add Channel' button."
-            else:
-                next_steps = "Add DAPI and other gene channels using the 'Add Channel' button."
-
-            QMessageBox.information(
-                self,
-                "Success",
-                f"Experiment created: {exp_id}\n"
-                f"File: {os.path.basename(filepath)}\n"
-                f"Channel: {channel_name}\n\n"
-                f"{next_steps}"
-            )
-
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to create experiment: {e}")
-            traceback.print_exc()
-
-
-
+        save_experiment(self.db_path, new_exp)
+        self._load_experiments_from_db()
+        self.navigation.navigate_to(self.show_user_experiment_list)
+           
 
     def add_channel_to_existing(self, specific_exp_id=None):
         """Add a channel to an existing experiment."""
@@ -1128,7 +1107,6 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
             
             # Reload and refresh
             self._load_experiments_from_db()
-            self.show_exp()
             
             # Check if experiment is now complete
             is_valid, status = self._validate_experiment_channels(exp_id)
@@ -1358,7 +1336,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
 
             save_experiment(self.db_path, new_exp)
             self._load_experiments_from_db()
-            self.show_exp()
+            #self.show_exp()
 
             QMessageBox.information(
                 self, 
@@ -1460,7 +1438,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
             save_experiment(self.db_path, exp_data)   # exp_data is already a real Experiment — no need to rebuild it
 
             self._load_experiments_from_db()
-            self.show_exp()
+            #self.show_exp()
 
             is_valid, status = self._validate_experiment_channels(exp_id)
             channel_list = ', '.join(ch.channel_name for ch in exp_data.channels)

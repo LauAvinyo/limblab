@@ -4,8 +4,8 @@ from limblab import (
     extract_surface,
     get_nuclei_channel_path,
     pick_isovalue,
-    save_experiment,
 )
+from limblab.database.crud import save_experiment
 from limblab.design import theme
 from PyQt6.QtCore import QThread, pyqtSignal, QObject
 from PyQt6.QtWidgets import (
