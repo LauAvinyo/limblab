@@ -16,6 +16,16 @@ from PyQt6.QtWidgets import (
 from utils import create_back_button
 from vedo import printc
 
+from limblab.database import save_experiment
+
+DATABASE_EXPERIMENT_ACTION = {
+    'Clean': ['clean_path', 'clean_isovalue_min', 'clean_isovalue_max'],
+    'Surface': ['surface_path', 'surface_isovalue'],
+    'Stage': ['stage'],
+    'Align': ['transformation_matrix_path', 'linear_transform', 'nonlinear_transform']
+}
+
+
 PIPELINE_STEPS = ["Clean", "Surface", "Stage", "Align", "Visualize"]
 PIPELINE_INDEX = {
     "Clean": 0, 
@@ -58,10 +68,8 @@ class NavigationController:
 
     def limb_action_clicked(self, step):
         current_action_idx = PIPELINE_INDEX[step]
-        printc(step, current_action_idx, c='blue')
-        printc(self.window.workflow_checkpoints[step], 'is it done?')
 
-        if self.window.workflow_checkpoints[step] == True:  # shouldnt be clickable anyway but just to make sure
+        if self.window.workflow_checkpoints[step] == True:  #shouldnt be clickable anyway but just to make sure
             affected = [s for s in PIPELINE_STEPS[current_action_idx:] if self.window.workflow_checkpoints.get(s)]
             #actions affected until the action we're in"!
             
@@ -82,10 +90,54 @@ class NavigationController:
                 self.state__navigate_to[step]()#the user goes back to that window!
                 #TODO: delete database generated arguments from the step theyu wnat to go back! -> hard
 
-                
+                #call delete from database function -> yet to define
+
+            #print(affected)
+            print(self.window.current_experiment)
+            self.delete_from_database_going_back_action(self.window.current_experiment, action_undone = affected)
 
         else: #the step hasnt been done before!
             self.state__navigate_to[step]()
+
+
+    def delete_from_database_going_back_action(self, experiment, action_undone: list):
+        printc('here to delete', c='pink')
+
+        channel_name = self.window.current_channel#defined at clean controller! (as clean gets done)
+        channel = next(
+            (ch for ch in experiment.channels if ch.channel_name == channel_name),
+            None,
+        )#get channel object that matches with the current channel name
+        print(experiment, experiment.channels ,'BEFORE DELETION!')
+        for action in action_undone:
+            if action == 'Clean':
+                if channel is None:
+                    printc(f"No channel '{channel_name}' found — nothing to undo.", c='red')
+                    continue
+
+                what_to_delete = DATABASE_EXPERIMENT_ACTION[action]  # e.g. ['clean_path', 'isovalue_min', 'isovalue_max']
+                print(what_to_delete)
+
+                for field in what_to_delete:
+                    if hasattr(channel, field):#if the channel has what to delete argument, we set it to None!
+                        setattr(channel, field, None)
+
+                    else:
+                        printc(f"Channel has no attribute '{field}'", c='red')
+
+            #for processing actions that are not Clean
+            for field in what_to_delete:
+                if hasattr(experiment, field):
+                    setattr(experiment, field, None)
+
+        print(experiment, experiment.channels ,'AFTER DELETION!')
+        save_experiment(self.window.db_path, experiment)
+
+
+
+                
+
+        
 
         
     def navigate_to_clean(self):
@@ -192,6 +244,8 @@ class NavigationController:
             self._step_actions[step] = act
 
         self.window.action_bar.setVisible(False)
+
+
 
 
     # def go_back_from_chrome(self):

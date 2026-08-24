@@ -22,6 +22,8 @@ from utils import create_back_button, create_label, create_styled_button
 from vedo import Mesh, Plotter, Volume, printc
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 
+from limblab import preview_volume
+
 CURRENT_STAGE = 'Visualize'
 
 class VisualizationController:
@@ -146,8 +148,11 @@ class VisualizationController:
             # Show unclean DAPI
             else:
                 printc("     RAW", c="pink")
-                # volume_path = Path(os.path.join(experiment.base, channel.path))
-                # preview_volume(volume_path, "pyqt", self.window)
+                volume_path = Path(os.path.join(experiment.base, channel.path))
+                preview_volume(volume_path, "pyqt", self.window)
+
+
+        self.window._hide_busy()
                 
 
     def _on_show_clicked(self):                

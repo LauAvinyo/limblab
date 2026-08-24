@@ -187,7 +187,7 @@ class CleanController:
             assert self.experiment is not None
             self.channel_name = self.clean_widgets["channel"].currentText()
             self.raw_volume_path = get_channel_path(self.experiment, self.channel_name)
-
+            self.window.current_channel = self.channel_name
             self.plotter = pick_isovalues(
                 raw_volume_path=self.raw_volume_path,
                 renderer="pyqt",
@@ -277,18 +277,18 @@ class CleanController:
 
         save_experiment(self.window.db_path, self.experiment)
 
-    
 
         self.window.log_pipeline(
             f"Cleaned {new_channel.channel_name} (v0={new_channel.clean_isovalue_min}, v1={new_channel.clean_isovalue_max}).\n"
             f"Written to:\n{new_channel.path}"
         )
-        self.window._hide_busy()
+        
 
         self.window.workflow_checkpoints[CURRENT_STEP] = True
         self.window.navigation._refresh_pipeline_actions(CURRENT_STEP, True)
-        printc('CLEAN CONTROLLER', self.window.workflow_checkpoints[CURRENT_STEP], c= 'blue')
+        #printc('CLEAN CONTROLLER', self.window.workflow_checkpoints[CURRENT_STEP], c= 'blue')
 
+        self.window._hide_busy()
         # self._go_next_from_clean(new_channel)
         
 
