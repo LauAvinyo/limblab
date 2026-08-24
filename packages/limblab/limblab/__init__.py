@@ -5,14 +5,18 @@ LimbLab - core library for limb development data processing and visualization.
 __version__ = "0.4.1"
 
 #Database actions
-from .database import (
+from .database.crud import (
     delete_experiment,
     get_engine,
     init_db,
     save_experiment,
     update_experiment,
     delete_channel,
-    rename_experiment,
+    rename_experiment
+)
+
+from .database.navigation import (
+    delete_from_database_going_back_action,
     seed_reference_limbs
 )
 
@@ -78,7 +82,8 @@ __all__ = [
     'file2dic',
     'pick_evenly_distributed_values',
     'styles',
-    'seed_reference_limbs'
+    'seed_reference_limbs',
+    'delete_from_database_going_back_action'
     
 ]
 #les funcions privades s-haurien de poder ficar aqui????

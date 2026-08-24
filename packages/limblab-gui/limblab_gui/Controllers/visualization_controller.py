@@ -46,7 +46,7 @@ class VisualizationController:
         """Call this from show_viz() and pass the result as `action_widget`
         to `_build_workflow_container`, same as StageController does for
         its Confirm Stage bar."""
-        self.experiment = experiment
+        
 
         bar = QWidget()
         bar.setStyleSheet(f"background-color: {theme('palette.surface', '#1E1E1E')};")
@@ -82,6 +82,8 @@ class VisualizationController:
         self.window.action_bar.setVisible(False)
         self.window._show_busy('Loading volume...')
 
+        self.experiment = experiment#passed from window (self.current_Experiment)
+
       
         workflow_container = self.window._build_workflow_container(
             next_label="Clean",
@@ -90,6 +92,7 @@ class VisualizationController:
             action_widget=self.build_action_bar(experiment),
         )
 
+        
         self._current_frame = self.window.frame
         self._current_vtk_widget = self.window.vtkWidget
         self.vtk_widget = self.window.vtkWidget  # kept for the helpers below
@@ -103,9 +106,7 @@ class VisualizationController:
         self.window.setCentralWidget(workflow_container)
 
     
-
         if experiment.surface_path is not None:
-            printc("SURFACE", c="pink")
             surface_path = os.path.join(experiment.base, experiment.surface_path) #.replace('/','\\')
 
             mesh = Mesh(surface_path).c(theme("limblab.surface"))
@@ -119,7 +120,6 @@ class VisualizationController:
             self.window._hide_busy()
 
         else:
-            printc("VOLUME", c="pink")
             channel = None
             for c in experiment.channels:
                 if c.channel_name == "DAPI":
@@ -172,6 +172,7 @@ class VisualizationController:
             QMessageBox.warning(self.window, "Channel not found", f"Couldn't find channel '{channel_name}'.")
             return
         ok, message = self._validate_channel(channel)
+        printc(ok, message, c='blue')
 
         if not ok:
             QMessageBox.warning(self.window, "Not ready for visualization", message)
@@ -244,7 +245,7 @@ class VisualizationController:
         try:
             if mode == "raycast":
                 rc_plotter = raycast(
-                    self.window.experiment,
+                    self.window.current_experiment,
                     channel_name=channel.channel_name,
                     qt_widget=vtk_widget,
                 )
@@ -252,7 +253,7 @@ class VisualizationController:
 
             elif mode == 'isosurface':
                 iso_plotter = one_channel_isosurface(
-                                        self.window.experiment,
+                                        self.window.current_experiment,
                                         channel_name=channel.channel_name,
                                         qt_widget = vtk_widget
                                         
@@ -260,10 +261,10 @@ class VisualizationController:
                 self._current_plotter = iso_plotter
 
             elif mode == "slab":
-                dynamic_slab(self.window.experiment, channel_name=channel.channel_name)
+                dynamic_slab(self.window.current_experiment, channel_name=channel.channel_name)
 
             elif mode == "probe":
-                probe(self.window.experiment, channel_names=[channel.channel_name])
+                probe(self.window.current_experiment, channel_names=[channel.channel_name])
 
    
 

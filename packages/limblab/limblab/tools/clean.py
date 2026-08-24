@@ -27,7 +27,6 @@ def pick_isovalues(
 
     vol = Volume(str(raw_volume_path))
 
-    print(raw_volume_path)
 
     params: dict[str, Any] = dict(use_gpu=True, bg = theme("palette.background"), c=theme("limblab.surface"), alpha=0.6)
     kwargs = generate_kwargs(
@@ -96,7 +95,7 @@ def clean(
     out_path = raw_volume_path.with_suffix(".vti")
     try:
         vol.write(str(out_path))
-        print(out_path)
+        
     except Exception as e:
         raise VolumeProcessingError(f"Failed to write cleaned volume: {e}") from e
 

@@ -72,55 +72,57 @@ from controllers.visualization_controller import VisualizationController
 from menu_utils import MenuUtils
 from vedo import printc
 
-env = {}
-with open("../../../.env") as f:
-    for line in f:
-        line = line.strip()
-        # Skip empty lines and comments
-        if not line or line.startswith("#"):
-            continue
-        # Ensure there is an '='
-        if "=" not in line:
-            continue
-        # Split only on the first '='
-        key, value = line.split("=", 1)
-        key = key.strip()
-        value = value.strip().replace('"', "").replace("'", "")
-        env[key] = value
+# env = {}
+# with open("../../../.env") as f:
+#     for line in f:
+#         line = line.strip()
+#         # Skip empty lines and comments
+#         if not line or line.startswith("#"):
+#             continue
+#         # Ensure there is an '='
+#         if "=" not in line:
+#             continue
+#         # Split only on the first '='
+#         key, value = line.split("=", 1)
+#         key = key.strip()
+#         value = value.strip().replace('"', "").replace("'", "")
+#         env[key] = value
 
-TEST_BASE_PATH = env["TEST_BASE_PATH"]
-TEST_SURFACE_PATH = env["TEST_SURFACE_PATH"]
-TEST_DAPI_FILENAME = env["TEST_RAW"]
-TEST_DAPI_CLEAN = env["TEST_CLEAN"]
-
-
-#for the test experiment i added the channels manually 
+# TEST_BASE_PATH = env["TEST_BASE_PATH"]
+# TEST_SURFACE_PATH = env["TEST_SURFACE_PATH"]
+# TEST_DAPI_FILENAME = env["TEST_RAW"]
+# TEST_DAPI_CLEAN = env["TEST_CLEAN"]
 
 
-EXPERIMENT = Experiment(
-    experiment_id="manual_test",
-    base=TEST_BASE_PATH,
-    spacing_x=1.0,
-    spacing_y=1.0,
-    spacing_z=1.0,
-    side="F",
-    position="L",
-    species="mouse",
-    # surface_path=TEST_SURFACE_PATH,
-    # surface_isovalue=165,
-    # stage=260,
-    channels=[
-        Channel(
-            experiment_id="manual_test",
-            channel_name="DAPI",
-            path=TEST_DAPI_FILENAME,
-            # clean_isovalue_min = 0,
-            # clean_isovalue_max = 54,
-            # current_state = "a", 
-            # clean_path=TEST_DAPI_CLEAN,
-        )
-    ],
-)
+# #for the test experiment i added the channels manually 
+
+
+# EXPERIMENT = Experiment(
+#     experiment_id="manual_test",
+#     base=TEST_BASE_PATH,
+#     spacing_x=1.0,
+#     spacing_y=1.0,
+#     spacing_z=1.0,
+#     side="F",
+#     position="L",
+#     species="mouse",
+#     # surface_path=TEST_SURFACE_PATH,
+#     # surface_isovalue=165,
+#     # stage=260,
+#     channels=[
+#         Channel(
+#             experiment_id="manual_test",
+#             channel_name="DAPI",
+#             path=TEST_DAPI_FILENAME,
+#             # clean_isovalue_min = 0,
+#             # clean_isovalue_max = 54,
+#             # current_state = "a", 
+#             # clean_path=TEST_DAPI_CLEAN,
+#         )
+#     ],
+# )
+
+
 
 class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
     def __init__(self):
@@ -904,12 +906,6 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         if not experiment:
             QMessageBox.warning(self, "Error", "Experiment not found.")
             return
-
-        # NOTE: THIS IS DEBUGGING #
-        #
-        # experiment = EXPERIMENT
-        ###########################
-
         
         self._set_current_experiment(experiment)
         self.navigation.navigate_to(lambda: self.visualizer.show_experiment(experiment))

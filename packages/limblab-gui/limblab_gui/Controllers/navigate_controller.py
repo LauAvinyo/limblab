@@ -86,13 +86,13 @@ class NavigationController:
             channel, channel_cleared, experiment_cleared = delete_from_database_going_back_action(
                 db_path=self.window.db_path,
                 experiment=self.window.current_experiment,
-                channel_name=self.window.current_channel_name,
+                channel_name=self.window.current_channel,
                 action_undone=affected,
             )
 
             self.window.log_pipeline(
                 f'Deleted database information:\n'
-                f'from {channel} channel: {channel_cleared}\n'
+                f'from channel: {channel_cleared}\n'
                 f'from experiment: {experiment_cleared}'
             )
             
