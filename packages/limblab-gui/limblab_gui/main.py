@@ -135,6 +135,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         # DATABASE
         self.db_path = Path("experiments.db")
 
+        self.menu = MenuUtils
 
         #each time the app is loadde a new db is created TESTING!!!   
         init_db(self.db_path)  # Creates empty database with schema only
@@ -313,6 +314,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
 
         # --- Right: side panel ---
         side = self._build_side_panel()
+        
         h_layout.addWidget(side, stretch=1)
 
         return container
@@ -762,27 +764,6 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
     # ------------------------------------------------------------------
 
     
-    
-    def _refresh_visualizer_list(self):
-        """Refresh the visualizer experiment list."""
-        while self.visualizer_list.count():
-            item = self.visualizer_list.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
-            elif item.layout():
-                self._clear_layout(item.layout())
-
-        if not self.experiments:
-            empty_label = QLabel("No experiments loaded")
-            empty_label.setStyleSheet(f"color: {theme('palette.textDisabled', '#666666')}; font-size: {theme('typography.fontSizeSmall', 12)}px;")
-            self.visualizer_list.addWidget(empty_label)
-            return
-
-        for path in self.experiments:
-            name = self.experiment_names.get(path, os.path.basename(path))
-            row = QLabel(f"• {name}")
-            row.setStyleSheet(f"color: {theme('palette.textPrimary', '#FFFFFF')}; font-size: {theme('typography.fontSizeBase', 14)}px; padding: 2px 0px;")
-            self.visualizer_list.addWidget(row)
 
     def _clear_layout(self, layout):
         """Recursively clear a layout."""
@@ -948,8 +929,43 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         self.align.surface_path = str(
             os.path.join(exp_obj.base, exp_obj.surface_path)
         ) if exp_obj.surface_path else None
+
+
+    def _on_channel_selected(self, experiment_id, channel):
+        """User picked a channel from the Visualizer panel.
+        Updates which experiment/channel is active; the display itself
+        only refreshes the next time the user navigates to Visualize."""
+        exp_data = self.experiment_metadata.get(experiment_id)
+        if exp_data is None:
+            return
+ 
+        if self.current_experiment is None or self.current_experiment.experiment_id != experiment_id:
+            self._set_current_experiment(exp_data)
+ 
+        self.current_channel = channel
+        self.workflow_state = self._infer_workflow_state(exp_data)
+ 
+        self._refresh_visualizer_list()
+ 
+        # If the Visualize action bar (channel/mode picker) is already on
+        # screen, sync it to the channel just clicked instead of waiting
+        # for the next navigation to Visualize — this is what makes the
+        # picker immediately show whether the clicked channel's processing
+        # options are available or not.
+        visualizer = getattr(self, "visualizer", None)
+        same_experiment_on_screen = (
+            visualizer is not None
+            and visualizer.experiment is not None
+            and visualizer.experiment.experiment_id == experiment_id
+        )
+        if same_experiment_on_screen and visualizer.channel_combo is not None:
+            idx = visualizer.channel_combo.findText(channel.channel_name)
+            if idx != -1:
+                visualizer.channel_combo.setCurrentIndex(idx)
+            visualizer._update_channel_status(channel.channel_name)
+
     
-    
+     
 
     def create_new_experiment(self):
         """Create a new experiment from any TIF volume (DAPI or gene channel)."""

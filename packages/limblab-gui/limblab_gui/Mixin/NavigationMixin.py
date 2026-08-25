@@ -109,8 +109,3 @@ class NavigationMixin:
         if step is not None:
             self._reset_workflow_from(step)
         self.go_back()
-
-
-
-
-##################USE HERE TO DELETE FROM DATABASE####################################################
