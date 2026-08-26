@@ -540,8 +540,12 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
                         )
 
         self.button_upload_channel.clicked.connect(self.create_new_experiment)
-        
 
+        self.limb_info_label = create_label('Uploaded experiment', 
+                                            f'{self.experiment}'
+                                            f'color: {theme('palette.textPrimary', '#FFFFFF')}; font-size: {theme('typography.fontSizeHero', 15)}px;')
+        
+        
         left_column = QVBoxLayout()
         left_column.addWidget(limb_info_group)
 
