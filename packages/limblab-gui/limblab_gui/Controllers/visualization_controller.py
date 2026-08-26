@@ -181,24 +181,24 @@ class VisualizationController:
         #         return
 
             
-            if channel is not None:
-                print('passed channel')
-            # Show clean channels (DAPI + channel uploaded and cleaned!)
-                if channel.clean_path is not None: 
-                    self.clean_channels.append(channel)
-                    self.show_clean_isosurfaces(self.clean_channels)
+        #     if channel is not None:
+        #         print('passed channel')
+        #     # Show clean channels (DAPI + channel uploaded and cleaned!)
+        #         if channel.clean_path is not None: 
+        #             self.clean_channels.append(channel)
+        #             self.show_clean_isosurfaces(self.clean_channels)
 
-                else:
-                    #another channel that isnt DAPI -> direclty to clean! for further visualization
-                    self.navigator.navigate_to(lambda:self.window.clean.show(experiment, channel))
+        #         else:
+        #             #another channel that isnt DAPI -> direclty to clean! for further visualization
+        #             self.navigator.navigate_to(lambda:self.window.clean.show(experiment, channel))
                     
 
-            # Show unclean DAPI
-        else:
-            volume_path = Path(os.path.join(experiment.base, channel.path))
-            preview_volume(volume_path, "pyqt", self.window)
+        #     # Show unclean DAPI
+        # else:
+        #     volume_path = Path(os.path.join(experiment.base, channel.path))
+        #     preview_volume(volume_path, "pyqt", self.window)
 
-        self.window._hide_busy()
+        # self.window._hide_busy()
                 
 
     def _on_show_clicked(self):                

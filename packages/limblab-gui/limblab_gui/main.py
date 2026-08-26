@@ -182,7 +182,9 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
             "Align": False,
             "Visualize": False # TODO: Think about this.
         }
-        
+
+        self.uploaded_dapi_channel = False
+        self.uploaded_gene_channel = False
 
         self.surface = SurfaceController(self)
         self.clean = CleanController(self)
@@ -333,7 +335,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
             size=50,
         )
         get_started_btn.clicked.connect(
-            lambda: self.navigation.navigate_to(self.show_first_screen)
+            lambda: self.navigation.navigate_to(self.show_lobby)
         )
 
         label_main = QLabel("LimbLab")
@@ -407,8 +409,170 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         self.setCentralWidget(container)
         self.plt.show(self.limb_home)
 
-    def create_new_experiment_page(self):
+    # def create_new_experiment_page(self):
         
+    #     top_row = QHBoxLayout()
+    #     top_row.addWidget(create_back_button(self.navigation.go_back_using_arrow_btn))
+    #     top_row.addWidget(self.create_left_button())
+    #     top_row.addStretch()
+
+    #     printc("We are on new_experiment_page", c="pink")
+
+    #     # ---- Limb info widgets (inline, replaces the ask_limbinfo() popup) ----
+    #     limb_info_group = QGroupBox("Limb Info")
+    #     limb_info_layout = QVBoxLayout(limb_info_group)
+    #     limb_info_layout.setSpacing(15)
+
+    #     # Limb Side
+    #     side_layout = QHBoxLayout()
+    #     side_label = QLabel("Limb Side:")
+    #     side_label.setFixedWidth(100)
+    #     self.side_combo = QComboBox()
+    #     self.side_combo.addItems(["L", "R"])
+    #     self.side_combo.setCurrentIndex(0)
+    #     side_layout.addWidget(side_label)
+    #     side_layout.addWidget(self.side_combo)
+    #     limb_info_layout.addLayout(side_layout)
+
+    #     # Position
+    #     position_layout = QHBoxLayout()
+    #     position_label = QLabel("Position:")
+    #     position_label.setFixedWidth(100)
+    #     self.position_combo = QComboBox()
+    #     self.position_combo.addItems(["F", "H"])
+    #     self.position_combo.setCurrentIndex(0)
+    #     position_layout.addWidget(position_label)
+    #     position_layout.addWidget(self.position_combo)
+    #     limb_info_layout.addLayout(position_layout)
+
+    #     # Spacing
+    #     spacing_group = QGroupBox("Spacing")
+    #     spacing_layout = QVBoxLayout(spacing_group)
+
+    #     x_layout = QHBoxLayout()
+    #     x_label = QLabel("X:")
+    #     x_label.setFixedWidth(30)
+    #     self.x_spin = QDoubleSpinBox()
+    #     self.x_spin.setRange(0.01, 10.0)
+    #     self.x_spin.setSingleStep(0.01)
+    #     self.x_spin.setValue(0.65)
+    #     self.x_spin.setDecimals(2)
+    #     x_layout.addWidget(x_label)
+    #     x_layout.addWidget(self.x_spin)
+    #     spacing_layout.addLayout(x_layout)
+
+    #     y_layout = QHBoxLayout()
+    #     y_label = QLabel("Y:")
+    #     y_label.setFixedWidth(30)
+    #     self.y_spin = QDoubleSpinBox()
+    #     self.y_spin.setRange(0.01, 10.0)
+    #     self.y_spin.setSingleStep(0.01)
+    #     self.y_spin.setValue(0.65)
+    #     self.y_spin.setDecimals(2)
+    #     y_layout.addWidget(y_label)
+    #     y_layout.addWidget(self.y_spin)
+    #     spacing_layout.addLayout(y_layout)
+
+    #     z_layout = QHBoxLayout()
+    #     z_label = QLabel("Z:")
+    #     z_label.setFixedWidth(30)
+    #     self.z_spin = QDoubleSpinBox()
+    #     self.z_spin.setRange(0.01, 10.0)
+    #     self.z_spin.setSingleStep(0.01)
+    #     self.z_spin.setValue(2.0)
+    #     self.z_spin.setDecimals(2)
+    #     z_layout.addWidget(z_label)
+    #     z_layout.addWidget(self.z_spin)
+    #     spacing_layout.addLayout(z_layout)
+
+    #     limb_info_layout.addWidget(spacing_group)
+
+    #     limb_info = {
+    #         'side': self.side_combo.currentText(),
+    #         'position': self.position_combo.currentText(),
+    #         'spacing': (self.x_spin.value(), self.y_spin.value(), self.z_spin.value()),
+    #     }
+    #     if not limb_info:
+    #         return
+
+    #     printc(limb_info, c="green")
+
+    #     exp_id = 'exp_test'
+    #     filepath = 'exp_path'
+        
+    #     new_exp = Experiment(
+    #             experiment_id=exp_id,
+    #             displayed_name=exp_id,
+    #             base=os.path.dirname(filepath),
+    #             spacing_x=limb_info['spacing'][0], # type: ignore
+    #             spacing_y=limb_info['spacing'][1], # type: ignore
+    #             spacing_z=limb_info['spacing'][2], # type: ignore
+    #             side=limb_info['side'],
+    #             position=limb_info['position'],
+    #             channels=[
+                    
+                    
+    #             ]
+    #         )
+    #     self.experiment = new_exp
+
+    #     save_experiment(self.db_path, new_exp)
+
+    #     self.label_upload_DAPI = create_label(
+    #                 "Upload a DAPI channel", 
+    #                 f"color: {theme('palette.textPrimary', '#FFFFFF')}; font-size: {theme('typography.fontSizeHero', 40)}px;"
+    #             )
+    #     self.button_upload_DAPI = create_styled_button(
+    #                 "Upload DAPI",
+    #                 color=theme("palette.secondary", "#54278F"),
+    #                 hover_color=theme("palette.secondaryHover", "#756BB1"),
+    #             )
+        
+    #     self.button_upload_DAPI.clicked.connect(self.create_new_experiment)
+
+
+    #     self.label_upload_channel = create_label(
+    #                         "Upload a gene channel", 
+    #                         f"color: {theme('palette.textPrimary', '#FFFFFF')}; font-size: {theme('typography.fontSizeHero', 40)}px;"
+    #                     )
+    #     self.button_upload_channel = create_styled_button(
+    #                         "Upload channel",
+    #                         color=theme("palette.primary", "#0D7C66"),
+    #         hover_color=theme("palette.primaryHover", "#41B3A2"),
+    #                     )
+
+    #     self.button_upload_channel.clicked.connect(self.create_new_experiment)
+
+    #     self.limb_info_label = create_label('Uploaded experiment', 
+    #                                         f'{self.experiment}'
+    #                                         f'color: {theme('palette.textPrimary', '#FFFFFF')}; font-size: {theme('typography.fontSizeHero', 15)}px;')
+        
+        
+    #     left_column = QVBoxLayout()
+    #     left_column.addWidget(limb_info_group)
+
+    #     right_column = QVBoxLayout()
+    #     right_column.addWidget(self.label_upload_DAPI, alignment=Qt.AlignmentFlag.AlignHCenter)
+    #     right_column.addWidget(self.button_upload_DAPI, alignment=Qt.AlignmentFlag.AlignHCenter)
+
+    #     right_column.addWidget(self.label_upload_channel, alignment=Qt.AlignmentFlag.AlignHCenter)
+    #     right_column.addWidget(self.button_upload_channel, alignment=Qt.AlignmentFlag.AlignHCenter)
+
+    #     buttons_row = QHBoxLayout()
+    #     buttons_row.addLayout(left_column)
+    #     buttons_row.addSpacing(40)
+    #     buttons_row.addLayout(right_column)
+    
+
+    #     container = QWidget()
+    #     layout = QVBoxLayout(container)
+    #     layout.addLayout(top_row)
+    #     layout.addStretch(1)
+    #     layout.addLayout(buttons_row, stretch=0)
+    #     layout.addStretch(2)
+    #     self.setCentralWidget(container)
+
+    def create_new_experiment_page(self):
         top_row = QHBoxLayout()
         top_row.addWidget(create_back_button(self.navigation.go_back_using_arrow_btn))
         top_row.addWidget(self.create_left_button())
@@ -416,15 +580,56 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
 
         printc("We are on new_experiment_page", c="pink")
 
-        # ---- Limb info widgets (inline, replaces the ask_limbinfo() popup) ----
-        limb_info_group = QGroupBox("Limb Info")
-        limb_info_layout = QVBoxLayout(limb_info_group)
-        limb_info_layout.setSpacing(15)
+        # ---- Track uploaded channel state (used by the status label below) ----
+    
 
-        # Limb Side
+        # ---- Shared card style ----
+        card_style = f"""
+            QGroupBox {{
+                color: {theme('palette.textPrimary', '#FFFFFF')};
+                font-size: {theme('typography.fontSizeLabel', 15)}px;
+                font-weight: 600;
+                background-color: {theme('palette.surface', '#232323')};
+                border: 1px solid {theme('palette.border', '#3A3A3A')};
+                border-radius: 12px;
+                margin-top: 14px;
+                padding: 16px;
+            }}
+            QGroupBox::title {{
+                subcontrol-origin: margin;
+                left: 14px;
+                top: -2px;
+                padding: 0 8px;
+            }}
+            QLabel {{
+                color: {theme('palette.textPrimary', '#FFFFFF')};
+                font-size: {theme('typography.fontSizeBody', 13)}px;
+                font-weight: 400;
+            }}
+            QComboBox, QDoubleSpinBox {{
+                background-color: {theme('palette.surfaceAlt', '#2C2C2C')};
+                color: {theme('palette.textPrimary', '#FFFFFF')};
+                border: 1px solid {theme('palette.border', '#3A3A3A')};
+                border-radius: 6px;
+                padding: 4px 8px;
+                min-height: 24px;
+            }}
+            QComboBox:hover, QDoubleSpinBox:hover {{
+                border: 1px solid {theme('palette.primary', '#0D7C66')};
+            }}
+        """
+
+        # ---- Limb Info ----
+        limb_info_group = QGroupBox("Limb Info")
+        limb_info_group.setStyleSheet(card_style)
+        limb_info_layout = QVBoxLayout(limb_info_group)
+        limb_info_layout.setSpacing(14)
+        limb_info_layout.setContentsMargins(18, 24, 18, 18)
+
         side_layout = QHBoxLayout()
-        side_label = QLabel("Limb Side:")
-        side_label.setFixedWidth(100)
+        side_layout.setSpacing(10)
+        side_label = QLabel("Limb Side")
+        side_label.setFixedWidth(90)
         self.side_combo = QComboBox()
         self.side_combo.addItems(["L", "R"])
         self.side_combo.setCurrentIndex(0)
@@ -432,10 +637,10 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         side_layout.addWidget(self.side_combo)
         limb_info_layout.addLayout(side_layout)
 
-        # Position
         position_layout = QHBoxLayout()
-        position_label = QLabel("Position:")
-        position_label.setFixedWidth(100)
+        position_layout.setSpacing(10)
+        position_label = QLabel("Position")
+        position_label.setFixedWidth(90)
         self.position_combo = QComboBox()
         self.position_combo.addItems(["F", "H"])
         self.position_combo.setCurrentIndex(0)
@@ -443,45 +648,32 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         position_layout.addWidget(self.position_combo)
         limb_info_layout.addLayout(position_layout)
 
-        # Spacing
+        # Spacing (nested card, slightly recessed look)
         spacing_group = QGroupBox("Spacing")
+        spacing_group.setStyleSheet(card_style + f"""
+            QGroupBox {{
+                background-color: {theme('palette.surfaceAlt', '#1D1D1D')};
+            }}
+        """)
         spacing_layout = QVBoxLayout(spacing_group)
+        spacing_layout.setSpacing(8)
+        spacing_layout.setContentsMargins(18, 22, 18, 16)
 
-        x_layout = QHBoxLayout()
-        x_label = QLabel("X:")
-        x_label.setFixedWidth(30)
-        self.x_spin = QDoubleSpinBox()
-        self.x_spin.setRange(0.01, 10.0)
-        self.x_spin.setSingleStep(0.01)
-        self.x_spin.setValue(0.65)
-        self.x_spin.setDecimals(2)
-        x_layout.addWidget(x_label)
-        x_layout.addWidget(self.x_spin)
-        spacing_layout.addLayout(x_layout)
-
-        y_layout = QHBoxLayout()
-        y_label = QLabel("Y:")
-        y_label.setFixedWidth(30)
-        self.y_spin = QDoubleSpinBox()
-        self.y_spin.setRange(0.01, 10.0)
-        self.y_spin.setSingleStep(0.01)
-        self.y_spin.setValue(0.65)
-        self.y_spin.setDecimals(2)
-        y_layout.addWidget(y_label)
-        y_layout.addWidget(self.y_spin)
-        spacing_layout.addLayout(y_layout)
-
-        z_layout = QHBoxLayout()
-        z_label = QLabel("Z:")
-        z_label.setFixedWidth(30)
-        self.z_spin = QDoubleSpinBox()
-        self.z_spin.setRange(0.01, 10.0)
-        self.z_spin.setSingleStep(0.01)
-        self.z_spin.setValue(2.0)
-        self.z_spin.setDecimals(2)
-        z_layout.addWidget(z_label)
-        z_layout.addWidget(self.z_spin)
-        spacing_layout.addLayout(z_layout)
+        for axis, default in (("X", 0.65), ("Y", 0.65), ("Z", 2.0)):
+            axis_layout = QHBoxLayout()
+            axis_layout.setSpacing(10)
+            axis_label = QLabel(axis)
+            axis_label.setFixedWidth(20)
+            axis_label.setStyleSheet(f"font-weight: 600; color: {theme('palette.textSecondary', '#AAAAAA')};")
+            spin = QDoubleSpinBox()
+            spin.setRange(0.01, 10.0)
+            spin.setSingleStep(0.01)
+            spin.setValue(default)
+            spin.setDecimals(2)
+            axis_layout.addWidget(axis_label)
+            axis_layout.addWidget(spin)
+            spacing_layout.addLayout(axis_layout)
+            setattr(self, f"{axis.lower()}_spin", spin)
 
         limb_info_layout.addWidget(spacing_group)
 
@@ -497,82 +689,157 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
 
         exp_id = 'exp_test'
         filepath = 'exp_path'
-        
+
         new_exp = Experiment(
-                experiment_id=exp_id,
-                displayed_name=exp_id,
-                base=os.path.dirname(filepath),
-                spacing_x=limb_info['spacing'][0], # type: ignore
-                spacing_y=limb_info['spacing'][1], # type: ignore
-                spacing_z=limb_info['spacing'][2], # type: ignore
-                side=limb_info['side'],
-                position=limb_info['position'],
-                channels=[
-                    
-                    
-                ]
-            )
+            experiment_id=exp_id,
+            displayed_name=exp_id,
+            base=os.path.dirname(filepath),
+            spacing_x=limb_info['spacing'][0],  # type: ignore
+            spacing_y=limb_info['spacing'][1],  # type: ignore
+            spacing_z=limb_info['spacing'][2],  # type: ignore
+            side=limb_info['side'],
+            position=limb_info['position'],
+            channels=[],
+        )
         self.experiment = new_exp
 
         save_experiment(self.db_path, new_exp)
 
-        self.label_upload_DAPI = create_label(
-                    "Upload a DAPI channel", 
-                    f"color: {theme('palette.textPrimary', '#FFFFFF')}; font-size: {theme('typography.fontSizeHero', 40)}px;"
-                )
-        self.button_upload_DAPI = create_styled_button(
-                    "Upload DAPI",
-                    color=theme("palette.secondary", "#54278F"),
-                    hover_color=theme("palette.secondaryHover", "#756BB1"),
-                )
-        
-        self.button_upload_DAPI.clicked.connect(self.create_new_experiment)
+        # ---- Upload group (DAPI + gene channels) ----
+        upload_group = QGroupBox("Channels")
+        upload_group.setStyleSheet(card_style)
+        upload_layout = QVBoxLayout(upload_group)
+        upload_layout.setSpacing(20)
+        upload_layout.setContentsMargins(24, 28, 24, 24)
 
+        self.label_upload_DAPI = create_label(
+            "Upload a DAPI channel",
+            f"color: {theme('palette.textPrimary', '#FFFFFF')}; "
+            f"font-size: {theme('typography.fontSizeSubheading', 18)}px; font-weight: 600;"
+        )
+        self.button_upload_DAPI = create_styled_button(
+            "Upload DAPI",
+            color=theme("palette.secondary", "#54278F"),
+            hover_color=theme("palette.secondaryHover", "#756BB1"),
+        )
+        self.button_upload_DAPI.setMinimumWidth(140)
+        self.button_upload_DAPI.setStyleSheet(
+            self.button_upload_DAPI.styleSheet() + "border-radius: 8px; padding: 8px 16px; font-weight: 600;"
+        )
+        self.button_upload_DAPI.clicked.connect(lambda: self.create_new_experiment('DAPI'))
 
         self.label_upload_channel = create_label(
-                            "Upload a gene channel", 
-                            f"color: {theme('palette.textPrimary', '#FFFFFF')}; font-size: {theme('typography.fontSizeHero', 40)}px;"
-                        )
+            "Upload a gene channel",
+            f"color: {theme('palette.textPrimary', '#FFFFFF')}; "
+            f"font-size: {theme('typography.fontSizeSubheading', 18)}px; font-weight: 600;"
+        )
         self.button_upload_channel = create_styled_button(
-                            "Upload channel",
-                            color=theme("palette.primary", "#0D7C66"),
+            "Upload channel",
+            color=theme("palette.primary", "#0D7C66"),
             hover_color=theme("palette.primaryHover", "#41B3A2"),
-                        )
+        )
+        self.button_upload_channel.clicked.connect(lambda: self.create_new_experiment('other'))
+        self.button_upload_channel.setMinimumWidth(140)
+        self.button_upload_channel.setStyleSheet(
+            self.button_upload_channel.styleSheet() + "border-radius: 8px; padding: 8px 16px; font-weight: 600;"
+        )
+        #self.button_upload_channel.clicked.connect(self.create_new_experiment('other'))
 
-        self.button_upload_channel.clicked.connect(self.create_new_experiment)
+        # ---- Status label ----
+        self.channel_status_label = create_label(
+            self._build_channel_status_text(),
+            f"color: {theme('palette.textSecondary', '#CCCCCC')}; "
+            f"font-size: {theme('typography.fontSizeBody', 13)}px; "
+            f"padding: 10px 12px; background-color: {theme('palette.surfaceAlt', '#1D1D1D')}; "
+            f"border-radius: 8px; border: 1px solid {theme('palette.border', '#3A3A3A')};"
+        )
+        print(self.uploaded_dapi_channel)
+        self.channel_status_label.setWordWrap(True)
 
-        self.limb_info_label = create_label('Uploaded experiment', 
-                                            f'{self.experiment}'
-                                            f'color: {theme('palette.textPrimary', '#FFFFFF')}; font-size: {theme('typography.fontSizeHero', 15)}px;')
-        
-        
+        dapi_col = QVBoxLayout()
+        dapi_col.setSpacing(10)
+        dapi_col.addWidget(self.label_upload_DAPI, alignment=Qt.AlignmentFlag.AlignHCenter)
+        dapi_col.addWidget(self.button_upload_DAPI, alignment=Qt.AlignmentFlag.AlignHCenter)
+
+        gene_col = QVBoxLayout()
+        gene_col.setSpacing(10)
+        gene_col.addWidget(self.label_upload_channel, alignment=Qt.AlignmentFlag.AlignHCenter)
+        gene_col.addWidget(self.button_upload_channel, alignment=Qt.AlignmentFlag.AlignHCenter)
+
+        upload_buttons_row = QHBoxLayout()
+        upload_buttons_row.setSpacing(48)
+        upload_buttons_row.addLayout(dapi_col)
+        upload_buttons_row.addLayout(gene_col)
+
+        upload_layout.addLayout(upload_buttons_row)
+        upload_layout.addWidget(self.channel_status_label)
+
         left_column = QVBoxLayout()
+        left_column.setSpacing(20)
         left_column.addWidget(limb_info_group)
 
         right_column = QVBoxLayout()
-        right_column.addWidget(self.label_upload_DAPI, alignment=Qt.AlignmentFlag.AlignHCenter)
-        right_column.addWidget(self.button_upload_DAPI, alignment=Qt.AlignmentFlag.AlignHCenter)
-
-        right_column.addWidget(self.label_upload_channel, alignment=Qt.AlignmentFlag.AlignHCenter)
-        right_column.addWidget(self.button_upload_channel, alignment=Qt.AlignmentFlag.AlignHCenter)
+        right_column.setSpacing(20)
+        right_column.addWidget(upload_group)
 
         buttons_row = QHBoxLayout()
-        buttons_row.addLayout(left_column)
-        buttons_row.addSpacing(40)
-        buttons_row.addLayout(right_column)
-    
+        buttons_row.setSpacing(28)
+        buttons_row.addLayout(left_column, stretch=1)
+        buttons_row.addLayout(right_column, stretch=1)
+
+        # ---- Visualize / Next button ----
+        self.button_visualize = create_styled_button(
+            "Visualize \u2192",
+            color=theme("palette.accent", "#E67E22"),
+            hover_color=theme("palette.accentHover", "#F39C12"),
+        )
+        self.button_visualize.setMinimumWidth(160)
+        self.button_visualize.setMinimumHeight(40)
+        self.button_visualize.setStyleSheet(
+            self.button_visualize.styleSheet() +
+            "border-radius: 8px; font-weight: 700; font-size: 15px; padding: 8px 20px;"
+        )
+        # self.button_visualize.clicked.connect(self.go_to_visualization_page)
+
+        visualize_row = QHBoxLayout()
+        visualize_row.addStretch()
+        visualize_row.addWidget(self.button_visualize)
 
         container = QWidget()
+        container.setStyleSheet(f"background-color: {theme('palette.background', '#181818')};")
         layout = QVBoxLayout(container)
+        layout.setContentsMargins(28, 20, 28, 28)
+        layout.setSpacing(16)
         layout.addLayout(top_row)
         layout.addStretch(1)
         layout.addLayout(buttons_row, stretch=0)
         layout.addStretch(2)
+        layout.addLayout(visualize_row)
         self.setCentralWidget(container)
 
 
+    def refresh_channel_status(self):
+        """Call this after uploading a DAPI or gene channel to update the status label."""
+        if hasattr(self, "channel_status_label"):
+            self.channel_status_label.setText(self._build_channel_status_text())
 
-    def show_first_screen(self):
+
+    def _build_channel_status_text(self):
+        """Builds a human-readable summary of what's been uploaded so far."""
+        if self.uploaded_dapi_channel:
+            dapi_text = 'done'
+        else:
+            dapi_text = 'please upload a DAPI channel'
+        if self.uploaded_gene_channel:
+            gene_text = 'done'
+        else:
+            gene_text = 'No gene channels were uploaded'
+
+        return f"DAPI channel: {dapi_text}\nGene channel(s): {gene_text}"
+
+
+
+    def show_lobby(self):
         self.action_bar.setVisible(False)
 
         top_row = QHBoxLayout()
@@ -1137,7 +1404,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         self.visualizer.show_clean_isosurfaces(selected)
 
 
-    def create_new_experiment(self):
+    def create_new_experiment(self, channel_type:str):
         """Create a new experiment from any TIF volume (DAPI or gene channel)."""
         filepath, _ = QFileDialog.getOpenFileName(
             parent=self,
@@ -1166,7 +1433,17 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
                 )
             if reply == QMessageBox.StandardButton.Yes:
                     self._add_channel_to_existing(exp_id)
-            return
+
+        if channel_type == 'DAPI':
+            self.uploaded_dapi_channel = True
+            
+
+        else:
+            self.uploaded_gene_channel = True
+
+        self.refresh_channel_status()
+                
+
 
             
             # Create experiment
