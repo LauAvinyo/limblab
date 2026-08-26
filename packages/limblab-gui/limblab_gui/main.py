@@ -22,14 +22,11 @@ from limblab.database.crud import (
     list_experiments,
     rename_experiment,
     save_experiment,
-    
 )
-
 from limblab.database.navigation import (
-    seed_reference_limbs,
     delete_from_database_going_back_action,
+    seed_reference_limbs,
 )
-
 from limblab.design import theme
 from limblab.models import Channel, Experiment
 from limblab.utils import generate_kwargs
@@ -194,7 +191,6 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         self.visualizer = VisualizationController(self)
 
         self.navigation = NavigationController(self)
-        
         self.navigation._build_permanent_chrome()
 
         # self.navigate_to(lambda:self.align.show(experiment))
@@ -411,6 +407,33 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         self.setCentralWidget(container)
         self.plt.show(self.limb_home)
 
+    def create_new_experiment_page(self):
+
+
+        top_row = QHBoxLayout()
+        top_row.addWidget(create_back_button(self.navigation.go_back_using_arrow_btn))
+        top_row.addWidget(self.create_left_button())
+        top_row.addStretch()
+
+        printc("We are on new_experiment_page", c="pink")
+
+        # Ask for limb info and channel type
+        limb_info = self.ask_limbinfo()
+        if not limb_info:
+            return
+
+        printc(limb_info, c="green")
+
+        
+        container = QWidget()
+        layout = QVBoxLayout(container)
+        layout.addLayout(top_row)
+        layout.addStretch(1)
+        # layout.addLayout(buttons_row, stretch=0)
+        layout.addStretch(2)
+        self.setCentralWidget(container)
+
+
     def show_first_screen(self):
         self.action_bar.setVisible(False)
 
@@ -420,13 +443,16 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         top_row.addStretch()
 
         # ---- Create New Experiment [UPLOAD] ----
-        self.label_upload = create_label("Create New Experiment", f"color: {theme('palette.textPrimary', '#FFFFFF')}; font-size: {theme('typography.fontSizeHero', 40)}px;")
+        self.label_upload = create_label(
+            "Create New Experiment", 
+            f"color: {theme('palette.textPrimary', '#FFFFFF')}; font-size: {theme('typography.fontSizeHero', 40)}px;"
+        )
         self.button_upload = create_styled_button(
-            "Upload TIF Volume",
+            "New Experiment",
             color=theme("palette.secondary", "#54278F"),
             hover_color=theme("palette.secondaryHover", "#756BB1"),
         )
-        self.button_upload.clicked.connect(self.create_new_experiment)
+        self.button_upload.clicked.connect(self.create_new_experiment_page)
 
         upload_desc = create_label(
             "Upload a TIF volume to start a new experiment.\n"
@@ -730,12 +756,6 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
             self._busy_dialog = None
 
 
-
-
-
-#trying things to click anywhere on the screen to make this pop up message dissappear
-
-
     def _show_message(self, message):
         self._busy_dialog = QWidget(self)
         self._busy_dialog.setWindowFlags(
@@ -996,10 +1016,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
             QMessageBox.warning(self, "Invalid file", "Please select a valid volume file.")
             return
 
-        # Ask for limb info and channel type
-        limb_info = self.ask_limbinfo()
-        if not limb_info:
-            return
+
 
         
         exp_id = os.path.basename(filepath).split('.')[0]
@@ -1244,24 +1261,24 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
             layout.addWidget(spacing_group)
 
         # ---- Channel Type ----
-        channel_layout = QHBoxLayout()
-        channel_label = QLabel("Channel type:")
-        channel_label.setFixedWidth(100)
-        channel_combo = QComboBox()
+        # channel_layout = QHBoxLayout()
+        # channel_label = QLabel("Channel type:")
+        # channel_label.setFixedWidth(100)
+        # channel_combo = QComboBox()
 
-        if channel_only:
-            channel_combo.addItems(['DAPI',"Hoxa11", "Sox9", "BMP2"])
-            channel_label.setText("Gene channel:")
-        else:
-            channel_combo.addItems(["DAPI", "Hoxa11", "Sox9", "BMP2"])
+        # if channel_only:
+        #     channel_combo.addItems(['DAPI',"Hoxa11", "Sox9", "BMP2"])
+        #     channel_label.setText("Gene channel:")
+        # else:
+        #     channel_combo.addItems(["DAPI", "Hoxa11", "Sox9", "BMP2"])
 
 
 
         #channel_combo.addItems(["DAPI", "Hoxa11", "Sox9", "BMP2", "SHH"])
-        channel_combo.setCurrentIndex(0)
-        channel_layout.addWidget(channel_label)  # FIXED: was position_label
-        channel_layout.addWidget(channel_combo)  # FIXED: was position_combo
-        layout.addLayout(channel_layout)
+        # channel_combo.setCurrentIndex(0)
+        # channel_layout.addWidget(channel_label)  # FIXED: was position_label
+        # channel_layout.addWidget(channel_combo)  # FIXED: was position_combo
+        # layout.addLayout(channel_layout)
 
         # ---- Buttons ----
         button_layout = QHBoxLayout()
@@ -1282,24 +1299,17 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         result = dialog.exec()
 
         if result == QDialog.DialogCode.Accepted:
-            if channel_only:
-                # Only return channel type
-                return {
-                    'channel_type': channel_combo.currentText()
-                }
-            else:
-                # Return all info
-                side = side_combo.currentText()
-                position = position_combo.currentText()
-                spacing = (x_spin.value(), y_spin.value(), z_spin.value())
-                channel_type = channel_combo.currentText()
+            
+            # Return all info
+            side = side_combo.currentText()
+            position = position_combo.currentText()
+            spacing = (x_spin.value(), y_spin.value(), z_spin.value())
 
-                return {
-                    'side': side,
-                    'position': position,
-                    'spacing': spacing,
-                    'channel_type': channel_type
-                }
+            return {
+                'side': side,
+                'position': position,
+                'spacing': spacing,
+            }
         else:
             return None
 
