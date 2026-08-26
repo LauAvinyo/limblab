@@ -1,17 +1,6 @@
-import webbrowser
 
 from limblab.design import theme
-from mixin.NavigationMixin import NavigationMixin
 from PyQt6.QtGui import QAction
-from PyQt6.QtWidgets import (
-    QHBoxLayout,
-    QLabel,
-    QMenu,
-    QScrollArea,
-    QToolButton,
-    QVBoxLayout,
-    QWidget,
-)
 from utils import create_back_button
 from vedo import printc
 
@@ -87,7 +76,7 @@ class NavigationController:
             is_current = step == current_step
             # Build the emoji prefix
             if is_current:
-                prefix = "▶ "  # or "● ", "◉ ", "⚙ ", "→ "
+                prefix = "▶ " 
             if is_done:
                 prefix = "✓ "
             elif not is_reachable:

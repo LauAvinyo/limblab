@@ -1,9 +1,6 @@
 import os
-from pathlib import Path
 from typing import Any
 
-import numpy as np
-from limblab import preview_volume
 from limblab.design import theme
 from limblab.models import Channel
 from limblab.utils import generate_kwargs
@@ -21,8 +18,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 from utils import create_back_button, create_label, create_styled_button
-from vedo import LinearTransform, Mesh, Plotter, Volume, printc
-from vedo.applications import IsosurfaceBrowser
+from vedo import Mesh, Plotter, Volume, printc
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 
 

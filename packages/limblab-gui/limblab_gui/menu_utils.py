@@ -1,7 +1,6 @@
 import webbrowser
 
 from limblab.design import theme
-from mixin.NavigationMixin import NavigationMixin
 from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import (
     QHBoxLayout,
@@ -12,7 +11,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from utils import create_back_button, create_collapsible_section
+from utils import create_collapsible_section
 
 
 class MenuUtils:    
