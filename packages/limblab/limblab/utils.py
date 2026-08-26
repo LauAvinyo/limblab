@@ -25,7 +25,6 @@ def _get_palette_color(key: str, default: str) -> str:
     except Exception:
         return default
 
-
 styles = {
     0: (_get_palette_color("channel0", "#9ce4f3"), _get_palette_color("channel1", "#128099")),
     1: (_get_palette_color("channel1", "#ec96f2"), _get_palette_color("channel2", "#c90dd6")),

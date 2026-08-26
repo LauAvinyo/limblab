@@ -24,9 +24,16 @@ from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 
 from limblab import preview_volume
 
+from controllers.navigate_controller import NavigationController
+
+#from controllers.navigate_controller import navigate_to_clean
+
 CURRENT_STAGE = 'Visualize'
 
 class VisualizationController:
+
+
+    
     MODES = {
         "Raycast": "raycast",
         "Isosurface": "isosurface",
@@ -41,6 +48,8 @@ class VisualizationController:
         self.mode_combo = None
         self.status_label = None
         self.show_btn = None
+        self.navigator = NavigationController
+        self.clean_channels = []
 
     # ------------------------------------------------------------------
     def build_action_bar(self, experiment):
@@ -53,14 +62,6 @@ class VisualizationController:
         bar.setStyleSheet(f"background-color: {theme('palette.surface', '#1E1E1E')};")
         layout = QHBoxLayout(bar)
         layout.setContentsMargins(20, 10, 20, 10)
-
-        layout.addWidget(create_label(
-            "Channel:", f"color: {theme('palette.textPrimary', '#FFFFFF')};"
-        ))
-        self.channel_combo = QComboBox()
-        for ch in (experiment.channels or []):
-            self.channel_combo.addItem(ch.channel_name)
-        layout.addWidget(self.channel_combo)
 
         layout.addSpacing(12)
         layout.addWidget(create_label(
@@ -82,69 +83,55 @@ class VisualizationController:
         layout.addWidget(self.status_label, stretch=1)
  
         layout.addStretch()
- 
-        # Keep the "Show" button / status text in sync with whichever
-        # channel is selected in the dropdown.
-        self.channel_combo.currentTextChanged.connect(self._update_channel_status)
- 
-        # If a channel was picked from the side panel, land on it here too.
-        preselected = getattr(self.window, "current_channel", None)
-        if preselected is not None:
-            idx = self.channel_combo.findText(preselected.channel_name)
-            if idx != -1:
-                self.channel_combo.setCurrentIndex(idx)
- 
-        self._update_channel_status(self.channel_combo.currentText())
- 
+
+    
         return bar
 
-    def _update_channel_status(self, channel_name=None):
-        """Reflect, right on the action bar, whether the currently selected
-        channel is ready to be visualized (processing options enabled) or
-        not (options disabled + reason shown)."""
-        if not self.experiment or self.status_label is None:
-            return
+    # def _update_channel_status(self, channel_name=None):
+    #     """Reflect, right on the action bar, whether the currently selected
+    #     channel is ready to be visualized (processing options enabled) or
+    #     not (options disabled + reason shown)."""
+    #     if not self.experiment or self.status_label is None:
+    #         return
  
-        if channel_name is None:
-            channel_name = self.channel_combo.currentText() if self.channel_combo else ""
+    #     if channel_name is None:
+    #         channel_name = self.channel_combo.currentText() if self.channel_combo else ""
  
-        channel = next(
-            (ch for ch in (self.experiment.channels or []) if ch.channel_name == channel_name),
-            None,
-        )
+    #     channel = next(
+    #         (ch for ch in (self.experiment.channels or []) if ch.channel_name == channel_name),
+    #         None,
+    #     )
  
-        if channel is None:
-            self.status_label.setText("")
-            if self.mode_combo is not None:
-                self.mode_combo.setEnabled(False)
-            if self.show_btn is not None:
-                self.show_btn.setEnabled(False)
-            return
+    #     if channel is None:
+    #         self.status_label.setText("")
+    #         if self.mode_combo is not None:
+    #             self.mode_combo.setEnabled(False)
+    #         if self.show_btn is not None:
+    #             self.show_btn.setEnabled(False)
+    #         return
  
-        ready, message = self.channel_readiness(self.experiment, channel)
+    #     ready, message = self.channel_readiness(self.experiment, channel)
  
-        if self.mode_combo is not None:
-            self.mode_combo.setEnabled(ready)
-        if self.show_btn is not None:
-            self.show_btn.setEnabled(ready)
+    #     if self.mode_combo is not None:
+    #         self.mode_combo.setEnabled(ready)
+    #     if self.show_btn is not None:
+    #         self.show_btn.setEnabled(ready)
  
-        if ready:
-            self.status_label.setText(f"✓ '{channel.channel_name}' is ready to visualize.")
-            self.status_label.setStyleSheet(f"color: {theme('palette.primary', '#0D7C66')};")
-        else:
-            self.status_label.setText(message.replace("\n", " "))
-            self.status_label.setStyleSheet(f"color: {theme('palette.error', '#A6284F')};")
+    #     if ready:
+    #         self.status_label.setText(f"✓ '{channel.channel_name}' is ready to visualize.")
+    #         self.status_label.setStyleSheet(f"color: {theme('palette.primary', '#0D7C66')};")
+    #     else:
+    #         self.status_label.setText(message.replace("\n", " "))
+    #         self.status_label.setStyleSheet(f"color: {theme('palette.error', '#A6284F')};")
 
     # ------------------------------------------------------------------
 
-    def show_experiment(self, experiment):
+    def show_experiment(self, experiment, channel):#channel argument should only be passed if the gene channel has already been processed or wants to be processed!
         self.window.action_bar.setVisible(False)
         self.window._show_busy('Loading volume...')
-
-        self.experiment = experiment#passed from window (self.current_Experiment)
-
       
         workflow_container = self.window._build_workflow_container(
+            experiment,
             next_label="Clean",
             back_guard=None,
             current_step="Visualize",
@@ -180,38 +167,37 @@ class VisualizationController:
 
             self.window._hide_busy()
 
-        else:
-            channel = None
-            for c in experiment.channels:
-                if c.channel_name == "DAPI":
-                    channel : Channel = c
-                    break
-            if channel is None:
-                QMessageBox.warning(
-                    self.window, 
-                    "There is no nucleous channel!!!",
-                    "Think again."
-                )
-                return
+        # else:
+        #     channel = None
+        #     for c in experiment.channels:
+        #         if c.channel_name == "DAPI":
+        #             channel : Channel = c
+        #             break
+        #     if channel is None:
+        #         QMessageBox.warning(
+        #             self.window, 
+        #             "There is no nucleous channel!!!",
+        #             "Think again."
+        #         )
+        #         return
 
-            # Show clean DAPI
-            if channel.clean_path is not None: 
-    
-                params: dict[str, Any] = {"bg": theme("palette.background")}
-                kwargs = generate_kwargs(params=params, renderer='pyqt', outside_class=self.window)
-                plt = Plotter(**kwargs)
-                clean_path = os.path.join(experiment.base, channel.clean_path)
-                print(clean_path)
-                volume = Volume(clean_path)
-                plt += volume
-                plt.show(interactive=True)
+            
+            if channel is not None:
+                print('passed channel')
+            # Show clean channels (DAPI + channel uploaded and cleaned!)
+                if channel.clean_path is not None: 
+                    self.clean_channels.append(channel)
+                    self.show_clean_isosurfaces(self.clean_channels)
+
+                else:
+                    #another channel that isnt DAPI -> direclty to clean! for further visualization
+                    self.navigator.navigate_to(lambda:self.window.clean.show(experiment, channel))
+                    
 
             # Show unclean DAPI
-            else:
-                
-                volume_path = Path(os.path.join(experiment.base, channel.path))
-                preview_volume(volume_path, "pyqt", self.window)
-
+        else:
+            volume_path = Path(os.path.join(experiment.base, channel.path))
+            preview_volume(volume_path, "pyqt", self.window)
 
         self.window._hide_busy()
                 
@@ -232,12 +218,11 @@ class VisualizationController:
         if channel is None:
             QMessageBox.warning(self.window, "Channel not found", f"Couldn't find channel '{channel_name}'.")
             return
-        ok, message = self._validate_channel(channel)
-        printc(ok, message, c='blue')
- 
-        if not ok:
-            QMessageBox.warning(self.window, "Not ready for visualization", message)
-            return
+
+        print(channel)
+        self.show_experiment(self.experiment, channel)
+
+        self.channel_readiness(self.experiment, channel)
  
         mode_label = self.mode_combo.currentText()
         self._open_popup(self.MODES[mode_label], mode_label, channel)
@@ -278,6 +263,18 @@ class VisualizationController:
  
         return True, ""
  
+    def show_clean_isosurfaces(self,clean_channels:list):
+        print('all channels are processed and ready to viz!')
+        
+            # params: dict[str, Any] = {"bg": theme("palette.background")}
+            # kwargs = generate_kwargs(params=params, renderer='pyqt', outside_class=self.window)
+            # plt = Plotter(**kwargs)
+            # clean_path = os.path.join(experiment.base, channel.clean_path)
+            # print(clean_path)
+            # volume = Volume(clean_path)
+            # plt += volume
+            # plt.show(interactive=True)
+
 
     # ------------------------------------------------------------------
     def _open_popup(self, mode, mode_label, channel):

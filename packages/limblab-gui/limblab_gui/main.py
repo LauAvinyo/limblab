@@ -225,7 +225,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         about = QAction("About us", self)
         about.triggered.connect(
                 lambda: webbrowser.open("https://www.embl.org/groups/sharpe/")
-            )
+            )   
         menu.addAction(about)
 
         self._build_contact_menu(menu)
@@ -250,6 +250,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
     # NOTE: Laura build this. So if actually works for her. 
     def _build_workflow_container(
         self,
+        experiment,
         next_label=None,
         next_callback=None,
         back_guard=None,
@@ -313,7 +314,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         h_layout.addWidget(left, stretch=3)
 
         # --- Right: side panel ---
-        side = self._build_side_panel()
+        side = self._build_side_panel(experiment)
         
         h_layout.addWidget(side, stretch=1)
 
@@ -500,7 +501,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
             if exp_obj is None:
                 continue
 
-            displayed_name = self.experiment_names.get(path, os.path.basename(path))
+            # displayed_name = self.experiment_names.get(path, os.path.basename(path))
             channels = exp_obj.channels if hasattr(exp_obj, 'channels') else []
 
             parent = QTreeWidgetItem(tree)
@@ -511,7 +512,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
             name_widget = QWidget()
             name_layout = QHBoxLayout(name_widget)
             name_layout.setContentsMargins(8, 6, 8, 6)
-            name_label = QLabel(displayed_name)
+            name_label = QLabel(exp_obj.displayed_name)
             name_label.setStyleSheet(f"color: {theme('palette.textPrimary', '#FFFFFF')}; font-size: {theme('typography.fontSizeLarge', 18)}px;")
             channel_info = QLabel(f"({len(channels)} channels)")
             channel_info.setStyleSheet(f"color: {theme('palette.textSecondary', '#A0A0A0')}; font-size: {theme('typography.fontSizeSmall', 12)}px;")
@@ -540,8 +541,8 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
 
             view_btn = make_small_btn('View', theme('palette.accent', '#0D7C66'), theme('palette.primaryHover', '#41B3A2'), lambda checked=False, p=path: self._view_experiment(p))
             add_ch_btn = make_small_btn('+Channel', theme('palette.secondary', '#54278F'), theme('palette.secondaryHover', '#756BB1'), lambda checked=False, p=path: self._add_channel_to_existing(p))
-            del_btn = make_small_btn('Delete', theme('palette.error', '#A6284F'), theme('palette.error', '#C9302C'), lambda checked=False, p=path, n=displayed_name: self._delete_experiment(p,n))
-            rename_btn = make_small_btn('Rename', theme('palette.error', "#3AAC58"), theme('palette.error', "#58C92C"), lambda checked=False, p=path: self._rename_experiment(p))
+            del_btn = make_small_btn('Delete', theme('palette.error', '#A6284F'), theme('palette.error', '#C9302C'), lambda checked=False, p=path, n=exp_obj.displayed_name: self._delete_experiment(p,n))
+            rename_btn = make_small_btn('Rename', theme('palette.error', "#3AAC58"), theme('palette.error', "#58C92C"), lambda checked=False, p=path: self._rename_experiment(p, exp_obj.experiment_id, exp_obj.displayed_name))
 
             act_layout.addWidget(view_btn)
             act_layout.addWidget(add_ch_btn)
@@ -805,16 +806,20 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
     # Button Actions
     # ------------------------------------------------------------------
 
-    def _rename_experiment(self, path):
+    def _rename_experiment(self, path, experiment_id, old_name):
         """Rename an experiment and persist to DB."""
-        current_name = self.experiment_names.get(path, os.path.basename(path))
+
+        experiment = get_experiment(self.db_path, experiment_id)
+
+        current_name = old_name #exp_id as default in models.py
         new_name, ok = QInputDialog.getText(
             self, "Rename experiment", "New name:", text=current_name
         )
         if ok and new_name.strip():
-            success = rename_experiment(self.db_path, path, new_name.strip())
+            success = rename_experiment(self.db_path, experiment_id, new_name.strip())
             if success:
-                self.experiment_names[path] = new_name.strip()
+                self.experiment_names[path] = new_name.strip()#internal main window variable to store the current experiments loaded
+                experiment.displayed_name = new_name
                 self.show_user_experiment_list()
             else:
                 QMessageBox.warning(self, "Error", f"Experiment '{path}' not found in database.")
@@ -882,14 +887,22 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
 
     def _view_experiment(self, experiment_id):
         """View the selected experiment (show visualization)."""
-        
         experiment = get_experiment(self.db_path, experiment_id)
         if not experiment:
             QMessageBox.warning(self, "Error", "Experiment not found.")
             return
+        channel_names = []
+        for channel in experiment.channels:
+            channel_names.append(channel.channel_name)
+
+        if 'DAPI' not in channel.channel_name:
+            QMessageBox.warning(self, "Error", "DAPI-nuclei channel not found. Unable to visualize any surface." \
+            "You must upload a DAPI-nuclei channel for any experiment")
+            return
         
-        self._set_current_experiment(experiment)
-        self.navigation.navigate_to(lambda: self.visualizer.show_experiment(experiment))
+        else:
+            self._set_current_experiment(experiment)
+            self.navigation.navigate_to(lambda: self.visualizer.show_experiment(experiment, channel))
     
 
     def _infer_workflow_state(self, exp):
@@ -901,17 +914,18 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         # A channel counts as "cleaned" if its stored path is a processed .vti,
         # matching the same convention surface_controller already checks.
         cleaned_channels = [ch for ch in channels if ch.path.lower().endswith(".vti")]
-        clean_done = len(cleaned_channels) > 0
+        #clean_done = len(cleaned_channels) > 0
+        
         last_cleaned_channel = cleaned_channels[-1].channel_name if cleaned_channels else None
 
         return {
-            "clean_done": clean_done,
+            "clean_done": bool(last_cleaned_channel) , #clean_done (bool)
             "last_cleaned_channel": last_cleaned_channel,
             "surface_done": bool(exp.surface_path),
-            "stage_done": exp.stage is not None,
-            "selected_stage": exp.stage,
+            "stage_done": bool(exp.stage),
+            #"selected_stage": exp.stage,
             "align_done": bool(exp.transformation_matrix_path),
-            "alignment_method": "rigid" if exp.transformation_matrix_path else None,
+            #"alignment_method": "rigid" if exp.transformation_matrix_path else None,
         }
     
 
@@ -924,48 +938,48 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         
         self.current_experiment = exp_obj
 
-        self.workflow_state = self._infer_workflow_state(exp_obj)
-        self.align.source = None
-        self.align.surface_path = str(
-            os.path.join(exp_obj.base, exp_obj.surface_path)
-        ) if exp_obj.surface_path else None
+        #self.workflow_state = self._infer_workflow_state(exp_obj)
+        # self.align.source = None
+        # self.align.surface_path = str(
+        #     os.path.join(exp_obj.base, exp_obj.surface_path)
+        # ) if exp_obj.surface_path else None
 
 
-    def _on_channel_selected(self, experiment_id, channel):
-        """User picked a channel from the Visualizer panel.
-        Updates which experiment/channel is active; the display itself
-        only refreshes the next time the user navigates to Visualize."""
-        exp_data = self.experiment_metadata.get(experiment_id)
-        if exp_data is None:
-            return
- 
-        if self.current_experiment is None or self.current_experiment.experiment_id != experiment_id:
-            self._set_current_experiment(exp_data)
- 
+    def _on_channel_selected(self, experiment_id, channel, checked=True):
+        """User (un)checked a channel in the Visualizer side panel.
+
+        Unclean channel -> skip raw-volume preview entirely, go straight
+        to Clean for it. Clean channel -> toggle it into the combined
+        isosurface view (DAPI surface + every checked clean gene channel).
+        """
         self.current_channel = channel
-        self.workflow_state = self._infer_workflow_state(exp_data)
- 
-        self._refresh_visualizer_list()
- 
-        # If the Visualize action bar (channel/mode picker) is already on
-        # screen, sync it to the channel just clicked instead of waiting
-        # for the next navigation to Visualize — this is what makes the
-        # picker immediately show whether the clicked channel's processing
-        # options are available or not.
-        visualizer = getattr(self, "visualizer", None)
-        same_experiment_on_screen = (
-            visualizer is not None
-            and visualizer.experiment is not None
-            and visualizer.experiment.experiment_id == experiment_id
-        )
-        if same_experiment_on_screen and visualizer.channel_combo is not None:
-            idx = visualizer.channel_combo.findText(channel.channel_name)
-            if idx != -1:
-                visualizer.channel_combo.setCurrentIndex(idx)
-            visualizer._update_channel_status(channel.channel_name)
 
-    
-     
+        if not hasattr(self, "checked_viz_channels"):
+            self.checked_viz_channels = set()
+
+        ready, _ = VisualizationController.channel_readiness(self.current_experiment, channel)
+
+        if not ready:
+            self.checked_viz_channels.discard(channel.channel_name)
+            self.navigation.navigate_to(
+                lambda: self.clean.show(self.current_experiment, channel)
+            )
+            return
+
+        if checked:
+            self.checked_viz_channels.add(channel.channel_name)
+        else:
+            self.checked_viz_channels.discard(channel.channel_name)
+
+        self._refresh_visualizer_list(self.current_experiment)
+
+        selected = [
+            ch for ch in self.current_experiment.channels
+            if ch.channel_name in self.checked_viz_channels
+        ]
+        self.visualizer.show_clean_isosurfaces(selected)
+
+
 
     def create_new_experiment(self):
         """Create a new experiment from any TIF volume (DAPI or gene channel)."""
@@ -1007,6 +1021,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
             # Create experiment
         new_exp = Experiment(
                 experiment_id=exp_id,
+                displayed_name=exp_id,
                 base=os.path.dirname(filepath),
                 spacing_x=limb_info['spacing'][0], # type: ignore
                 spacing_y=limb_info['spacing'][1], # type: ignore
@@ -1331,6 +1346,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
             # Create a new experiment
             new_exp = Experiment(
                 experiment_id=exp_id,
+                displayed_name=exp_id,
                 base=os.path.dirname(filepath),
                 spacing_x=limb_info["spacing"][0], # type: ignore
                 spacing_y=limb_info["spacing"][1], # type: ignore

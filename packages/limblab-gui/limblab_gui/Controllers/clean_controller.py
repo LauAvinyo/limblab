@@ -29,10 +29,8 @@ class CleanController:
         self.clean_isovalue_max = None
 
 
-    def show(self,experiment):
+    def show(self,experiment, channel):
         self.window._show_busy('Loading clean...')
-
-        self.experiment = experiment
 
         container = self.window._build_workflow_container(
         next_label="Extract Surface",
@@ -69,7 +67,7 @@ class CleanController:
         # channel that's actually on the experiment, not just whatever the
         # combo box defaults to.
         existing_channels = {
-            ch.channel_name.upper() for ch in (self.experiment.channels or [])
+            ch.channel_name.upper() for ch in (experiment.channels or [])
         }
         combo = self.clean_widgets["channel"]
         for i in range(combo.count()):
@@ -182,23 +180,21 @@ class CleanController:
         return bar
 
 
-    def _load_volume_for_picking(self):
-        try:
-            assert self.experiment is not None
-            self.channel_name = self.clean_widgets["channel"].currentText()
-            self.raw_volume_path = get_channel_path(self.experiment, self.channel_name)
-            self.window.current_channel = self.channel_name
-            self.plotter = pick_isovalues(
-                raw_volume_path=self.raw_volume_path,
-                renderer="pyqt",
-                outside_class=self.window,
-            )
-            self.v0 = self.v1 = None
-            self.v0_label.setText("Lower (v0): —")
-            self.v1_label.setText("Upper (v1): —")
-
-        except Exception as e:
-            QMessageBox.critical(self.window, "Load error", str(e))
+    def _load_volume_for_picking(self,channel):
+        
+        self.channel_name = channel.channel_name
+        self.raw_volume_path = get_channel_path(self.experiment, self.channel_name)
+        print(self.raw_volume_path)
+        
+        self.window.current_channel = self.channel_name
+        self.plotter = pick_isovalues(
+            raw_volume_path=self.raw_volume_path,
+            renderer="pyqt",
+            outside_class=self.window,
+        )
+        self.v0 = self.v1 = None
+        self.v0_label.setText("Lower (v0): —")
+        self.v1_label.setText("Upper (v1): —")
 
 
     def _set_v0(self):

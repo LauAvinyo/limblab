@@ -30,7 +30,7 @@ class Channel(SQLModel, table=True):
 class Experiment(SQLModel, table=True):
     """Database table and Pydantic model for Experiments."""
     experiment_id: str = Field(primary_key=True)
-    displayed_name: Optional[str] = None
+    displayed_name: str
     base: str
     spacing_x: float
     spacing_y: float

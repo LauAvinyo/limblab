@@ -1,52 +1,56 @@
 """LimbLab Plotter"""
 
-from typing import Any, Literal
+from typing import Any, Literal, Optional
 
 from limblab.models import Channel, Experiment
 from limblab.utils import generate_kwargs
 from vedo import Text2D, Volume
 from vedo.applications import Slicer3DPlotter
+from limblab.design import theme
 
 
 def _slices(
     volume_path: str,
-    renderer: Literal["pyqt"] | None = None,
-    outside_class: Any | None = None,
+    renderer: Optional[Literal["pyqt"]] = None,
+    outside_class: Optional[Any] | None = None,
+    qt_widget = None
 ):
 
     volume = Volume(volume_path)
 
-    params: dict[str, Any] = {
+    params = generate_kwargs({
         "cmaps": ("gist_ncar_r", "jet", "Spectral_r", "hot_r", "bone_r"),
         "use_slider3d": False,
-        "bg": "white",
-    }
+        "bg": theme("palette.background"),
 
-    kwargs = generate_kwargs(
-        params=params, renderer=renderer, outside_class=outside_class
-    )
-
-    plt = Slicer3DPlotter(
-        volume,
-        **kwargs
-    )
-
+    })
+    
+    
     if __doc__ is not None:
         plt += Text2D(__doc__)
 
     if renderer == "pyqt":
-        plt.show(viewup="z", interactive=False)
+        kwargs = generate_kwargs(params, renderer, outside_class)
+
+        plt = Slicer3DPlotter(volume,**kwargs)
+
+        plt.show()
         return plt
 
-    plt.show(viewup="z")
-    plt.close()
+    else:
+        plt = Slicer3DPlotter(volume,params)
+            
+        plt.show()
+        plt.close()
+
 
 def slices(
     experiment: Experiment,
-    channel_name: str,
-    renderer: Literal["pyqt"] | None = None,
-    outside_class: Any | None = None,
-) -> None:
+        channel_name: str, 
+        renderer: Literal["pyqt"] | None = None,
+        outside_class: Any | None = None,
+        
+    ) -> None: 
 
     channels = experiment.channels
     channel = ""

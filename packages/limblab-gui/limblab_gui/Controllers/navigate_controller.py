@@ -18,6 +18,8 @@ from vedo import printc
 
 from limblab.database.navigation import delete_from_database_going_back_action
 
+from typing import Optional
+from limblab.models import Channel, Experiment
 
 PIPELINE_STEPS = ["Clean", "Surface", "Stage", "Align", "Visualize"]
 PIPELINE_INDEX = {
@@ -39,7 +41,7 @@ class NavigationController:
             "Align": self.navigate_to_align,
             "Visualize": self.navigate_to_visualize
         }
-
+    
 
     # Navigation Methods
     def navigate_to(self, screen_func):
@@ -59,7 +61,7 @@ class NavigationController:
         self.navigate_to(self.window.show_user_experiment_list)
 
 
-    def limb_action_clicked(self, step):
+    def limb_action_clicked(self, step, channel:Optional[Channel]):
         current_action_idx = PIPELINE_INDEX[step]
 
         if self.window.workflow_checkpoints[step] == True:  #shouldnt be clickable anyway but just to make sure
@@ -102,10 +104,10 @@ class NavigationController:
             self.state__navigate_to[step]()
 
 
-    def navigate_to_clean(self):
+    def navigate_to_clean(self, channel):
         printc("Navigating to CLEAN", c="orange")
         print(self._current_step)
-        self.navigate_to(lambda:self.window.clean.show(self.window.current_experiment))
+        self.navigate_to(lambda:self.window.clean.show(self.window.current_experiment,channel))
 
 
     def navigate_to_surface(self):
@@ -196,9 +198,13 @@ class NavigationController:
         for step in PIPELINE_STEPS:
             act = QAction(step, self.window)
             act.setCheckable(True)
-            act.triggered.connect(lambda _, step=step: self.limb_action_clicked(step))#connectes buttons to navigate functions
-            self.window.action_bar.addAction(act)
-            self._step_actions[step] = act
+
+            if step == 'Clean':
+                act.triggered.connect(lambda _, step=step: self.limb_action_clicked(step, self.window.current_channel))
+            else:    
+                act.triggered.connect(lambda _, step=step: self.limb_action_clicked(step))#connectes buttons to navigate functions
+                self.window.action_bar.addAction(act)
+                self._step_actions[step] = act
 
         self.window.action_bar.setVisible(False)
 

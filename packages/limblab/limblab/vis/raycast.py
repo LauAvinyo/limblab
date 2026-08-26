@@ -11,6 +11,8 @@ from vedo.applications import (
 )
 import os
 
+from limblab.utils import generate_kwargs
+
 # TODO:
 # This can be clean up. There are some functions no needed here.
 # We can add more funtionality.
@@ -29,19 +31,29 @@ def _raycast(
     volume_path: str,
     renderer: Optional[Literal["pyqt"]] = None,
     outside_class: Optional[Any] = None,
-    qt_widget=None
     ):  
 
     volume = Volume(volume_path)
 
     volume.mode(1).cmap("jet")  # raycasting mode
 
-    if qt_widget is not None:
-        plt = RayCastPlotter(volume, bg="black", axes=7, qt_widget=qt_widget)
+    if renderer == 'pyqt':
+
+        params = generate_kwargs({'bg': theme('palette.background'), 'axes': 7})
+        kwargs = generate_kwargs(params, renderer, outside_class)
+
+        plt = RayCastPlotter(volume, **kwargs)
+
         plt.show()
         return plt   
-    else:
-        plt = RayCastPlotter(volume, bg="black", axes=7)
+
+    
+    else:  
+        params = generate_kwargs({'bg': theme('palette.background'), 'axes': 7})
+        kwargs = generate_kwargs(params)
+        
+        plt = RayCastPlotter(volume, **kwargs)
+       
         plt.show()
         plt.close()
 
@@ -50,7 +62,6 @@ def raycast(
     channel_name: str, 
     renderer: Literal["pyqt"] | None = None,
     outside_class: Any | None = None,
-    qt_widget=None,
 ) -> None: 
 
     channel = next((c for c in experiment.channels if c.channel_name == channel_name), None)
@@ -61,5 +72,5 @@ def raycast(
         raise ValueError(f"Channel '{channel_name}' has no clean_path — clean it before visualizing.")
 
     volume_path = os.path.join(experiment.base, channel.clean_path)
-    _raycast(volume_path, renderer, outside_class, qt_widget=qt_widget)
+    _raycast(volume_path, renderer, outside_class)
 

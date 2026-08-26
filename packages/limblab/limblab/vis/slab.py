@@ -71,7 +71,12 @@ def _dynamic_slab(
     # Load the limb surface
     surface = os.path.join(experiment.base, experiment.surface_path)
     limb = Mesh(surface)
-    limb.color(styles["limb"]["color"]).alpha(0.1)
+
+    #TODO THIS IS UNCHANGED!
+#########################################################
+    limb.c(theme('limblab.surface')).alpha(0.1)
+#########################################################
+
     limb.extract_largest_region()
     limb.apply_transform(T)
     limb.rotate_y(-angle_d[int(experiment.stage)])
@@ -93,7 +98,7 @@ def _dynamic_slab(
     bbox = slab.metadata["slab_bounding_box"]
     zslab = slab.zbounds()[0] + 1000
     slab.z(-zslab)  # move slab to the bottom  # move slab to the bottom
-    slab_box = Box(bbox).wireframe().c("black")
+    slab_box = Box(bbox).c("dodgerblue").alpha(0.15).lw(2).lc("white")
     slab.cmap(CMAP)  # .add_scalarbar("slab")
 
     def slider1(widget, event):
@@ -106,7 +111,7 @@ def _dynamic_slab(
         bbox = slab.metadata["slab_bounding_box"]
         zslab = slab.zbounds()[0] + 1000
         slab.z(-zslab)  # move slab to the bottom
-        slab_box = Box(bbox).wireframe().c("black")
+        slab_box = Box(bbox).c("dodgerblue").alpha(0.15).lw(2).lc("white")
         slab.cmap(CMAP)  # .add_scalarbar("slab")
         plt.add(slab)
         plt.add(slab_box)
@@ -126,7 +131,7 @@ def _dynamic_slab(
         bbox = slab.metadata["slab_bounding_box"]
         zslab = slab.zbounds()[0] + 1000
         slab.z(-zslab)  # move slab to the bottom
-        slab_box = Box(bbox).wireframe().c("black")
+        slab_box = Box(bbox).c("dodgerblue").alpha(0.15).lw(2).lc("white")
         slab.cmap(CMAP)  # .add_scalarbar("slab")
         plt.add(slab)
         plt.add(slab_box)
@@ -137,10 +142,13 @@ def _dynamic_slab(
     printc("Ready to display the scene", c="y")
     # exit()
 
-    params: dict[str, Any] = dict(c=theme("limblab.surface"), bg = theme("palette.background"))
-    kwargs = generate_kwargs(params=params, renderer=renderer, outside_class=outside_class)
-    
-    plt = Plotter(**kwargs) 
+    params = generate_kwargs({
+            "bg": theme("palette.background"), 
+            "axes": 14
+        })
+    kwargs = generate_kwargs(params, renderer, outside_class)
+
+    plt = Plotter(**kwargs)
 
     plt += vol.isosurface()
     plt += limb
@@ -154,7 +162,7 @@ def _dynamic_slab(
         xmin=box_vmin,
         xmax=box_vmax,
         value=box_vmin,
-        c=styles["ui"]["primary"],
+        c=theme('palette.primary'),
         pos="bottom-left",  # type: ignore
         title="Slab Min Value",
     )
@@ -164,16 +172,14 @@ def _dynamic_slab(
         xmin=box_vmin,
         xmax=box_vmax,
         value=box_vmax,
-        c=styles["ui"]["primary"],
+        c=theme('palette.primary'),
         pos="bottom-right",  # type: ignore
         title="Slab Max Value",
     )
 
     if renderer == "pyqt":
-        plt.show(axes=14, interactive=False)
-        return plt
-
-    plt.close()
+        plt.show()
+        return plt#shows the plot!
 
     l, u = slab.metadata["slab_range"]
     slab_path = os.path.join(experiment.base, f"{channel_name}_slab_{l}_{u}.py")
@@ -194,10 +200,10 @@ def _dynamic_slab(
 
 def dynamic_slab(
     experiment: Experiment,
-    channel_name: str,
-    renderer: Literal["pyqt"] | None = None,
-    outside_class: Any | None = None,
-) -> None:
+        channel_name: str, 
+        renderer: Literal["pyqt"] = None,
+        outside_class: Any | None = None,
+    ) -> None: 
 
     channels = experiment.channels
     channel = ""
@@ -206,6 +212,8 @@ def dynamic_slab(
             print(i)
             channel: Channel = i
 
+
     volume_path = channel.path
+    # printc(volume_path, c='green')
     #volume_path = os.path.join(experiment.base, experiment.surface_path)
     _dynamic_slab(experiment, volume_path, channel_name, renderer, outside_class)
