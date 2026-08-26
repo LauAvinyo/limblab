@@ -1,5 +1,4 @@
 import os
-from pathlib import Path
 from typing import Any
 
 from limblab.design import theme
@@ -126,7 +125,7 @@ class VisualizationController:
 
     # ------------------------------------------------------------------
 
-    def show_experiment(self, experiment, channel):#channel argument should only be passed if the gene channel has already been processed or wants to be processed!
+    def show_experiment(self, experiment):#channel argument should only be passed if the gene channel has already been processed or wants to be processed!
         self.window.action_bar.setVisible(False)
         self.window._show_busy('Loading volume...')
       

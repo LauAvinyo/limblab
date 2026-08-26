@@ -1,25 +1,22 @@
-import webbrowser
 
+from typing import Optional
+
+from limblab.database.navigation import delete_from_database_going_back_action
 from limblab.design import theme
-from mixin.NavigationMixin import NavigationMixin
+from limblab.models import Channel, Experiment
 from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QMenu,
+    QMessageBox,
     QScrollArea,
     QToolButton,
     QVBoxLayout,
     QWidget,
-    QMessageBox
 )
 from utils import create_back_button
 from vedo import printc
-
-from limblab.database.navigation import delete_from_database_going_back_action
-
-from typing import Optional
-from limblab.models import Channel, Experiment
 
 PIPELINE_STEPS = ["Clean", "Surface", "Stage", "Align", "Visualize"]
 PIPELINE_INDEX = {

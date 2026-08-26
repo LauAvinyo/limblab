@@ -22,14 +22,11 @@ from limblab.database.crud import (
     list_experiments,
     rename_experiment,
     save_experiment,
-    
 )
-
 from limblab.database.navigation import (
-    seed_reference_limbs,
     delete_from_database_going_back_action,
+    seed_reference_limbs,
 )
-
 from limblab.design import theme
 from limblab.models import Channel, Experiment
 from limblab.utils import generate_kwargs
@@ -194,7 +191,6 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         self.visualizer = VisualizationController(self)
 
         self.navigation = NavigationController(self)
-        
         self.navigation._build_permanent_chrome()
 
         # self.navigate_to(lambda:self.align.show(experiment))
@@ -411,6 +407,167 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         self.setCentralWidget(container)
         self.plt.show(self.limb_home)
 
+    def create_new_experiment_page(self):
+        
+        top_row = QHBoxLayout()
+        top_row.addWidget(create_back_button(self.navigation.go_back_using_arrow_btn))
+        top_row.addWidget(self.create_left_button())
+        top_row.addStretch()
+
+        printc("We are on new_experiment_page", c="pink")
+
+        # ---- Limb info widgets (inline, replaces the ask_limbinfo() popup) ----
+        limb_info_group = QGroupBox("Limb Info")
+        limb_info_layout = QVBoxLayout(limb_info_group)
+        limb_info_layout.setSpacing(15)
+
+        # Limb Side
+        side_layout = QHBoxLayout()
+        side_label = QLabel("Limb Side:")
+        side_label.setFixedWidth(100)
+        self.side_combo = QComboBox()
+        self.side_combo.addItems(["L", "R"])
+        self.side_combo.setCurrentIndex(0)
+        side_layout.addWidget(side_label)
+        side_layout.addWidget(self.side_combo)
+        limb_info_layout.addLayout(side_layout)
+
+        # Position
+        position_layout = QHBoxLayout()
+        position_label = QLabel("Position:")
+        position_label.setFixedWidth(100)
+        self.position_combo = QComboBox()
+        self.position_combo.addItems(["F", "H"])
+        self.position_combo.setCurrentIndex(0)
+        position_layout.addWidget(position_label)
+        position_layout.addWidget(self.position_combo)
+        limb_info_layout.addLayout(position_layout)
+
+        # Spacing
+        spacing_group = QGroupBox("Spacing")
+        spacing_layout = QVBoxLayout(spacing_group)
+
+        x_layout = QHBoxLayout()
+        x_label = QLabel("X:")
+        x_label.setFixedWidth(30)
+        self.x_spin = QDoubleSpinBox()
+        self.x_spin.setRange(0.01, 10.0)
+        self.x_spin.setSingleStep(0.01)
+        self.x_spin.setValue(0.65)
+        self.x_spin.setDecimals(2)
+        x_layout.addWidget(x_label)
+        x_layout.addWidget(self.x_spin)
+        spacing_layout.addLayout(x_layout)
+
+        y_layout = QHBoxLayout()
+        y_label = QLabel("Y:")
+        y_label.setFixedWidth(30)
+        self.y_spin = QDoubleSpinBox()
+        self.y_spin.setRange(0.01, 10.0)
+        self.y_spin.setSingleStep(0.01)
+        self.y_spin.setValue(0.65)
+        self.y_spin.setDecimals(2)
+        y_layout.addWidget(y_label)
+        y_layout.addWidget(self.y_spin)
+        spacing_layout.addLayout(y_layout)
+
+        z_layout = QHBoxLayout()
+        z_label = QLabel("Z:")
+        z_label.setFixedWidth(30)
+        self.z_spin = QDoubleSpinBox()
+        self.z_spin.setRange(0.01, 10.0)
+        self.z_spin.setSingleStep(0.01)
+        self.z_spin.setValue(2.0)
+        self.z_spin.setDecimals(2)
+        z_layout.addWidget(z_label)
+        z_layout.addWidget(self.z_spin)
+        spacing_layout.addLayout(z_layout)
+
+        limb_info_layout.addWidget(spacing_group)
+
+        limb_info = {
+            'side': self.side_combo.currentText(),
+            'position': self.position_combo.currentText(),
+            'spacing': (self.x_spin.value(), self.y_spin.value(), self.z_spin.value()),
+        }
+        if not limb_info:
+            return
+
+        printc(limb_info, c="green")
+
+        exp_id = 'exp_test'
+        filepath = 'exp_path'
+        
+        new_exp = Experiment(
+                experiment_id=exp_id,
+                displayed_name=exp_id,
+                base=os.path.dirname(filepath),
+                spacing_x=limb_info['spacing'][0], # type: ignore
+                spacing_y=limb_info['spacing'][1], # type: ignore
+                spacing_z=limb_info['spacing'][2], # type: ignore
+                side=limb_info['side'],
+                position=limb_info['position'],
+                channels=[
+                    
+                    
+                ]
+            )
+        self.experiment = new_exp
+
+        save_experiment(self.db_path, new_exp)
+
+        self.label_upload_DAPI = create_label(
+                    "Upload a DAPI channel", 
+                    f"color: {theme('palette.textPrimary', '#FFFFFF')}; font-size: {theme('typography.fontSizeHero', 40)}px;"
+                )
+        self.button_upload_DAPI = create_styled_button(
+                    "Upload DAPI",
+                    color=theme("palette.secondary", "#54278F"),
+                    hover_color=theme("palette.secondaryHover", "#756BB1"),
+                )
+        
+        self.button_upload_DAPI.clicked.connect(self.create_new_experiment)
+
+
+        self.label_upload_channel = create_label(
+                            "Upload a gene channel", 
+                            f"color: {theme('palette.textPrimary', '#FFFFFF')}; font-size: {theme('typography.fontSizeHero', 40)}px;"
+                        )
+        self.button_upload_channel = create_styled_button(
+                            "Upload channel",
+                            color=theme("palette.primary", "#0D7C66"),
+            hover_color=theme("palette.primaryHover", "#41B3A2"),
+                        )
+
+        self.button_upload_channel.clicked.connect(self.create_new_experiment)
+        
+
+        left_column = QVBoxLayout()
+        left_column.addWidget(limb_info_group)
+
+        right_column = QVBoxLayout()
+        right_column.addWidget(self.label_upload_DAPI, alignment=Qt.AlignmentFlag.AlignHCenter)
+        right_column.addWidget(self.button_upload_DAPI, alignment=Qt.AlignmentFlag.AlignHCenter)
+
+        right_column.addWidget(self.label_upload_channel, alignment=Qt.AlignmentFlag.AlignHCenter)
+        right_column.addWidget(self.button_upload_channel, alignment=Qt.AlignmentFlag.AlignHCenter)
+
+        buttons_row = QHBoxLayout()
+        buttons_row.addLayout(left_column)
+        buttons_row.addSpacing(40)
+        buttons_row.addLayout(right_column)
+    
+
+        container = QWidget()
+        layout = QVBoxLayout(container)
+        layout.addLayout(top_row)
+        layout.addStretch(1)
+        layout.addLayout(buttons_row, stretch=0)
+        layout.addStretch(2)
+        self.setCentralWidget(container)
+
+
+
     def show_first_screen(self):
         self.action_bar.setVisible(False)
 
@@ -420,13 +577,16 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         top_row.addStretch()
 
         # ---- Create New Experiment [UPLOAD] ----
-        self.label_upload = create_label("Create New Experiment", f"color: {theme('palette.textPrimary', '#FFFFFF')}; font-size: {theme('typography.fontSizeHero', 40)}px;")
+        self.label_upload = create_label(
+            "Create New Experiment", 
+            f"color: {theme('palette.textPrimary', '#FFFFFF')}; font-size: {theme('typography.fontSizeHero', 40)}px;"
+        )
         self.button_upload = create_styled_button(
-            "Upload TIF Volume",
+            "New Experiment",
             color=theme("palette.secondary", "#54278F"),
             hover_color=theme("palette.secondaryHover", "#756BB1"),
         )
-        self.button_upload.clicked.connect(self.create_new_experiment)
+        self.button_upload.clicked.connect(self.create_new_experiment_page)
 
         upload_desc = create_label(
             "Upload a TIF volume to start a new experiment.\n"
@@ -480,7 +640,6 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
 
 
     def show_user_experiment_list(self):
-
         self.action_bar.setVisible(False)
         self._load_experiments_from_db()
 
@@ -730,12 +889,6 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
             self._busy_dialog = None
 
 
-
-
-
-#trying things to click anywhere on the screen to make this pop up message dissappear
-
-
     def _show_message(self, message):
         self._busy_dialog = QWidget(self)
         self._busy_dialog.setWindowFlags(
@@ -980,7 +1133,6 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         self.visualizer.show_clean_isosurfaces(selected)
 
 
-
     def create_new_experiment(self):
         """Create a new experiment from any TIF volume (DAPI or gene channel)."""
         filepath, _ = QFileDialog.getOpenFileName(
@@ -994,11 +1146,6 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
 
         if not filepath.lower().endswith((".tif", ".tiff", ".vti", ".nii", ".nii.gz")):
             QMessageBox.warning(self, "Invalid file", "Please select a valid volume file.")
-            return
-
-        # Ask for limb info and channel type
-        limb_info = self.ask_limbinfo()
-        if not limb_info:
             return
 
         
@@ -1019,28 +1166,27 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
 
             
             # Create experiment
-        new_exp = Experiment(
-                experiment_id=exp_id,
-                displayed_name=exp_id,
-                base=os.path.dirname(filepath),
-                spacing_x=limb_info['spacing'][0], # type: ignore
-                spacing_y=limb_info['spacing'][1], # type: ignore
-                spacing_z=limb_info['spacing'][2], # type: ignore
-                side=limb_info['side'],
-                position=limb_info['position'],
-                channels=[
-                    Channel(
-                        experiment_id=exp_id,
-                        channel_name=limb_info['channel_type'],
-                        path=os.path.basename(filepath),
-                    ) # pyright: ignore[reportCallIssue]
-                ]
-            )
+        # new_exp = Experiment(
+        #         experiment_id=exp_id,
+        #         displayed_name=exp_id,
+        #         base=os.path.dirname(filepath),
+        #         spacing_x=limb_info['spacing'][0], # type: ignore
+        #         spacing_y=limb_info['spacing'][1], # type: ignore
+        #         spacing_z=limb_info['spacing'][2], # type: ignore
+        #         side=limb_info['side'],
+        #         position=limb_info['position'],
+        #         channels=[
+        #             Channel(
+        #                 experiment_id=exp_id,
+        #                 channel_name=limb_info['channel_type'],
+        #                 path=os.path.basename(filepath),
+        #             ) # pyright: ignore[reportCallIssue]
+        #         ]
+        #     )
 
-        save_experiment(self.db_path, new_exp)
+        # save_experiment(self.db_path, new_exp)
         self._load_experiments_from_db()
-        self.navigation.navigate_to(self.show_user_experiment_list)
-           
+        return
 
     def add_channel_to_existing(self, specific_exp_id=None):
         """Add a channel to an existing experiment."""
@@ -1244,24 +1390,24 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
             layout.addWidget(spacing_group)
 
         # ---- Channel Type ----
-        channel_layout = QHBoxLayout()
-        channel_label = QLabel("Channel type:")
-        channel_label.setFixedWidth(100)
-        channel_combo = QComboBox()
+        # channel_layout = QHBoxLayout()
+        # channel_label = QLabel("Channel type:")
+        # channel_label.setFixedWidth(100)
+        # channel_combo = QComboBox()
 
-        if channel_only:
-            channel_combo.addItems(['DAPI',"Hoxa11", "Sox9", "BMP2"])
-            channel_label.setText("Gene channel:")
-        else:
-            channel_combo.addItems(["DAPI", "Hoxa11", "Sox9", "BMP2"])
+        # if channel_only:
+        #     channel_combo.addItems(['DAPI',"Hoxa11", "Sox9", "BMP2"])
+        #     channel_label.setText("Gene channel:")
+        # else:
+        #     channel_combo.addItems(["DAPI", "Hoxa11", "Sox9", "BMP2"])
 
 
 
         #channel_combo.addItems(["DAPI", "Hoxa11", "Sox9", "BMP2", "SHH"])
-        channel_combo.setCurrentIndex(0)
-        channel_layout.addWidget(channel_label)  # FIXED: was position_label
-        channel_layout.addWidget(channel_combo)  # FIXED: was position_combo
-        layout.addLayout(channel_layout)
+        # channel_combo.setCurrentIndex(0)
+        # channel_layout.addWidget(channel_label)  # FIXED: was position_label
+        # channel_layout.addWidget(channel_combo)  # FIXED: was position_combo
+        # layout.addLayout(channel_layout)
 
         # ---- Buttons ----
         button_layout = QHBoxLayout()
@@ -1282,24 +1428,17 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         result = dialog.exec()
 
         if result == QDialog.DialogCode.Accepted:
-            if channel_only:
-                # Only return channel type
-                return {
-                    'channel_type': channel_combo.currentText()
-                }
-            else:
-                # Return all info
-                side = side_combo.currentText()
-                position = position_combo.currentText()
-                spacing = (x_spin.value(), y_spin.value(), z_spin.value())
-                channel_type = channel_combo.currentText()
+            
+            # Return all info
+            side = side_combo.currentText()
+            position = position_combo.currentText()
+            spacing = (x_spin.value(), y_spin.value(), z_spin.value())
 
-                return {
-                    'side': side,
-                    'position': position,
-                    'spacing': spacing,
-                    'channel_type': channel_type
-                }
+            return {
+                'side': side,
+                'position': position,
+                'spacing': spacing,
+            }
         else:
             return None
 

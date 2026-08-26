@@ -2,12 +2,11 @@
 
 from typing import Callable
 
-from PyQt6.QtCore import Qt
-
-
-from limblab.vizutils import *
 from config import *
+from limblab.vizutils import *
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QMessageBox
+
 
 class NavigationMixin:
     # Types
