@@ -11,6 +11,8 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from vedo import printc
+import numpy as np
 from utils import create_label, create_styled_button
 
 CURRENT_STEP = "Clean"
@@ -27,17 +29,15 @@ class CleanController:
         self.clean_isovalue_max = None
 
 
-    def show(self,experiment):
+    def show(self,experiment, channel):
         self.window._show_busy('Loading clean...')
-
-        self.experiment = experiment
 
         container = self.window._build_workflow_container(
         next_label="Extract Surface",
-        back_guard=lambda: (
-            self.window.workflow_state["clean_done"],
-            "You haven't cleaned any volume yet.",
-        ),
+        # back_guard=lambda: (
+        #     self.window.workflow_state["clean_done"],
+        #     "You haven't cleaned any volume yet.",
+        # ),
         action_widget=self._build_clean_action_bar(),
     )
         self.window.setCentralWidget(container)
@@ -67,7 +67,7 @@ class CleanController:
         # channel that's actually on the experiment, not just whatever the
         # combo box defaults to.
         existing_channels = {
-            ch.channel_name.upper() for ch in (self.experiment.channels or [])
+            ch.channel_name.upper() for ch in (experiment.channels or [])
         }
         combo = self.clean_widgets["channel"]
         for i in range(combo.count()):
@@ -180,37 +180,35 @@ class CleanController:
         return bar
 
 
-    def _load_volume_for_picking(self):
-        try:
-            assert self.experiment is not None
-            self.channel_name = self.clean_widgets["channel"].currentText()
-            self.raw_volume_path = get_channel_path(self.experiment, self.channel_name)
-
-            self.plotter = pick_isovalues(
-                raw_volume_path=self.raw_volume_path,
-                renderer="pyqt",
-                outside_class=self.window,
-            )
-            self.v0 = self.v1 = None
-            self.v0_label.setText("Lower (v0): —")
-            self.v1_label.setText("Upper (v1): —")
-
-        except Exception as e:
-            QMessageBox.critical(self.window, "Load error", str(e))
+    def _load_volume_for_picking(self,channel):
+        
+        self.channel_name = channel.channel_name
+        self.raw_volume_path = get_channel_path(self.experiment, self.channel_name)
+        print(self.raw_volume_path)
+        
+        self.window.current_channel = self.channel_name
+        self.plotter = pick_isovalues(
+            raw_volume_path=self.raw_volume_path,
+            renderer="pyqt",
+            outside_class=self.window,
+        )
+        self.v0 = self.v1 = None
+        self.v0_label.setText("Lower (v0): —")
+        self.v1_label.setText("Upper (v1): —")
 
 
     def _set_v0(self):
         if self.plotter is None:
             QMessageBox.warning(self.window, "No volume loaded", "Click 'Load Volume' first.")
             return
-        self.v0 = int(self.plotter.sliders[0][0].value) # type: ignore
+        self.v0 = np.round(self.plotter.sliders[0][0].value,2) # type: ignore
         self.v0_label.setText(f"Lower (v0): {self.v0}")
 
     def _set_v1(self):
         if self.plotter is None:
             QMessageBox.warning(self.window, "No volume loaded", "Click 'Load Volume' first.")
             return
-        self.v1 = int(self.plotter.sliders[0][0].value) # type: ignore
+        self.v1 = np.round(self.plotter.sliders[0][0].value, 2) # type: ignore
         self.v1_label.setText(f"Upper (v1): {self.v1}")
 
 
@@ -275,21 +273,18 @@ class CleanController:
 
         save_experiment(self.window.db_path, self.experiment)
 
-    
-        self.window.workflow_state["clean_done"] = True
-        self.window.workflow_state["last_cleaned_channel"] = new_channel.channel_name
 
         self.window.log_pipeline(
             f"Cleaned {new_channel.channel_name} (v0={new_channel.clean_isovalue_min}, v1={new_channel.clean_isovalue_max}).\n"
             f"Written to:\n{new_channel.path}"
         )
-        self.window._hide_busy()
-        print("THE HIDING SHOULD HAVE PASSED!!")
+        
 
-        self.window._hide_busy()
         self.window.workflow_checkpoints[CURRENT_STEP] = True
         self.window.navigation._refresh_pipeline_actions(CURRENT_STEP, True)
+        #printc('CLEAN CONTROLLER', self.window.workflow_checkpoints[CURRENT_STEP], c= 'blue')
 
+        self.window._hide_busy()
         # self._go_next_from_clean(new_channel)
         
 

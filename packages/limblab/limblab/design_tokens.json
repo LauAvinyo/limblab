@@ -16,7 +16,7 @@
     "warning": "#FF6B6B"
   }, 
   "limblab": {
-    "surface": "blue",
+    "surface": "cyan",
     "channel0": "#B0DB43",
     "channel1": "#DB43B0",
     "channel2": "#43B0DB",

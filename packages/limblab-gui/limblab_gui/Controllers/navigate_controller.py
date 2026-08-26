@@ -1,6 +1,20 @@
 
+from typing import Optional
+
+from limblab.database.navigation import delete_from_database_going_back_action
 from limblab.design import theme
+from limblab.models import Channel, Experiment
 from PyQt6.QtGui import QAction
+from PyQt6.QtWidgets import (
+    QHBoxLayout,
+    QLabel,
+    QMenu,
+    QMessageBox,
+    QScrollArea,
+    QToolButton,
+    QVBoxLayout,
+    QWidget,
+)
 from utils import create_back_button
 from vedo import printc
 
@@ -17,77 +31,142 @@ class NavigationController:
     def __init__(self, window):
         self.window = window
 
-
         self.state__navigate_to = {
             "Clean": self.navigate_to_clean,
-            "Surface": lambda: print("TO BE DONE"),
-            "Stage": lambda: print("TO BE DONE"), 
-            "Align": lambda: print("TO BE DONE"),
-            "Visualize": lambda: print("TO BE DONE")
+            "Surface": self.navigate_to_surface,
+            "Stage": self.navigate_to_stage, 
+            "Align": self.navigate_to_align,
+            "Visualize": self.navigate_to_visualize
         }
+    
 
     # Navigation Methods
     def navigate_to(self, screen_func):
         if self.window.current_screen is not None:
             self.window.navigation_stack.append(self.window.current_screen)
+
         self.window.current_screen = screen_func
         screen_func()
 
-    def go_back(self):
+    def go_back_using_arrow_btn(self):
         if self.window.navigation_stack:
             previous_screen = self.window.navigation_stack.pop()
             self.window.current_screen = previous_screen
             previous_screen()
 
+    def arrow_click_on_viz(self):#potser es molt cutre
+        self.navigate_to(self.window.show_user_experiment_list)
 
-    def navigate_to_clean(self):
+
+    def limb_action_clicked(self, step, channel:Optional[Channel]):
+        current_action_idx = PIPELINE_INDEX[step]
+
+        if self.window.workflow_checkpoints[step] == True:  #shouldnt be clickable anyway but just to make sure
+            affected = [s for s in PIPELINE_STEPS[current_action_idx:] if self.window.workflow_checkpoints.get(s)]
+            #actions affected until the action we're in"!
+            
+            reply = QMessageBox.question(
+                self.window,
+                "Reset pipeline?",
+                f"Going back to '{step}' will erase progress for: {', '.join(affected)}.\n"
+                "This will delete their generated files. Continue?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No
+            )
+            if reply != QMessageBox.StandardButton.Yes:#the user doesnt want to go back!
+                return 
+
+            for s in affected:
+                self.window.workflow_checkpoints[s] = False #not done anymore
+                self._refresh_pipeline_actions(current_step=step)
+                self.state__navigate_to[step]()#the user goes back to that window!
+                
+            
+            channel, channel_cleared, experiment_cleared = delete_from_database_going_back_action(
+                db_path=self.window.db_path,
+                experiment=self.window.current_experiment,
+                channel_name=self.window.current_channel,
+                action_undone=affected,
+            )
+
+            self.window.log_pipeline(
+                f'Deleted database information:\n'
+                f'from channel: {channel_cleared}\n'
+                f'from experiment: {experiment_cleared}'
+            )
+            
+            #databse fcuntion called!
+
+        else: #the step hasnt been done before!
+            self.state__navigate_to[step]()
+
+
+    def navigate_to_clean(self, channel):
         printc("Navigating to CLEAN", c="orange")
         print(self._current_step)
-        self.navigate_to(lambda:self.window.clean.show(self.window.current_experiment))
+        self.navigate_to(lambda:self.window.clean.show(self.window.current_experiment,channel))
 
 
-    def _refresh_pipeline_actions(self, current_step=None, to_next = False):
+    def navigate_to_surface(self):
+        printc("Navigating to SURFACE", c="orange")
+        print(self._current_step)
+        self.navigate_to(lambda:self.window.surface.show(self.window.current_experiment))
+
+
+    def navigate_to_stage(self):
+        printc("Navigating to STAGE", c="orange")
+        print(self._current_step)
+        self.navigate_to(lambda:self.window.stage.show(self.window.current_experiment))
+
+
+    def navigate_to_align(self):
+        printc("Navigating to ALIGN", c="orange")
+        print(self._current_step)
+        self.navigate_to(lambda:self.window.align.show(self.window.current_experiment))
+
+
+    def navigate_to_visualize(self):
+        printc("Navigating to VISUALIZE", c="orange")
+        print(self._current_step)
+        self.navigate_to(lambda:self.window.visualizer.show_experiment(self.window.current_experiment))
+
+
+    def _refresh_pipeline_actions(self, current_step=None, to_next = None):#to_next = False
         printc("Refreshing the pipeline!", c="cyan")
         self.window.action_bar.setVisible(True)
         self._current_step = current_step
 
-        last_done = 1
-        for i, step in enumerate(PIPELINE_STEPS[:-1]):
+        # -1 means nothing has been done yet.
+        last_done = -1
+        for i, step in enumerate(PIPELINE_STEPS):
+            print(i)
+            print(step)
             if self.window.workflow_checkpoints[step]:
                 last_done = i
-
-        printc(last_done, PIPELINE_STEPS[last_done])
-        if to_next:
-            last_done += 2
-
-            printc(last_done, PIPELINE_STEPS[last_done])
-            
+ 
         for idx, step in enumerate(PIPELINE_STEPS):
-
-            printc(f"{step}:{idx}", c="green")
-
+ 
             act = self._step_actions[step]
-            # flag = self.window.workflow_checkpoints[step]
             is_done = self.window.workflow_checkpoints[step]
-            is_reachable = idx < last_done
-            printc(".    ", is_reachable,  c="green")
-            printc(".    ", is_done,  c="green")
-
+ 
+            # A step is reachable if it's already done (idx <= last_done),
+            # or it's the very next step after the furthest done one
+            # (idx == last_done + 1). Nothing further ahead is reachable.
+            is_reachable = idx <= last_done + 1
             is_current = step == current_step
             # Build the emoji prefix
             if is_current:
-                prefix = "▶ " 
-            if is_done:
+                prefix = "▶  "  # or "● ", "◉ ", "⚙ ", "→ "
+            elif is_done:
                 prefix = "✓ "
             elif not is_reachable:
                 prefix = "🔒︎ "
             else:
                 prefix = ""
-
+ 
             act.setText(prefix + step)
             act.setEnabled(is_reachable or is_current)
             act.setChecked(is_current)
- 
 
 
 
@@ -95,7 +174,6 @@ class NavigationController:
         if getattr(self, "_chrome_built", False):
             return
         self._chrome_built = True
-
 
         self.window.action_bar = self.window.addToolBar("Pipeline")
         self.window.action_bar.setMovable(False)
@@ -109,8 +187,7 @@ class NavigationController:
             # Same back button widget show_exp/show_first_screen use — real QWidget,
             # so addWidget (not addAction).
         self._active_back_guard = None
-        self.back_btn = create_back_button(
-            lambda: print("U clicked the back button!"))
+        self.back_btn = create_back_button(self.arrow_click_on_viz)
         self.window.action_bar.addWidget(self.back_btn)
         self.window.action_bar.addSeparator()
 
@@ -118,34 +195,13 @@ class NavigationController:
         for step in PIPELINE_STEPS:
             act = QAction(step, self.window)
             act.setCheckable(True)
-            act.triggered.connect(lambda _, step=step: self.state__navigate_to[step]())
-            self.window.action_bar.addAction(act)
-            self._step_actions[step] = act
+
+            if step == 'Clean':
+                act.triggered.connect(lambda _, step=step: self.limb_action_clicked(step, self.window.current_channel))
+            else:    
+                act.triggered.connect(lambda _, step=step: self.limb_action_clicked(step))#connectes buttons to navigate functions
+                self.window.action_bar.addAction(act)
+                self._step_actions[step] = act
 
         self.window.action_bar.setVisible(False)
-
-
-
-    # def _reset_workflow_from(self, step):
-    #     """Clear *_done flags for `step` and everything after it, so the
-    #         toolbar re-locks those steps until they're redone. Called only after
-    #         the user has explicitly confirmed they want to overwrite prior output."""
-    #     idx = self.PIPELINE_STEPS.index(step)
-    #     for s in self.PIPELINE_STEPS[idx:]:
-    #         flag = self.STEP_DONE_FLAG.get(s)
-    #         if flag:
-    #             self.workflow_state[flag] = False
-
-    #         # fields that ride alongside the *_done flags
-    #     if idx <= self.PIPELINE_STEPS.index("Clean"):
-    #         self.workflow_state["last_cleaned_channel"] = None
-    #     if idx <= self.PIPELINE_STEPS.index("Stage"):
-    #         self.workflow_state["selected_stage"] = None
-    #     if idx <= self.PIPELINE_STEPS.index("Align"):
-    #         self.workflow_state["alignment_method"] = None
-    #         self.align.source = None
-    #         self.align.surface_path = None
-
-    #     self._refresh_pipeline_actions(current_step=step)
-    #     self.log_pipeline(f"Reset workflow state from '{step}' onward — redoing this step.")
 

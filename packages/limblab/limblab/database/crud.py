@@ -1,5 +1,3 @@
-import re
-import sqlite3
 from pathlib import Path
 from typing import List, Optional
 
@@ -8,7 +6,6 @@ from sqlmodel import Session, SQLModel, create_engine, select
 import limblab
 from limblab.models import Channel, Experiment
 
-REFERENCE_LIMBS_DIR = Path(limblab.__file__).parent / "limb"
 
 def get_engine(db_path: Path):
     """Returns an engine with foreign keys enabled."""
@@ -19,38 +16,6 @@ def init_db(db_path: Path) -> None:
     """Creates tables automatically from SQLModel class definitions."""
     engine = get_engine(db_path)
     SQLModel.metadata.create_all(engine)
-
-
-def seed_reference_limbs(db_path: Path, reference_folder = REFERENCE_LIMBS_DIR) -> None:
-    """Ensures reference_limbs exists and reflects what's currently on disk
-    in `reference_folder`. Safe to call on every launch — re-syncs rather
-    than duplicates."""
-    with sqlite3.connect(db_path) as conn:
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS reference_limbs (
-                stage INTEGER PRIMARY KEY,
-                file_path TEXT NOT NULL
-            )
-            """
-        )#cr4eates table for reference_limbs!
-
-        found = {}
-        for f in reference_folder.iterdir():
-            if not f.is_file():
-                continue
-            #for rotate_limb we need to fetch the closest reference limb for our obtained staging integer
-            m = re.match(r"Limb-rec_(\d+)$", f.stem)
-            if not m:
-                continue
-            stage = int(m.group(1))
-            found[stage] = str(f.resolve())
-
-        conn.executemany(
-            "INSERT OR REPLACE INTO reference_limbs (stage, file_path) VALUES (?, ?)",
-            list(found.items()),
-        )
-        conn.commit()
 
 
 def save_experiment(db_path: Path, experiment: Experiment) -> None:
@@ -131,7 +96,6 @@ def rename_experiment(db_path: Path, experiment_id: str, new_name: str) -> bool:
             session.commit()
             return True
         return False
-
 
 
 # Keep the standalone script functionality for testing

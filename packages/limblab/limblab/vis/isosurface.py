@@ -18,6 +18,7 @@ from vedo import (
 )
 from vedo.applications import IsosurfaceBrowser
 from limblab.design import theme
+from limblab.utils import generate_kwargs
 
 color1 = "#9ce4f3"
 color2 = "#128099"
@@ -432,13 +433,18 @@ def _interpolate_colors(color1, color2, num_values):
     return [mcolors.to_hex(c) for c in interpolated]
 
 
+####################################################################################################
+###############################################UI USED##############################################
+####################################################################################################
+
 def _one_channel_isosurface(
     experiment: Experiment,
     channel: Channel,
     color1: str = "#B0DB43", 
     color2: str = "#DB43B0",
     secondary: str =  "#43B0DB",
-    qt_widget=None,
+    outside_class: Optional[Any] = None,
+    renderer: Optional[Literal['pyqt']] = None,
 ):
 
  
@@ -532,14 +538,20 @@ def _one_channel_isosurface(
         )
     limb = Mesh(surface_path)
 
-
     limb.color(styles["limb"]["color"]).alpha(styles["limb"]["alpha"])
     limb.extract_largest_region()
     if transformation:
         T = LinearTransform(transformation)
         limb.apply_transform(T)
+
+
+    params = generate_kwargs({
+         "bg": theme("palette.background"), 
+         "axes": 14
+     })
+    kwargs = generate_kwargs(params, renderer, outside_class)
  
-    plt = Plotter(bg=theme("palette.background"))
+    plt = Plotter(**kwargs)
     plt += limb
  
     static_min_value = isovalues.min()
@@ -665,18 +677,17 @@ def _one_channel_isosurface(
         italic=False,
     )
  
-    plt.show(interactive=False)
- 
+    plt.show()
     return plt
 
  
  
 def one_channel_isosurface(
     experiment: Experiment,
-    channel_name: str,
-    renderer: Optional[Literal["pyqt"]] = None,
-    outside_class: Optional[Any] = None,
-    qt_widget=None,
+        channel_name: str, 
+        renderer: Literal["pyqt"] | None = None,
+        outside_class: Any | None = None,
+        
 ):
     channel: Optional[Channel] = None
     for c in experiment.channels:
@@ -690,4 +701,10 @@ def one_channel_isosurface(
             f"'{experiment.experiment_id}'."
         )
  
-    _one_channel_isosurface(experiment, channel, qt_widget=qt_widget)
+    _one_channel_isosurface(
+    experiment,
+    channel,
+    outside_class=outside_class,
+    renderer=renderer
+)
+

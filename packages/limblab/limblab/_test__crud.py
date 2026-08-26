@@ -1,6 +1,6 @@
 from pathlib import Path
-from models import Channel, Experiment
-from database import (
+from limblab.models import Channel, Experiment
+from limblab.database.crud import (
     delete_experiment,
     get_experiment,
     init_db,

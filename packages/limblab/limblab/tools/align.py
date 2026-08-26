@@ -107,7 +107,7 @@ def _rotate_limb(
     # Store the Transformation
     T = source.apply_transform_from_actor()  # type: ignore
 
-    params: dict[str, Any] = dict(shape="1|2", sharecam=False, bg = theme("palett.background"))
+    params: dict[str, Any] = dict(shape="1|2", sharecam=False, bg = theme("palette.background"))
     kwargs = generate_kwargs(params=params, renderer=renderer, outside_class=outside_class)
 
     plt = Plotter(**kwargs)  # type: ignore

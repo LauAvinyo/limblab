@@ -1,5 +1,5 @@
 import os
-from typing import Any, Literal
+from typing import Any, Literal, Optional
 
 import numpy as np
 from limblab.design import theme
@@ -12,48 +12,48 @@ from vedo.pyplot import plot
 def _probe(
     volume_paths: list[str],
     channel_names: list[str],
-    renderer: Literal["pyqt"] | None = None,
+    renderer: Optional[Literal["pyqt"]] = None,
     outside_class: Any | None = None,
     points=None,
 ):
     """Probe multiple Volumes with a line and plot the intensity values for each channel."""
 
-    global plt
+    global plt, fig
 
     volumes = []
 
-    # Load each volume corresponding to the channels
-    for volume_path, channel_name in zip(volume_paths, channel_names):
-        volume = Volume(volume_path)
-        volume.add_scalarbar3d(channel_name, c="k")
-        volume.scalarbar = volume.scalarbar.clone2d("bottom-right", 0.2)
-        volumes.append(volume)
+
+    volume = Volume(volume_paths[0])
+    volume.add_scalarbar3d(channel_names, c="k")
+    volume.scalarbar = volume.scalarbar.clone2d("bottom-right", 0.2)
+    volumes.append(volume)
 
     # Init the points
     LINE = True
     if points is None:
         p0 = (50, 300, 400)
-        p1 = (100, 300, 400)
+        p1 = (100, 600, 400)
 
     if LINE:
         # Create a set of points in space
         pts = Line(p0, p1, res=2).ps(4)
 
-
     # Colors
-    colors = [theme(f"palette.channel{i}") for i in range(len(volume_paths))]
+    colors = ["cyan", "yellow", "green"]
 
     # Visualize the points and the first volume (just for visualization)
     isosurfaces = [v.isosurface() for i, v in enumerate(volumes)]
     isosurfaces = [i.color(c) for i, c in zip(isosurfaces, colors)]
 
-    params = {}
+    params = generate_kwargs({
+        "bg": theme("palette.background"), 
+        "axes": 14
+    })
     kwargs = generate_kwargs(params, renderer, outside_class)
 
-    plt = Plotter(interactive=False, axes=1)
-    plt.show(*isosurfaces, __doc__)
-
-    plt = show(*isosurfaces, __doc__, interactive=False, axes=1)
+    plt = Plotter(**kwargs)
+    # plt += pts
+    plt.show(*isosurfaces, __doc__, interactive=False)
 
     def update_probe(vertices):
         global plt
@@ -80,7 +80,8 @@ def _probe(
                     aspect=16 / 9,
                     spline=True,
                     lc=colors[i],  # line color
-                    marker="O",  # marker style
+                    marker="O",
+                    axes=dict(c="white", xtitle_size=0.02,),
                 )
                 fig = _plot
             else:
@@ -92,6 +93,7 @@ def _probe(
                     spline=True,
                     lc=colors[i],  # line color
                     marker="O",  # marker style
+                    axes=dict(c="white", xtitle_size=0.02,),
                     like=_plot,
                 )
 
@@ -99,25 +101,25 @@ def _probe(
         fig.name = "figure"
         plt += fig
 
-    # Add the spline tool using the same points and interact with it
-    sptool = plt.add_spline_tool(pts, closed=True)
+    if renderer == 'pyqt':
+        sptool = plt.add_spline_tool(pts, closed=True, lc = 'blue', pc = 'lightgreen' , ps = 30)
+        sptool.add_observer(
+                "end of interaction",
+                lambda o, e: update_probe(sptool.spline().vertices),
+            )
+        plt.render()        
+    # don't call sptool.off() here — leave it on;
+    # turn it off later from wherever your GUI signals "done probing"
 
-    # Add a callback to print the center of mass of the spline
-    sptool.add_observer(
-        "end of interaction",
-        lambda o, e: update_probe(sptool.spline().vertices),
-    )
-
-    # Stay in the loop until the user presses q
-    plt.interactive()
-
-    # Switch off the tool
-    sptool.off()
-
-    # TODO: RETURN THIS.
-    sp = sptool.spline().lw(4)
-
-
+    else:
+        #stand alone call, no pyqt
+        sptool = plt.add_spline_tool(pts, closed=True)
+        sptool.add_observer(
+            "end of interaction",
+            lambda o, e: update_probe(sptool.spline().vertices),
+        )
+        plt.interactive()   # blocks here until user presses q
+        sptool.off()         # only now, after interaction is done
 
 
 def probe(
@@ -125,8 +127,7 @@ def probe(
     channel_names: list[str],
     renderer: Literal["pyqt"] | None = None,
     outside_class: Any | None = None,
-    points=None,
-) -> None:
+) -> None: 
 
     channels = experiment.channels
     volume_paths = []
@@ -134,4 +135,5 @@ def probe(
         if i.channel_name in channel_names:
             volume_paths.append(i.path)
 
-    _probe(volume_paths, channel_names, renderer, outside_class, points)
+    _probe(volume_paths, channel_names, renderer, outside_class)
+    #points = None

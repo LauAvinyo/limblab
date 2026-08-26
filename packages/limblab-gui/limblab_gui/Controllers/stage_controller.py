@@ -3,6 +3,7 @@ from limblab.design import theme
 from PyQt6.QtWidgets import QComboBox, QHBoxLayout, QMessageBox, QWidget
 from utils import create_label, create_styled_button
 
+CURRENT_STEP = 'Stage'
 
 class StageController:
     def __init__(self, window):
@@ -15,16 +16,16 @@ class StageController:
 
         container = self.window._build_workflow_container(
             next_label="Align",
-            next_callback=self._go_next_from_stage,
-            back_guard=lambda: (
-                self.window.workflow_state["stage_done"],
-                "You haven't selected and confirmed a stage yet.",
-            ),
+            #next_callback=self._go_next_from_stage,
+            # back_guard=lambda: (
+            #     self.window.workflow_state["stage_done"],
+            #     "You haven't selected and confirmed a stage yet.",
+            # ),
             action_widget=self._build_stage_action_bar(),
         )
         self.window.setCentralWidget(container)
 
-        self.window._refresh_pipeline_actions(current_step="Stage")
+        self.window.navigation._refresh_pipeline_actions(current_step="Stage")
 
         try:
             self.plotter = stage_limb_embedded(
@@ -77,24 +78,22 @@ class StageController:
     
         save_experiment(self.window.db_path, self.experiment)#DB!!!!!!!!!!!!!!!!!!!!
 
-        self.window.workflow_state["stage_done"] = True
-        self.window.workflow_state["selected_stage"] = stage
         self.stage_label.setText(f"Stage: {stage}")
 
-        self.window._refresh_pipeline_actions(current_step="Stage")
-
         self.window.log_pipeline(f"Stage confirmed: {stage}")
+        self.window.workflow_checkpoints[CURRENT_STEP] = True
+        self.window.navigation._refresh_pipeline_actions(CURRENT_STEP, True)
 
-        self._go_next_from_stage()
+        #self._go_next_from_stage()
 
 
 
-    def _go_next_from_stage(self):
-        if self.experiment.surface_path is None and self.experiment.surface_isovalue is None:
-            QMessageBox.warning(self.window, "Stage required", 
-                                "Please select and confirm a stage before proceeding to Alignment.")
-            return
+    # def _go_next_from_stage(self):
+    #     if self.experiment.surface_path is None and self.experiment.surface_isovalue is None:
+    #         QMessageBox.warning(self.window, "Stage required", 
+    #                             "Please select and confirm a stage before proceeding to Alignment.")
+    #         return
                 
-        else:
-            self.window._show_message(f"Staging complete!\nFinally, align your limb volume")
-            self.window.navigate_to(lambda: self.window.align.show(self.window.current_experiment))
+    #     else:
+    #         self.window._show_message(f"Staging complete!\nFinally, align your limb volume")
+    #         self.window.navigate_to(lambda: self.window.align.show(self.window.current_experiment))

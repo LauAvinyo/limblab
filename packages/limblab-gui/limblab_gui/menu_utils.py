@@ -11,7 +11,8 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from utils import create_collapsible_section
+from utils import create_back_button, create_collapsible_section
+from vedo import printc
 
 
 class MenuUtils:    
@@ -89,9 +90,117 @@ class MenuUtils:
         return contact
 
 
+    def _refresh_visualizer_list(self, experiment):
+        """Refresh the visualizer panel: one expandable row per experiment,
+        revealing its channels underneath when clicked."""
+        while self.visualizer_list.count():
+            item = self.visualizer_list.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+            elif item.layout():
+                self._clear_layout(item.layout())
 
-    def _build_side_panel(self):
+        # if not self.experiments:
+        #     empty_label = QLabel("No experiments loaded")
+        #     empty_label.setStyleSheet(
+        #         f"color: {theme('palette.textDisabled', '#666666')}; "
+        #         f"font-size: {theme('typography.fontSizeSmall', 12)}px;"
+        #     )
+        #     self.visualizer_list.addWidget(empty_label)
+        #     return
+
+        self._viz_channel_containers = {}
+
+        for exp_id in self.experiments:
+            print(exp_id)
+            #name = self.experiment_names.get(exp_id, exp_id)
+            #printc(name, c='pink')
+            
+            exp_data = self.experiment_metadata.get(exp_id)
+            channels = exp_data.channels if exp_data else []
+
+            exp_container = QWidget()
+            exp_layout = QVBoxLayout(exp_container)
+            exp_layout.setContentsMargins(0, 0, 0, 0)
+            exp_layout.setSpacing(0)
+
+            exp_btn = QToolButton()
+            exp_btn.setCheckable(True)
+            exp_btn.setText(f"▸ {exp_id}")
+            exp_btn.setStyleSheet(f"""
+                QToolButton {{
+                    color: {theme('palette.textPrimary', '#FFFFFF')};
+                    font-size: {theme('typography.fontSizeBase', 14)}px;
+                    border: none; text-align: left; padding: 4px 0px;
+                }}
+            """)
+            exp_layout.addWidget(exp_btn)
+
+            channel_container = QWidget()
+            channel_layout = QVBoxLayout(channel_container)
+            channel_layout.setContentsMargins(16, 0, 0, 0)
+            channel_layout.setSpacing(0)
+            channel_container.setVisible(False)
+
+            # if not channels:
+            #     no_ch = QLabel("No channels uploaded")
+            #     no_ch.setStyleSheet(
+            #         f"color: {theme('palette.textDisabled', '#666666')}; "
+            #         f"font-size: {theme('typography.fontSizeSmall', 12)}px;"
+            #     )
+            #     channel_layout.addWidget(no_ch)
+            # else:
+            for channel in channels:
+                ch_btn = QToolButton()
+                ch_btn.setCheckable(True)
+                ch_btn.setText(channel.channel_name)
+                # is_current = (
+                #     self.current_experiment is not None
+                #     and self.current_experiment.experiment_id == exp_id
+                #     and self.current_channel is not None
+                #     and self.current_channel.channel_name == channel.channel_name
+                # )
+                # ch_btn.setChecked(is_current)
+                ch_btn.setStyleSheet(f"""
+                    QToolButton {{
+                        color: {theme('palette.textSecondary', '#A0A0A0')};
+                        font-size: {theme('typography.fontSizeSmall', 12)}px;
+                        border: none; text-align: left; padding: 3px 0px;
+                    }}
+                    QToolButton:checked {{
+                        color: {theme('palette.primary', '#0D7C66')};
+                        font-weight: bold;
+                    }}
+                """)
+
+                #what happens when the channel gets clicked! TODO: Modify
+
+                # ch_btn.clicked.connect(
+                #     lambda _checked, e=exp_id, c=channel: self.window._on_channel_selected(e, c)
+                # )
+
+                # ch_btn.clicked.connect(self.window.menu_button_clicked)#helper temporal function
+                channel_layout.addWidget(ch_btn)
+
+            exp_layout.addWidget(channel_container)
+
+            def _toggle(checked, container=channel_container, btn=exp_btn, label=experiment.displayed_name):
+                container.setVisible(checked)
+                btn.setText(f"{'▾' if checked else '▸'} {label}")
+
+            exp_btn.toggled.connect(_toggle)
+
+            # if self.current_experiment is not None and self.current_experiment.experiment_id == exp_id:
+            #     exp_btn.setChecked(True)
+
+            self.visualizer_list.addWidget(exp_container)
+            self._viz_channel_containers[exp_id] = channel_container
+
+
+
+    def _build_side_panel(self, experiment):
         """Build the collapsible right-side panel."""
+        print('side panel was called')
         panel = QWidget()
         panel.setFixedWidth(260)
         panel.setStyleSheet(f"background-color: {theme('palette.surface', '#1E1E1E')};")
@@ -170,5 +279,5 @@ class MenuUtils:
         panel_layout.setContentsMargins(0, 0, 0, 0)
         panel_layout.addWidget(scroll_area)
 
-        self._refresh_visualizer_list()
+        self._refresh_visualizer_list(experiment)
         return panel

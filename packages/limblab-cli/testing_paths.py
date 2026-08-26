@@ -1,3 +1,3 @@
-import packages.limblab.limblab.database as db
+import limblab.database.crud as db
 
 print("Database path:", db)

@@ -29,8 +29,8 @@ def _stage_limb(
     outside_class: Any | None = None,
 ) -> int:
 
-    msh = Mesh(surface).c(theme("limblab.surface")).alpha(0.8)  # type: ignore
-    txt = Text2D(pos="top-center", bg="yellow5", s=1.5)
+    msh = Mesh(surface).c(theme("limblab.surface")).alpha(0.8)
+    txt = Text2D(pos="top-center", bg="green", s=1)
 
     result: dict[str, Any] = {"stage": None}  # container to hold the staged value
 
@@ -159,6 +159,9 @@ def stage_limb(experiment: Experiment) -> int:
 
     surface_name = experiment.surface_path
     base = experiment.base
+
+    print('!!we-re here', surface_name, base)
+
     if surface_name is None or base is None:
         raise ValueError(
             "Surface name and base path must be provided in the experiment object."
