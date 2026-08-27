@@ -84,16 +84,3 @@ class StageController:
         self.window.workflow_checkpoints[CURRENT_STEP] = True
         self.window.navigation._refresh_pipeline_actions(CURRENT_STEP, True)
 
-        #self._go_next_from_stage()
-
-
-
-    # def _go_next_from_stage(self):
-    #     if self.experiment.surface_path is None and self.experiment.surface_isovalue is None:
-    #         QMessageBox.warning(self.window, "Stage required", 
-    #                             "Please select and confirm a stage before proceeding to Alignment.")
-    #         return
-                
-    #     else:
-    #         self.window._show_message(f"Staging complete!\nFinally, align your limb volume")
-    #         self.window.navigate_to(lambda: self.window.align.show(self.window.current_experiment))

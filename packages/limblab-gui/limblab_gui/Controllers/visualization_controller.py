@@ -25,6 +25,8 @@ from limblab import preview_volume
 
 from controllers.navigate_controller import NavigationController
 
+from pathlib import Path
+
 #from controllers.navigate_controller import navigate_to_clean
 
 CURRENT_STAGE = 'Visualize'
@@ -152,7 +154,8 @@ class VisualizationController:
 
         self.window.setCentralWidget(workflow_container)
 
-    
+        print(experiment.surface_path)
+        
         if experiment.surface_path is not None:
             surface_path = os.path.join(experiment.base, experiment.surface_path) #.replace('/','\\')
 
@@ -164,42 +167,17 @@ class VisualizationController:
             plt.add(mesh)
             plt.show(interactive=False)
 
-            self.window._hide_busy()
+        else:
+            print(experiment.base, experiment.experiment_id)
 
-        # else:
-        #     channel = None
-        #     for c in experiment.channels:
-        #         if c.channel_name == "DAPI":
-        #             channel : Channel = c
-        #             break
-        #     if channel is None:
-        #         QMessageBox.warning(
-        #             self.window, 
-        #             "There is no nucleous channel!!!",
-        #             "Think again."
-        #         )
-        #         return
+            volume_path = os.path.join(experiment.base, experiment.experiment_id).replace('/','\\')
+            volume_path+='.tif'
+            print(volume_path)
+        
+            preview_volume(volume_path, "pyqt", self.window)
+       
+        self.window._hide_busy()       
 
-            
-        #     if channel is not None:
-        #         print('passed channel')
-        #     # Show clean channels (DAPI + channel uploaded and cleaned!)
-        #         if channel.clean_path is not None: 
-        #             self.clean_channels.append(channel)
-        #             self.show_clean_isosurfaces(self.clean_channels)
-
-        #         else:
-        #             #another channel that isnt DAPI -> direclty to clean! for further visualization
-        #             self.navigator.navigate_to(lambda:self.window.clean.show(experiment, channel))
-                    
-
-        #     # Show unclean DAPI
-        # else:
-        #     volume_path = Path(os.path.join(experiment.base, channel.path))
-        #     preview_volume(volume_path, "pyqt", self.window)
-
-        # self.window._hide_busy()
-                
 
     def _on_show_clicked(self):                
         if not self.experiment or not self.experiment.channels:
@@ -311,7 +289,7 @@ class VisualizationController:
         #try:
         if mode == "raycast":
             rc_plotter = raycast(
-                    self.window.current_experiment,
+                    self.window.experiment,
                     channel_name=channel.channel_name,
                     renderer='pyqt',
                     outside_class=self,)
@@ -319,7 +297,7 @@ class VisualizationController:
 
         elif mode == 'isosurface':
             iso_plotter = one_channel_isosurface(
-                    self.window.current_experiment,
+                    self.window.experiment,
                         channel_name=channel.channel_name,
                         renderer='pyqt',
                         outside_class=self,
@@ -327,7 +305,7 @@ class VisualizationController:
             self._current_plotter = iso_plotter
 
         elif mode == "slab":
-            slab_plotter = dynamic_slab(self.window.current_experiment, 
+            slab_plotter = dynamic_slab(self.window.experiment, 
                     channel_name=channel.channel_name,
                     renderer='pyqt',
                     outside_class=self,
@@ -335,7 +313,7 @@ class VisualizationController:
             self._current_plotter = slab_plotter
 
         elif mode == "probe":
-            probe_plotter = probe(self.window.current_experiment,
+            probe_plotter = probe(self.window.experiment,
                     channel_names=[channel.channel_name],
                     renderer='pyqt',
                     outside_class=self,

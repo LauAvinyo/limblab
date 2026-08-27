@@ -132,19 +132,3 @@ class AlignController:
         self.window.navigation._refresh_pipeline_actions(CURRENT_STEP, True)
 
 
-        # self._go_next_from_align()
-
-
-    # def _go_next_from_align(self): 
-    #     if self.experiment.transformation_matrix_path is None :
-    #         QMessageBox.warning(
-    #                                 self.window,
-    #                                 "Alignment required",
-    #                                 "Please confirm an alignment before continuing.",
-    #                             )
-    #         return
-    #     else:
-    #         print('@')
-    #         self.window._show_message(f"Alignment was performed!\nYou can now Visualize your limb surface")
-    #         self.window.visualizer.show(self.current_experiment)
-

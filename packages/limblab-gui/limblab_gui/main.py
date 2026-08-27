@@ -505,7 +505,8 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
     #             experiment_id=exp_id,
     #             displayed_name=exp_id,
     #             base=os.path.dirname(filepath),
-    #             spacing_x=limb_info['spacing'][0], # type: ignore
+    #             spacing_x=limb_info['spacing'][0], # type: igno
+    # re
     #             spacing_y=limb_info['spacing'][1], # type: ignore
     #             spacing_z=limb_info['spacing'][2], # type: ignore
     #             side=limb_info['side'],
@@ -675,33 +676,15 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
 
         limb_info_layout.addWidget(spacing_group)
 
-        limb_info = {
+        self.limb_info = {
             'side': self.side_combo.currentText(),
             'position': self.position_combo.currentText(),
             'spacing': (self.x_spin.value(), self.y_spin.value(), self.z_spin.value()),
         }
-        if not limb_info:
+        if not self.limb_info:
             return
 
-        printc(limb_info, c="green")
-
-        exp_id = 'exp_test'
-        filepath = 'exp_path'
-
-        new_exp = Experiment(
-            experiment_id=exp_id,
-            displayed_name=exp_id,
-            base=os.path.dirname(filepath),
-            spacing_x=limb_info['spacing'][0],  # type: ignore
-            spacing_y=limb_info['spacing'][1],  # type: ignore
-            spacing_z=limb_info['spacing'][2],  # type: ignore
-            side=limb_info['side'],
-            position=limb_info['position'],
-            channels=[],
-        )
-        self.experiment = new_exp
-
-        save_experiment(self.db_path, new_exp)
+        
 
         # ---- Upload group (DAPI + gene channels) ----
         upload_group = QGroupBox("Channels")
@@ -797,9 +780,10 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         )
 
         self.button_visualize.clicked.connect(
-                lambda: self.navigation.navigate_to(self.visualizer.show_experiment(new_exp)) if self.uploaded_dapi_channel
-                else QMessageBox.warning(self, 'Upload DAPI channel', 'To create any experiment, you need to upload a DAPI channel')
-                )
+            lambda: self.navigation.navigate_to(lambda: self.visualizer.show_experiment(self.experiment))
+            if self.uploaded_dapi_channel
+            else QMessageBox.warning(self, 'Upload DAPI channel', 'To create any experiment, you need to upload a DAPI channel')
+)
 
         visualize_row = QHBoxLayout()
         visualize_row.addStretch()
@@ -1328,8 +1312,8 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
             return
         
         else:
-            self._set_current_experiment(experiment)
-            self.navigation.navigate_to(lambda: self.visualizer.show_experiment(experiment, channel))
+            self._set_current_experiment(self.experiment)
+            self.navigation.navigate_to(lambda: self.visualizer.show_experiment(self.experiment))
     
 
     def _infer_workflow_state(self, exp):
@@ -1363,7 +1347,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         experiment you cleaned/surfaced last week correctly shows those
         steps unlocked, without needing a separate progress table."""
         
-        self.current_experiment = exp_obj
+        self.experiment = exp_obj
 
         #self.workflow_state = self._infer_workflow_state(exp_obj)
         # self.align.source = None
@@ -1384,12 +1368,12 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         if not hasattr(self, "checked_viz_channels"):
             self.checked_viz_channels = set()
 
-        ready, _ = VisualizationController.channel_readiness(self.current_experiment, channel)
+        ready, _ = VisualizationController.channel_readiness(self.experiment, channel)
 
         if not ready:
             self.checked_viz_channels.discard(channel.channel_name)
             self.navigation.navigate_to(
-                lambda: self.clean.show(self.current_experiment, channel)
+                lambda: self.clean.show(self.experiment, channel)
             )
             return
 
@@ -1398,10 +1382,10 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         else:
             self.checked_viz_channels.discard(channel.channel_name)
 
-        self._refresh_visualizer_list(self.current_experiment)
+        self._refresh_visualizer_list(self.experiment)
 
         selected = [
-            ch for ch in self.current_experiment.channels
+            ch for ch in self.experiment.channels
             if ch.channel_name in self.checked_viz_channels
         ]
         self.visualizer.show_clean_isosurfaces(selected)
@@ -1423,6 +1407,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
             return
 
         exp_id = os.path.basename(filepath).split('.')[0]
+        printc(exp_id, c='blue')
         filename = os.path.basename(filepath)
 
         # Check if experiment already exists
@@ -1438,12 +1423,10 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
                 self._add_channel_to_existing(exp_id)
             return
 
-        if not hasattr(self, "experiment") or self.experiment is None:
-            QMessageBox.warning(self, "No experiment", "Please fill in the limb info first.")
-            return
 
         if channel_type == 'DAPI':
             channel_name = 'DAPI'
+
         else:
             # Ask the user manually which gene channel this file represents.
             channel_name, ok = QInputDialog.getItem(
@@ -1460,6 +1443,23 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
                     f"Channel '{channel_name}' has already been uploaded for this experiment."
                 )
                 return
+
+
+        new_exp = Experiment(
+            experiment_id=exp_id,
+            displayed_name=exp_id,
+            base=os.path.dirname(filepath),
+            spacing_x=self.limb_info['spacing'][0],
+                    spacing_y=self.limb_info['spacing'][1],
+                    spacing_z=self.limb_info['spacing'][2],
+                    side=self.limb_info['side'],
+                    position=self.limb_info['position'],
+                    channels=[],
+                )
+        
+        self.experiment = new_exp
+        
+        save_experiment(self.db_path, new_exp)
 
         new_channel = Channel(
             experiment_id=self.experiment.experiment_id,
@@ -1566,7 +1566,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
             
 
             # Save to database
-            save_experiment(self.db_path, self.current_experiment)
+            save_experiment(self.db_path, self.experiment)
             
             # Reload and refresh
             self._load_experiments_from_db()
@@ -1752,8 +1752,8 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
             )
             return
 
-        limb_info = self.ask_limbinfo()
-        if not limb_info:
+        self.limb_info = self.ask_limbinfo()
+        if not self.limb_info:
             return  # User cancelled
 
         # Create new experiment from file
@@ -1769,7 +1769,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
                 return
 
             # Get channel type from dialog
-            channel_name = limb_info['channel_type']
+            channel_name = self.limb_info['channel_type']
 
 
             # Create a new experiment
@@ -1777,11 +1777,11 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
                 experiment_id=exp_id,
                 displayed_name=exp_id,
                 base=os.path.dirname(filepath),
-                spacing_x=limb_info["spacing"][0], # type: ignore
-                spacing_y=limb_info["spacing"][1], # type: ignore
-                spacing_z=limb_info["spacing"][2], # type: ignore
-                side=limb_info["side"],
-                position=limb_info["position"],
+                spacing_x=self.limb_info["spacing"][0], # type: ignore
+                spacing_y=self.limb_info["spacing"][1], # type: ignore
+                spacing_z=self.limb_info["spacing"][2], # type: ignore
+                side=self.limb_info["side"],
+                position=self.limb_info["position"],
                 channels=[
                     Channel(
                         experiment_id=exp_id,

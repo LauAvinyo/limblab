@@ -29,7 +29,7 @@ class CleanController:
         self.clean_isovalue_max = None
 
 
-    def show(self,experiment, channel):
+    def show(self,experiment):
         self.window._show_busy('Loading clean...')
 
         container = self.window._build_workflow_container(
@@ -285,25 +285,5 @@ class CleanController:
         #printc('CLEAN CONTROLLER', self.window.workflow_checkpoints[CURRENT_STEP], c= 'blue')
 
         self.window._hide_busy()
-        # self._go_next_from_clean(new_channel)
         
-
         
-
-    # def _go_next_from_clean(self, new_channel):
-    #     if new_channel.clean_isovalue_min and new_channel.clean_isovalue_max == None:
-    #     #if not self.window.workflow_state["clean_done"]:
-    #         QMessageBox.warning(
-    #             self.window, "Clean required",
-    #             "Please clean a channel before continuing.",
-    #         )
-    #         return
-
-    #     if new_channel.channel_name == 'DAPI':
-    #     #if self.window.workflow_state["last_cleaned_channel"] == "DAPI":
-    #         self.window._show_message(f"Your selected volume was properly cleaned!\nYou can keep processing your DAPI channel")
-    #         self.window.navigate_to(lambda: self.window.surface.show(self.window.current_experiment))
-
-    #     else:
-    #         self.window._show_message(f"Your selected volume was properly cleaned!\nChannel now is ready for Visualization")
-    #         self.window.navigate_to(lambda: self.window.visualizer.show(self.window.current_experiment))

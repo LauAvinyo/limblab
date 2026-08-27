@@ -141,20 +141,3 @@ class SurfaceController(QObject):
     def _on_extraction_failed(self, msg):
         QMessageBox.critical(self.window, "Surface extraction error", msg)
         self.window._hide_busy()
-
-
-    # #from main
-    # def _go_next_from_surface(self):
-    #     print(self.experiment.surface_path)
-    #     """Guard for Surface -> Stage: must have extracted a surface."""
-    #     if self.experiment.surface_path is None and self.experiment.surface_isovalue is None:
-
-    #         QMessageBox.warning(
-    #             self.window,
-    #             "Surface required",
-    #             "Please extract a surface before proceeding to Stage.",
-    #         )
-    #         return
-    #     else:
-    #         self.window._show_message("Surface Extraction was performed!\nYou can now stage your limb volume")
-    #         self.window.navigate_to(lambda: self.window.stage.show(self.window.current_experiment))

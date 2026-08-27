@@ -154,13 +154,7 @@ class MenuUtils:
                 ch_btn = QToolButton()
                 ch_btn.setCheckable(True)
                 ch_btn.setText(channel.channel_name)
-                # is_current = (
-                #     self.current_experiment is not None
-                #     and self.current_experiment.experiment_id == exp_id
-                #     and self.current_channel is not None
-                #     and self.current_channel.channel_name == channel.channel_name
-                # )
-                # ch_btn.setChecked(is_current)
+               
                 ch_btn.setStyleSheet(f"""
                     QToolButton {{
                         color: {theme('palette.textSecondary', '#A0A0A0')};
