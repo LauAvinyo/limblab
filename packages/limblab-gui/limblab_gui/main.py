@@ -184,7 +184,8 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         }
 
         self.uploaded_dapi_channel = False
-        self.uploaded_gene_channel = False
+        self.uploaded_gene_channel = {}
+        self.GENE_CHANNEL_TYPES = ['Hoxa11', 'Sox9']
 
         self.surface = SurfaceController(self)
         self.clean = CleanController(self)
@@ -578,11 +579,8 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         top_row.addWidget(self.create_left_button())
         top_row.addStretch()
 
-        printc("We are on new_experiment_page", c="pink")
-
         # ---- Track uploaded channel state (used by the status label below) ----
     
-
         # ---- Shared card style ----
         card_style = f"""
             QGroupBox {{
@@ -743,7 +741,6 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         self.button_upload_channel.setStyleSheet(
             self.button_upload_channel.styleSheet() + "border-radius: 8px; padding: 8px 16px; font-weight: 600;"
         )
-        #self.button_upload_channel.clicked.connect(self.create_new_experiment('other'))
 
         # ---- Status label ----
         self.channel_status_label = create_label(
@@ -753,7 +750,6 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
             f"padding: 10px 12px; background-color: {theme('palette.surfaceAlt', '#1D1D1D')}; "
             f"border-radius: 8px; border: 1px solid {theme('palette.border', '#3A3A3A')};"
         )
-        print(self.uploaded_dapi_channel)
         self.channel_status_label.setWordWrap(True)
 
         dapi_col = QVBoxLayout()
@@ -799,7 +795,11 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
             self.button_visualize.styleSheet() +
             "border-radius: 8px; font-weight: 700; font-size: 15px; padding: 8px 20px;"
         )
-        # self.button_visualize.clicked.connect(self.go_to_visualization_page)
+
+        self.button_visualize.clicked.connect(
+                lambda: self.navigation.navigate_to(self.visualizer.show_experiment(new_exp)) if self.uploaded_dapi_channel
+                else QMessageBox.warning(self, 'Upload DAPI channel', 'To create any experiment, you need to upload a DAPI channel')
+                )
 
         visualize_row = QHBoxLayout()
         visualize_row.addStretch()
@@ -827,16 +827,19 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
     def _build_channel_status_text(self):
         """Builds a human-readable summary of what's been uploaded so far."""
         if self.uploaded_dapi_channel:
-            dapi_text = 'done'
+            dapi_text = self.uploaded_dapi_channel  # filename
         else:
-            dapi_text = 'please upload a DAPI channel'
+            dapi_text = 'Please, upload a DAPI channel'
+
         if self.uploaded_gene_channel:
-            gene_text = 'done'
+            gene_text = ', '.join(
+                f"{channel_type} ({filename})"
+                for channel_type, filename in self.uploaded_gene_channel.items()
+            )
         else:
             gene_text = 'No gene channels were uploaded'
 
         return f"DAPI channel: {dapi_text}\nGene channel(s): {gene_text}"
-
 
 
     def show_lobby(self):
@@ -857,7 +860,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
             color=theme("palette.secondary", "#54278F"),
             hover_color=theme("palette.secondaryHover", "#756BB1"),
         )
-        self.button_upload.clicked.connect(self.create_new_experiment_page)
+        self.button_upload.clicked.connect(lambda: self.navigation.navigate_to(self.create_new_experiment_page))
 
         upload_desc = create_label(
             "Upload a TIF volume to start a new experiment.\n"
@@ -1404,7 +1407,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         self.visualizer.show_clean_isosurfaces(selected)
 
 
-    def create_new_experiment(self, channel_type:str):
+    def create_new_experiment(self, channel_type: str):
         """Create a new experiment from any TIF volume (DAPI or gene channel)."""
         filepath, _ = QFileDialog.getOpenFileName(
             parent=self,
@@ -1419,8 +1422,8 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
             QMessageBox.warning(self, "Invalid file", "Please select a valid volume file.")
             return
 
-        
         exp_id = os.path.basename(filepath).split('.')[0]
+        filename = os.path.basename(filepath)
 
         # Check if experiment already exists
         if exp_id in self.experiments:
@@ -1432,40 +1435,46 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
                 )
             if reply == QMessageBox.StandardButton.Yes:
-                    self._add_channel_to_existing(exp_id)
+                self._add_channel_to_existing(exp_id)
+            return
+
+        if not hasattr(self, "experiment") or self.experiment is None:
+            QMessageBox.warning(self, "No experiment", "Please fill in the limb info first.")
+            return
 
         if channel_type == 'DAPI':
-            self.uploaded_dapi_channel = True
-            
-
+            channel_name = 'DAPI'
         else:
-            self.uploaded_gene_channel = True
+            # Ask the user manually which gene channel this file represents.
+            channel_name, ok = QInputDialog.getItem(
+                self, "Channel Type", "Select the channel type for this file:",
+                self.GENE_CHANNEL_TYPES, 0, False
+            )
+            if not ok or not channel_name:
+                return
+
+            # Avoid uploading the same gene channel type twice for this experiment.
+            if any(ch.channel_name.upper() == channel_name.upper() for ch in self.experiment.channels):
+                QMessageBox.warning(
+                    self, "Duplicate Channel",
+                    f"Channel '{channel_name}' has already been uploaded for this experiment."
+                )
+                return
+
+        new_channel = Channel(
+            experiment_id=self.experiment.experiment_id,
+            channel_name=channel_name,
+            path=filename,
+        )
+        self.experiment.channels.append(new_channel)
+        save_experiment(self.db_path, self.experiment)
+
+        if channel_type == 'DAPI':
+            self.uploaded_dapi_channel = filename
+        else:
+            self.uploaded_gene_channel[channel_name] = filename
 
         self.refresh_channel_status()
-                
-
-
-            
-            # Create experiment
-        # new_exp = Experiment(
-        #         experiment_id=exp_id,
-        #         displayed_name=exp_id,
-        #         base=os.path.dirname(filepath),
-        #         spacing_x=limb_info['spacing'][0], # type: ignore
-        #         spacing_y=limb_info['spacing'][1], # type: ignore
-        #         spacing_z=limb_info['spacing'][2], # type: ignore
-        #         side=limb_info['side'],
-        #         position=limb_info['position'],
-        #         channels=[
-        #             Channel(
-        #                 experiment_id=exp_id,
-        #                 channel_name=limb_info['channel_type'],
-        #                 path=os.path.basename(filepath),
-        #             ) # pyright: ignore[reportCallIssue]
-        #         ]
-        #     )
-
-        # save_experiment(self.db_path, new_exp)
         self._load_experiments_from_db()
         return
 
