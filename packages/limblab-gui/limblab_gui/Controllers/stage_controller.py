@@ -16,6 +16,7 @@ class StageController:
 
         container = self.window._build_workflow_container(
             next_label="Align",
+            experiment = self.experiment,
             #next_callback=self._go_next_from_stage,
             # back_guard=lambda: (
             #     self.window.workflow_state["stage_done"],
@@ -45,40 +46,31 @@ class StageController:
         layout = QHBoxLayout(bar)
         layout.setContentsMargins(20, 10, 20, 10)
 
-        current = self.window.workflow_state.get("selected_stage")
-        label_text = f"Stage: {current}" if current is not None else "Stage: not staged"
-        self.stage_label = create_label(label_text, f"color: {theme('palette.textPrimary', '#FFFFFF')}; font-size: {theme('typography.fontSizeSmall', 13)}px;")
+        #current = self.window.workflow_state.get("selected_stage")
+        #label_text = f"Stage: {current}" if current is not None else "Stage: not staged"
+        #self.stage_label = create_label(label_text, f"color: {theme('palette.textPrimary', '#FFFFFF')}; font-size: {theme('typography.fontSizeSmall', 13)}px;")
 
         stage_btn = create_styled_button("Confirm Stage")
         stage_btn.clicked.connect(self._confirm_stage)
 
-        layout.addWidget(self.stage_label)
+        #layout.addWidget(self.stage_label)
         layout.addStretch()
         layout.addWidget(stage_btn)
         return bar
 
     def _confirm_stage(self):
-        if self.plotter is None or not hasattr(self.plotter, "stage_result"):
-            QMessageBox.warning(self.window, "Not staged", "Press 's' in the 3D view to stage the limb first.")
-            return
-
         stage = self.plotter.stage_result.get("stage") # type: ignore
         if stage is None:
             QMessageBox.warning(self.window, "Not staged", "Press 's' in the 3D view to stage the limb first.")
             return
 
-        try:
-            stage = int(stage)
-        except (TypeError, ValueError):
-            QMessageBox.critical(self.window, "Staging error", f"Server returned an invalid stage value: {stage!r}")
-            return
+    
+        stage = int(stage)
 
-        assert self.experiment is not None
         self.experiment.stage = stage
     
         save_experiment(self.window.db_path, self.experiment)#DB!!!!!!!!!!!!!!!!!!!!
 
-        self.stage_label.setText(f"Stage: {stage}")
 
         self.window.log_pipeline(f"Stage confirmed: {stage}")
         self.window.workflow_checkpoints[CURRENT_STEP] = True

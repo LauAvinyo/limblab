@@ -22,7 +22,7 @@ class CleanController:
         self.window = window
     
         self.plotter = None
-        self.experiment = None
+        self.experiment = None#defined for later re/definition with the experiment that gets passed from main
         self.channel_name = None
         self.raw_volume_path = None
         self.clean_isovalue_min = None
@@ -30,9 +30,11 @@ class CleanController:
 
 
     def show(self,experiment):
+        self.experiment = experiment
         self.window._show_busy('Loading clean...')
 
         container = self.window._build_workflow_container(
+        experiment = self.experiment,
         next_label="Extract Surface",
         # back_guard=lambda: (
         #     self.window.workflow_state["clean_done"],
@@ -49,33 +51,22 @@ class CleanController:
         self.window.navigation._refresh_pipeline_actions(current_step="Clean")
         
 
-        #TODO change this for any current volume cleaning, any channel. So if teh user wants to remove the surface they can
-        #upload here the DAPI and proceed, if not, if htey onlly have a gene channel, its ok, they can clean volume and proeceed with
-        ''''
-        has_dapi = any(
-            ch.channel_name.upper() == "DAPI" for ch in (self.experiment.channels or [])
-        )
-        if has_dapi:
-            self.clean_widgets["channel"].setCurrentText("DAPI")
-            self._load_volume_for_picking()
-
-        '''
-
-
-        # If the experiment already has a channel loaded (any channel, not
-        # just DAPI), select it in the dropdown so the picker loads the
-        # channel that's actually on the experiment, not just whatever the
-        # combo box defaults to.
         existing_channels = {
             ch.channel_name.upper() for ch in (experiment.channels or [])
         }
         combo = self.clean_widgets["channel"]
+        selected_channel = None
         for i in range(combo.count()):
             if combo.itemText(i).upper() in existing_channels:
                 combo.setCurrentIndex(i)
-                break
+                selected_channel = next(
+                    ch for ch in experiment.channels
+                    if ch.channel_name.upper() == combo.itemText(i).upper()
+            )
+            break
 
-        self._load_volume_for_picking()
+        if selected_channel is not None:
+            self._load_volume_for_picking(selected_channel)
 
         self.window._hide_busy()
 

@@ -128,11 +128,12 @@ class VisualizationController:
     # ------------------------------------------------------------------
 
     def show_experiment(self, experiment):#channel argument should only be passed if the gene channel has already been processed or wants to be processed!
+        self.experiment = experiment
         self.window.action_bar.setVisible(False)
         self.window._show_busy('Loading volume...')
       
         workflow_container = self.window._build_workflow_container(
-            experiment,
+            experiment=self.experiment,
             next_label="Clean",
             back_guard=None,
             current_step="Visualize",
@@ -155,10 +156,12 @@ class VisualizationController:
         self.window.setCentralWidget(workflow_container)
 
         print(experiment.surface_path)
-        
-        if experiment.surface_path is not None:
-            surface_path = os.path.join(experiment.base, experiment.surface_path) #.replace('/','\\')
 
+        print('here!')
+        self._channel_actors = {}  # (exp_id, channel_name) -> actor
+
+        if experiment.surface_path is not None:
+            surface_path = os.path.join(experiment.base, experiment.surface_path)
             mesh = Mesh(surface_path).c(theme("limblab.surface"))
 
             params: dict[str, Any] = {"bg": theme("palette.background")}
@@ -167,16 +170,54 @@ class VisualizationController:
             plt.add(mesh)
             plt.show(interactive=False)
 
-        else:
-            print(experiment.base, experiment.experiment_id)
+            self.plt = plt
+            self._channel_actors[(experiment.experiment_id, "DAPI")] = mesh
 
-            volume_path = os.path.join(experiment.base, experiment.experiment_id).replace('/','\\')
-            volume_path+='.tif'
-            print(volume_path)
-        
-            preview_volume(volume_path, "pyqt", self.window)
+        else:
+            volume_path = os.path.join(experiment.base, experiment.experiment_id).replace('/', '\\')
+            volume_path += '.tif'
+
+            vol, plt = preview_volume(volume_path, "pyqt", self.window)
+            self.plt = plt
+            self._channel_actors[(experiment.experiment_id, "DAPI")] = vol
        
         self.window._hide_busy()       
+
+    def toggle_channel_actor(self, exp_id, channel, checked):
+        key = (exp_id, channel.channel_name)
+        actor = self._channel_actors.get(key)
+
+        if actor is None:
+            if not checked:
+                return
+            actor = self._build_channel_actor(channel)
+            if actor is None:
+                return
+            self._channel_actors[key] = actor
+            self.plt.add(actor)
+
+        if checked:
+            actor.on()
+            if actor not in self.plt.actors:
+                self.plt.add(actor)
+        else:
+            actor.off()
+
+        self.plt.render()
+
+
+    def _build_channel_actor(self, channel):
+        """Lazily render a gene channel's cleaned volume in the final Visualize view."""
+        ready, message = self.channel_readiness(self.experiment, channel)
+        if not ready:
+            QMessageBox.warning(self.window, "Can't visualize", message)
+            return None
+
+        clean_path = os.path.join(self.experiment.base, channel.clean_path)
+        vol = Volume(clean_path)
+        # placeholder: pick a real per-channel color/rendering mode here
+        vol.color(theme("limblab.surface"))
+        return vol
 
 
     def _on_show_clicked(self):                

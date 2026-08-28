@@ -36,6 +36,7 @@ class AlignController:
 
         container = self.window._build_workflow_container(
             next_label="Visualize",
+            experiment = self.experiment,
             #next_callback=self._go_next_from_align,
             # #back_guard=lambda: (
             #     self.window.workflow_state["align_done"],

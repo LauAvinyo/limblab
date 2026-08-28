@@ -53,6 +53,7 @@ class SurfaceController(QObject):
         """Surface screen. Top bar shows the Stage button (the next step)."""
         container = self.window._build_workflow_container(
             next_label="Stage",
+            experiment = self.experiment,
             #next_callback=self._go_next_from_surface,
             # back_guard=lambda: (
             #     self.window.workflow_state["surface_done"],

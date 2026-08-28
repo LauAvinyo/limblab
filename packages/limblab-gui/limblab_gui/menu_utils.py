@@ -10,6 +10,8 @@ from PyQt6.QtWidgets import (
     QToolButton,
     QVBoxLayout,
     QWidget,
+    QCheckBox,
+    QMessageBox
 )
 from utils import create_back_button, create_collapsible_section
 from vedo import printc
@@ -92,7 +94,7 @@ class MenuUtils:
 
     def _refresh_visualizer_list(self, experiment):
         """Refresh the visualizer panel: one expandable row per experiment,
-        revealing its channels underneath when clicked."""
+        revealing its channels underneath, expanded by default."""
         while self.visualizer_list.count():
             item = self.visualizer_list.takeAt(0)
             if item.widget():
@@ -100,24 +102,13 @@ class MenuUtils:
             elif item.layout():
                 self._clear_layout(item.layout())
 
-        # if not self.experiments:
-        #     empty_label = QLabel("No experiments loaded")
-        #     empty_label.setStyleSheet(
-        #         f"color: {theme('palette.textDisabled', '#666666')}; "
-        #         f"font-size: {theme('typography.fontSizeSmall', 12)}px;"
-        #     )
-        #     self.visualizer_list.addWidget(empty_label)
-        #     return
-
         self._viz_channel_containers = {}
+        self._viz_channel_checkboxes = {}  # (exp_id, channel_name) -> QCheckBox
 
         for exp_id in self.experiments:
-            print(exp_id)
-            #name = self.experiment_names.get(exp_id, exp_id)
-            #printc(name, c='pink')
-            
             exp_data = self.experiment_metadata.get(exp_id)
             channels = exp_data.channels if exp_data else []
+            displayed_name = exp_data.displayed_name if exp_data else exp_id
 
             exp_container = QWidget()
             exp_layout = QVBoxLayout(exp_container)
@@ -125,67 +116,63 @@ class MenuUtils:
             exp_layout.setSpacing(0)
 
             exp_btn = QToolButton()
-            exp_btn.setCheckable(True)
-            exp_btn.setText(f"▸ {exp_id}")
+            exp_btn.setText(f"▾ {displayed_name}")
             exp_btn.setStyleSheet(f"""
-                QToolButton {{
-                    color: {theme('palette.textPrimary', '#FFFFFF')};
-                    font-size: {theme('typography.fontSizeBase', 14)}px;
-                    border: none; text-align: left; padding: 4px 0px;
-                }}
-            """)
+                            QToolButton {{
+                                color: {theme('palette.textPrimary', '#FFFFFF')};
+                                font-size: {theme('typography.fontSizeBase', 14)}px;
+                                border: none; text-align: left; padding: 4px 0px;
+                            }}
+                        """)
+            exp_btn.setCheckable(True)
+
+         # <-- expanded by default
+
             exp_layout.addWidget(exp_btn)
 
             channel_container = QWidget()
             channel_layout = QVBoxLayout(channel_container)
             channel_layout.setContentsMargins(16, 0, 0, 0)
             channel_layout.setSpacing(0)
-            channel_container.setVisible(False)
+            channel_container.setVisible(True)   # <-- visible by default, matches exp_btn above
 
-            # if not channels:
-            #     no_ch = QLabel("No channels uploaded")
-            #     no_ch.setStyleSheet(
-            #         f"color: {theme('palette.textDisabled', '#666666')}; "
-            #         f"font-size: {theme('typography.fontSizeSmall', 12)}px;"
-            #     )
-            #     channel_layout.addWidget(no_ch)
-            # else:
+            # menu_utils.py — inside _refresh_visualizer_list, replace the whole
+# "for channel in channels:" block with this:
+
             for channel in channels:
-                ch_btn = QToolButton()
-                ch_btn.setCheckable(True)
-                ch_btn.setText(channel.channel_name)
-               
-                ch_btn.setStyleSheet(f"""
-                    QToolButton {{
+                ch_checkbox = QCheckBox(channel.channel_name)
+                is_dapi = channel.channel_name.upper() == "DAPI"
+
+                ch_checkbox.setChecked(is_dapi)  # default: only DAPI on
+                ch_checkbox.toggled.connect(    
+                    lambda checked, e=exp_id, c=channel: self._on_channel_selected(e, c, checked)
+                )
+                ch_checkbox.setStyleSheet(f"""
+                    QCheckBox {{
                         color: {theme('palette.textSecondary', '#A0A0A0')};
                         font-size: {theme('typography.fontSizeSmall', 12)}px;
-                        border: none; text-align: left; padding: 3px 0px;
+                        padding: 3px 0px;
                     }}
-                    QToolButton:checked {{
+                    QCheckBox:checked {{
                         color: {theme('palette.primary', '#0D7C66')};
                         font-weight: bold;
                     }}
                 """)
 
-                #what happens when the channel gets clicked! TODO: Modify
+                channel_layout.addWidget(ch_checkbox)
+                self._viz_channel_checkboxes[(exp_id, channel.channel_name)] = ch_checkbox
 
-                # ch_btn.clicked.connect(
-                #     lambda _checked, e=exp_id, c=channel: self.window._on_channel_selected(e, c)
-                # )
 
-                # ch_btn.clicked.connect(self.window.menu_button_clicked)#helper temporal function
-                channel_layout.addWidget(ch_btn)
+                channel_layout.addWidget(ch_checkbox)
+                self._viz_channel_checkboxes[(exp_id, channel.channel_name)] = ch_checkbox
 
             exp_layout.addWidget(channel_container)
 
-            def _toggle(checked, container=channel_container, btn=exp_btn, label=experiment.displayed_name):
+            def _toggle(checked, container=channel_container, btn=exp_btn, label=displayed_name):
                 container.setVisible(checked)
                 btn.setText(f"{'▾' if checked else '▸'} {label}")
 
             exp_btn.toggled.connect(_toggle)
-
-            # if self.current_experiment is not None and self.current_experiment.experiment_id == exp_id:
-            #     exp_btn.setChecked(True)
 
             self.visualizer_list.addWidget(exp_container)
             self._viz_channel_containers[exp_id] = channel_container
