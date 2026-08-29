@@ -1247,34 +1247,40 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
 
 
     def _on_channel_selected(self, exp_id, channel, checked):
-        is_dapi = channel.channel_name.upper() == "DAPI"
         current_step = getattr(self.navigation, "_current_step", None)
-        exp_data = self.experiment_metadata.get(exp_id)
+        cb = self._viz_channel_checkboxes[(exp_id, channel.channel_name)]
 
-        if current_step == "Visualize":
-            is_raw_preview = exp_data is None or exp_data.surface_path is None
-            if not is_dapi and is_raw_preview:
-                self._warn_gene_channel_needs_cleaning(exp_id, channel)
-                return
-            self.visualizer.toggle_channel_actor(exp_id, channel, checked)
+        def _revert():
+            cb.blockSignals(True)
+            cb.setChecked(False)
+            cb.blockSignals(False)
+
+        # Surface extraction only ever runs on DAPI.
+        if current_step == "Surface" and channel.channel_name.upper() != "DAPI":
+            QMessageBox.information(
+                self, "DAPI only",
+                f"Surface extraction only runs on the DAPI channel.\n"
+                f"'{channel.channel_name}' isn't used here."
+            )
+            _revert()
+            dapi = next((c for c in self.experiment.channels
+                        if c.channel_name.upper() == "DAPI"), None)
+            if dapi and getattr(dapi, "clean_path", None):
+                self.surface.show(self.experiment)  # DAPI's already cleaned, jump straight in
             return
 
-        if current_step == "Clean":
-            self.current_channel = channel.channel_name
-            combo = self.clean.clean_widgets.get("channel")
-            if combo is not None:
-                idx = combo.findText(channel.channel_name)
-                if idx >= 0:
-                    combo.setCurrentIndex(idx)
-            self.clean._load_volume_for_picking(channel)
+        # Outside Visualize there's no live plotter to add/remove actors from —
+        # just let the checkbox record intent for when Visualize is entered.
+        if current_step != "Visualize":
             return
 
-        if current_step in ("Surface", "Stage", "Align"):
-            if not is_dapi:
-                self._warn_step_requires_dapi(current_step, exp_id, channel)
-                return
-            self.current_channel = channel.channel_name
+        ready, message = self.visualizer.channel_readiness(self.experiment, channel)
+        if checked and not ready:
+            QMessageBox.warning(self, "Can't visualize", message)
+            _revert()
             return
+
+        self.visualizer.toggle_channel_actor(exp_id, channel, checked)
 
 
     def _warn_gene_channel_needs_cleaning(self, exp_id, channel):
@@ -1294,7 +1300,8 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         if box.clickedButton() == clean_btn:
             self.current_channel = channel.channel_name
             exp_data = self.experiment_metadata.get(exp_id)
-            self.navigation.navigate_to(lambda: self.clean.show(exp_data))
+            print(exp_data)
+            self.navigation.navigate_to(lambda: self.clean.show(exp_data, channel))
 
 
     def _warn_step_requires_dapi(self, step, exp_id, channel):

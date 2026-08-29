@@ -32,7 +32,7 @@ class NavigationMixin:
     PIPELINE_STEPS = ["Clean", "Surface", "Stage", "Align", "Visualize"]
 
     STEP_CONTROLLERS = {
-    "Clean": lambda self: lambda: self.clean.show(self.experiment),
+    "Clean": lambda self: lambda: self.clean.show(self.experiment, self.current_channel),
     "Surface": lambda self: lambda: self.surface.show(self.experiment),
     "Stage": lambda self: lambda: self.stage.show(self.experiment),
     "Align": lambda self: lambda: self.align.show(self.experiment),

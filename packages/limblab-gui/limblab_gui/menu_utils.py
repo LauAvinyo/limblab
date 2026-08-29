@@ -142,8 +142,10 @@ class MenuUtils:
             for channel in channels:
                 ch_checkbox = QCheckBox(channel.channel_name)
                 is_dapi = channel.channel_name.upper() == "DAPI"
+                is_cleaned = bool(getattr(channel, "clean_path", None))
+                ch_checkbox.setChecked(is_dapi or is_cleaned)
 
-                ch_checkbox.setChecked(is_dapi)  # default: only DAPI on
+            
                 ch_checkbox.toggled.connect(    
                     lambda checked, e=exp_id, c=channel: self._on_channel_selected(e, c, checked)
                 )
@@ -158,10 +160,6 @@ class MenuUtils:
                         font-weight: bold;
                     }}
                 """)
-
-                channel_layout.addWidget(ch_checkbox)
-                self._viz_channel_checkboxes[(exp_id, channel.channel_name)] = ch_checkbox
-
 
                 channel_layout.addWidget(ch_checkbox)
                 self._viz_channel_checkboxes[(exp_id, channel.channel_name)] = ch_checkbox

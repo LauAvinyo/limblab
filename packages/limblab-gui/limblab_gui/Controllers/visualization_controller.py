@@ -49,7 +49,6 @@ class VisualizationController:
         self.mode_combo = None
         self.status_label = None
         self.show_btn = None
-        self.navigator = NavigationController
         self.clean_channels = []
 
     # ------------------------------------------------------------------
@@ -174,9 +173,7 @@ class VisualizationController:
             self._channel_actors[(experiment.experiment_id, "DAPI")] = mesh
 
         else:
-            volume_path = os.path.join(experiment.base, experiment.experiment_id).replace('/', '\\')
-            volume_path += '.tif'
-
+            volume_path = os.path.join(experiment.base, experiment.experiment_id + '.tif')      
             vol, plt = preview_volume(volume_path, "pyqt", self.window)
             self.plt = plt
             self._channel_actors[(experiment.experiment_id, "DAPI")] = vol
@@ -238,7 +235,7 @@ class VisualizationController:
             return
 
         print(channel)
-        self.show_experiment(self.experiment, channel)
+        self.show_experiment(self.experiment)
 
         self.channel_readiness(self.experiment, channel)
  

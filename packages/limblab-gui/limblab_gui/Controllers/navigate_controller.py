@@ -104,7 +104,7 @@ class NavigationController:
     def navigate_to_clean(self):
         printc("Navigating to CLEAN", c="orange")
         print(self._current_step)
-        self.navigate_to(lambda:self.window.clean.show(self.window.experiment))
+        self.navigate_to(lambda:self.window.clean.show(self.window.experiment,self.window.current_channel))
 
 
     def navigate_to_surface(self):

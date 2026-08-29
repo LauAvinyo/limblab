@@ -29,7 +29,7 @@ class CleanController:
         self.clean_isovalue_max = None
 
 
-    def show(self,experiment):
+    def show(self,experiment, selected_channel):
         self.experiment = experiment
         self.window._show_busy('Loading clean...')
 
@@ -49,21 +49,6 @@ class CleanController:
         # picker right away — no need to click "Load Volume" first.
 
         self.window.navigation._refresh_pipeline_actions(current_step="Clean")
-        
-
-        existing_channels = {
-            ch.channel_name.upper() for ch in (experiment.channels or [])
-        }
-        combo = self.clean_widgets["channel"]
-        selected_channel = None
-        for i in range(combo.count()):
-            if combo.itemText(i).upper() in existing_channels:
-                combo.setCurrentIndex(i)
-                selected_channel = next(
-                    ch for ch in experiment.channels
-                    if ch.channel_name.upper() == combo.itemText(i).upper()
-            )
-            break
 
         if selected_channel is not None:
             self._load_volume_for_picking(selected_channel)
@@ -273,7 +258,7 @@ class CleanController:
 
         self.window.workflow_checkpoints[CURRENT_STEP] = True
         self.window.navigation._refresh_pipeline_actions(CURRENT_STEP, True)
-        #printc('CLEAN CONTROLLER', self.window.workflow_checkpoints[CURRENT_STEP], c= 'blue')
+        self.window._refresh_visualizer_list(self.experiment)
 
         self.window._hide_busy()
         
