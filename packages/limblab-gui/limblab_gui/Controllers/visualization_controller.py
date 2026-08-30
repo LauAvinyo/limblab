@@ -126,8 +126,9 @@ class VisualizationController:
 
     # ------------------------------------------------------------------
 
-    def show_experiment(self, experiment):#channel argument should only be passed if the gene channel has already been processed or wants to be processed!
+    def show_experiment(self, experiment):
         self.experiment = experiment
+        self.window.experiment_metadata[experiment.experiment_id] = experiment  # <-- add
         self.window.action_bar.setVisible(False)
         self.window._show_busy('Loading volume...')
       
@@ -179,28 +180,6 @@ class VisualizationController:
             self._channel_actors[(experiment.experiment_id, "DAPI")] = vol
        
         self.window._hide_busy()       
-
-    def toggle_channel_actor(self, exp_id, channel, checked):
-        key = (exp_id, channel.channel_name)
-        actor = self._channel_actors.get(key)
-
-        if actor is None:
-            if not checked:
-                return
-            actor = self._build_channel_actor(channel)
-            if actor is None:
-                return
-            self._channel_actors[key] = actor
-            self.plt.add(actor)
-
-        if checked:
-            actor.on()
-            if actor not in self.plt.actors:
-                self.plt.add(actor)
-        else:
-            actor.off()
-
-        self.plt.render()
 
 
     def _build_channel_actor(self, channel):

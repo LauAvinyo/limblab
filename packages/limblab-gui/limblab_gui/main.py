@@ -218,7 +218,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         menu.setStyleSheet(MENU_STYLE)
 
         home = QAction("Home", self)
-        home.triggered.connect(lambda: self.navigate_to(self.show_home))
+        home.triggered.connect(lambda: self.navigation.navigate_to(lambda:self.show_home))
         menu.addAction(home)
 
         menu.addSeparator()
@@ -1192,19 +1192,19 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         if not experiment:
             QMessageBox.warning(self, "Error", "Experiment not found.")
             return
-        channel_names = []
-        for channel in experiment.channels:
-            channel_names.append(channel.channel_name)
 
-        if 'DAPI' not in channel.channel_name:
-            QMessageBox.warning(self, "Error", "DAPI-nuclei channel not found. Unable to visualize any surface." \
-            "You must upload a DAPI-nuclei channel for any experiment")
+        channel_names = [channel.channel_name for channel in experiment.channels]
+
+        if 'DAPI' not in channel_names:
+            QMessageBox.warning(
+                self, "Error",
+                "DAPI-nuclei channel not found. Unable to visualize any surface. "
+                "You must upload a DAPI-nuclei channel for any experiment"
+            )
             return
-        
-        else:
-            self._set_current_experiment(self.experiment)
-            self.navigation.navigate_to(lambda: self.visualizer.show_experiment(self.experiment))
-    
+
+        self._set_current_experiment(experiment)
+        self.navigation.navigate_to(lambda: self.visualizer.show_experiment(self.experiment))
 
     def _infer_workflow_state(self, exp):
         """Derive pipeline progress from what's actually persisted on the
@@ -1246,42 +1246,57 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         # ) if exp_obj.surface_path else None
 
 
+    DAPI_ONLY_STEPS = {"Surface", "Stage", "Align"}
+
+    STEP_CONTROLLERS = {
+            "Surface": lambda self: self.surface,
+            "Stage": lambda self: self.stage,
+            "Align": lambda self: self.align,
+        }
+
     def _on_channel_selected(self, exp_id, channel, checked):
         current_step = getattr(self.navigation, "_current_step", None)
-        cb = self._viz_channel_checkboxes[(exp_id, channel.channel_name)]
+        is_dapi = channel.channel_name.upper() == "DAPI"
 
-        def _revert():
-            cb.blockSignals(True)
-            cb.setChecked(False)
-            cb.blockSignals(False)
+        if current_step in self.DAPI_ONLY_STEPS and not is_dapi:
+            self._warn_step_requires_dapi(current_step, exp_id, channel)
 
-        # Surface extraction only ever runs on DAPI.
-        if current_step == "Surface" and channel.channel_name.upper() != "DAPI":
-            QMessageBox.information(
-                self, "DAPI only",
-                f"Surface extraction only runs on the DAPI channel.\n"
-                f"'{channel.channel_name}' isn't used here."
-            )
-            _revert()
             dapi = next((c for c in self.experiment.channels
                         if c.channel_name.upper() == "DAPI"), None)
-            if dapi and getattr(dapi, "clean_path", None):
-                self.surface.show(self.experiment)  # DAPI's already cleaned, jump straight in
+
+            if current_step == "Surface":
+                if dapi and getattr(dapi, "clean_path", None):
+                    self.surface.show(self.experiment)
+            elif current_step == "Stage":
+                if self.experiment.surface_path:
+                    self.stage.show(self.experiment)
+            elif current_step == "Align":
+                if self.experiment.surface_path:
+                    self.align.show(self.experiment)
             return
 
-        # Outside Visualize there's no live plotter to add/remove actors from —
-        # just let the checkbox record intent for when Visualize is entered.
+        if current_step == "Clean":
+            if not checked:
+                self._revert_checkbox(exp_id, channel)
+                return
+
+            for (e, name), other_cb in self._viz_channel_checkboxes.items():
+                if (e, name) != (exp_id, channel.channel_name) and other_cb.isChecked():
+                    other_cb.blockSignals(True)
+                    other_cb.setChecked(False)
+                    other_cb.blockSignals(False)
+
+            self.current_channel = channel.channel_name   # was self.window.current_channel
+            self.clean.show(self.experiment, channel)
+            return
+
         if current_step != "Visualize":
             return
 
         ready, message = self.visualizer.channel_readiness(self.experiment, channel)
         if checked and not ready:
-            QMessageBox.warning(self, "Can't visualize", message)
-            _revert()
+            self._warn_gene_channel_needs_cleaning(exp_id, channel)
             return
-
-        self.visualizer.toggle_channel_actor(exp_id, channel, checked)
-
 
     def _warn_gene_channel_needs_cleaning(self, exp_id, channel):
         self._revert_checkbox(exp_id, channel)
@@ -1299,19 +1314,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
 
         if box.clickedButton() == clean_btn:
             self.current_channel = channel.channel_name
-            exp_data = self.experiment_metadata.get(exp_id)
-            print(exp_data)
-            self.navigation.navigate_to(lambda: self.clean.show(exp_data, channel))
-
-
-    def _warn_step_requires_dapi(self, step, exp_id, channel):
-        self._revert_checkbox(exp_id, channel)
-        QMessageBox.warning(
-            self,
-            f"{step} applies to DAPI only",
-            f"'{step}' operates on the DAPI channel.\n"
-            f"'{channel.channel_name}' can't be used for this step.",
-        )
+            self.navigation.navigate_to(lambda: self.clean.show(self.experiment, channel))
 
 
     def _revert_checkbox(self, exp_id, channel):
@@ -1796,8 +1799,6 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
 
         self._set_current_experiment(exp_obj)
         self._hide_busy()
-        self.navigate_to(self.show_viz)
-
 
     def _add_channel_to_existing(self, specific_exp_id=None):
         if not specific_exp_id:

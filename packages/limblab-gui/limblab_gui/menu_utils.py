@@ -93,8 +93,6 @@ class MenuUtils:
 
 
     def _refresh_visualizer_list(self, experiment):
-        """Refresh the visualizer panel: one expandable row per experiment,
-        revealing its channels underneath, expanded by default."""
         while self.visualizer_list.count():
             item = self.visualizer_list.takeAt(0)
             if item.widget():
@@ -102,8 +100,14 @@ class MenuUtils:
             elif item.layout():
                 self._clear_layout(item.layout())
 
+        # Keep the metadata cache in sync with the live, mutated experiment —
+        # Clean/Surface/Stage/Align all write to self.experiment directly, and
+        # experiment_metadata is only a display cache for the sidebar.
+        if experiment is not None:
+            self.experiment_metadata[experiment.experiment_id] = experiment
+
         self._viz_channel_containers = {}
-        self._viz_channel_checkboxes = {}  # (exp_id, channel_name) -> QCheckBox
+        self._viz_channel_checkboxes = {}
 
         for exp_id in self.experiments:
             exp_data = self.experiment_metadata.get(exp_id)
@@ -140,13 +144,17 @@ class MenuUtils:
 # "for channel in channels:" block with this:
 
             for channel in channels:
-                ch_checkbox = QCheckBox(channel.channel_name)
                 is_dapi = channel.channel_name.upper() == "DAPI"
                 is_cleaned = bool(getattr(channel, "clean_path", None))
-                ch_checkbox.setChecked(is_dapi or is_cleaned)
 
-            
-                ch_checkbox.toggled.connect(    
+                row = QWidget()
+                row_layout = QHBoxLayout(row)
+                row_layout.setContentsMargins(0, 0, 0, 0)
+                row_layout.setSpacing(6)
+
+                ch_checkbox = QCheckBox(channel.channel_name)
+                ch_checkbox.setChecked(is_dapi or is_cleaned)
+                ch_checkbox.toggled.connect(
                     lambda checked, e=exp_id, c=channel: self._on_channel_selected(e, c, checked)
                 )
                 ch_checkbox.setStyleSheet(f"""
@@ -161,8 +169,21 @@ class MenuUtils:
                     }}
                 """)
 
-                channel_layout.addWidget(ch_checkbox)
+                status_label = QLabel("✓ cleaned" if is_cleaned else "not cleaned")
+                status_label.setStyleSheet(f"""
+                    color: {theme('palette.primary', '#0D7C66') if is_cleaned else theme('palette.textDisabled', '#3A3A3A')};
+                    font-size: {theme('typography.fontSizeSmall', 10)}px;
+                    font-style: {'normal' if is_cleaned else 'italic'};
+                """)
+
+                row_layout.addWidget(ch_checkbox)
+                row_layout.addStretch()
+                row_layout.addWidget(status_label)
+
+                channel_layout.addWidget(row)
                 self._viz_channel_checkboxes[(exp_id, channel.channel_name)] = ch_checkbox
+                self._viz_channel_status_labels = getattr(self, "_viz_channel_status_labels", {})
+                self._viz_channel_status_labels[(exp_id, channel.channel_name)] = status_label
 
             exp_layout.addWidget(channel_container)
 

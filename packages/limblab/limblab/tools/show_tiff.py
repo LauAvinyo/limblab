@@ -12,6 +12,7 @@ def preview_volume(
     renderer: Optional[Literal["pyqt"]] = None,
     outside_class: Optional[Any] = None,
 ) -> Any:
+    
     """
     Opens a plain, non-interactive-picking view of a raw volume.
     No isovalue sliders, no clean parameters — just a first look.
@@ -33,8 +34,8 @@ def preview_volume(
 
     if renderer == "pyqt":
         plt.show(interactive=False)
-        return plt  # caller owns the render loop via the embedding widget
+        return vol, plt  # caller owns the render loop via the embedding widget
 
     plt.show(interactive=True)
     plt.close()
-    return plt
+    return vol, plt

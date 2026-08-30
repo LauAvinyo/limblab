@@ -45,6 +45,12 @@ class NavigationController:
         if self.window.current_screen is not None:
             self.window.navigation_stack.append(self.window.current_screen)
 
+        # Every screen transition passes through here — keep the sidebar's
+        # metadata cache in lockstep with the live experiment object no
+        # matter which controller is being entered.
+        if getattr(self.window, "experiment", None) is not None:
+            self.window.experiment_metadata[self.window.experiment.experiment_id] = self.window.experiment
+
         self.window.current_screen = screen_func
         screen_func()
 
@@ -103,8 +109,22 @@ class NavigationController:
 
     def navigate_to_clean(self):
         printc("Navigating to CLEAN", c="orange")
-        print(self._current_step)
-        self.navigate_to(lambda:self.window.clean.show(self.window.experiment,self.window.current_channel))
+        channel_obj = next(
+            (c for c in self.window.experiment.channels
+            if c.channel_name == self.window.current_channel),
+            None,
+        )
+        if channel_obj is None:
+            # No explicit selection (or a stale one) — default to DAPI, since
+            # that's what drives this pipeline stage.
+            channel_obj = next(
+                (c for c in self.window.experiment.channels
+                if c.channel_name.upper() == "DAPI"),
+                None,
+            )
+            if channel_obj is not None:
+                self.window.current_channel = channel_obj.channel_name
+        self.navigate_to(lambda: self.window.clean.show(self.window.experiment, channel_obj))
 
 
     def navigate_to_surface(self):

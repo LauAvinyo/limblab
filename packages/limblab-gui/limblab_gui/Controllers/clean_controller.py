@@ -29,30 +29,26 @@ class CleanController:
         self.clean_isovalue_max = None
 
 
-    def show(self,experiment, selected_channel):
+    def show(self, experiment, selected_channel):
         self.experiment = experiment
         self.window._show_busy('Loading clean...')
+        try:
+            container = self.window._build_workflow_container(
+                experiment=self.experiment,
+                next_label="Extract Surface",
+                action_widget=self._build_clean_action_bar(),
+            )
+            self.window.setCentralWidget(container)
+            self.window.navigation._refresh_pipeline_actions(current_step="Clean")
 
-        container = self.window._build_workflow_container(
-        experiment = self.experiment,
-        next_label="Extract Surface",
-        # back_guard=lambda: (
-        #     self.window.workflow_state["clean_done"],
-        #     "You haven't cleaned any volume yet.",
-        # ),
-        action_widget=self._build_clean_action_bar(),
-    )
-        self.window.setCentralWidget(container)
-
-        # If the experiment already has a DAPI channel (e.g. loaded from DB,
-        # or your test experiment), auto-select it and load it into the
-        # picker right away — no need to click "Load Volume" first.
-
-        self.window.navigation._refresh_pipeline_actions(current_step="Clean")
-
-        if selected_channel is not None:
-            self._load_volume_for_picking(selected_channel)
-
+            if selected_channel is not None:
+                self._load_volume_for_picking(selected_channel)
+        except Exception as e:
+            QMessageBox.critical(
+                self.window, "Clean error",
+                f"Couldn't load '{selected_channel.channel_name if selected_channel else '?'}' for cleaning:\n{e}"
+            )
+        
         self.window._hide_busy()
 
 
@@ -69,15 +65,6 @@ class CleanController:
 
         layout.addStretch(1)
 
-        # --- Channel select + Load button ---
-        channel_row = QHBoxLayout()
-        channel_row.addWidget(create_label("Channel:", f"color: {theme('palette.textPrimary', '#FFFFFF')}; font-weight: bold; font-size: {theme('typography.fontSizeSmall', 12)}px;"))
-
-        channel_combo = QComboBox()
-        channel_combo.addItems(["DAPI", "BMP2", "Sox9", "Hoxa11"])
-        channel_combo.setFixedHeight(28)
-        channel_row.addWidget(channel_combo)
-        self.clean_widgets["channel"] = channel_combo
 
         iso_group = QGroupBox("Isovalue Thresholds (picked from viewer)")
         iso_group.setStyleSheet(f"QGroupBox {{ color: {theme('palette.textSecondary', '#A0A0A0')}; border: 1px solid {theme('palette.panel', '#2A2A2A')}; margin-top: 8px; font-size: {theme('typography.fontSizeSmall', 11)}px; }}")
@@ -156,12 +143,18 @@ class CleanController:
         return bar
 
 
-    def _load_volume_for_picking(self,channel):
-        
+    def _load_volume_for_picking(self, channel):
+        if self.plotter is not None:
+            try:
+                self.plotter.close()
+            except Exception:
+                pass
+            self.plotter = None
+
         self.channel_name = channel.channel_name
         self.raw_volume_path = get_channel_path(self.experiment, self.channel_name)
         print(self.raw_volume_path)
-        
+
         self.window.current_channel = self.channel_name
         self.plotter = pick_isovalues(
             raw_volume_path=self.raw_volume_path,
@@ -171,7 +164,6 @@ class CleanController:
         self.v0 = self.v1 = None
         self.v0_label.setText("Lower (v0): —")
         self.v1_label.setText("Upper (v1): —")
-
 
     def _set_v0(self):
         if self.plotter is None:
@@ -237,10 +229,9 @@ class CleanController:
         # above are actually what gets persisted.
         existing_idx = next(
             (i for i, ch in enumerate(self.experiment.channels)
-             if ch.channel_name == new_channel.channel_name),
+            if ch.channel_name == self.channel_name),   # the channel we actually cleaned, not new_channel's possibly-renamed one
             None,
         )
-        
         if existing_idx is not None:
             self.experiment.channels[existing_idx] = new_channel
         else:
@@ -256,10 +247,19 @@ class CleanController:
         )
         
 
-        self.window.workflow_checkpoints[CURRENT_STEP] = True
-        self.window.navigation._refresh_pipeline_actions(CURRENT_STEP, True)
-        self.window._refresh_visualizer_list(self.experiment)
+        is_dapi = new_channel.channel_name.upper() == "DAPI"
 
+        if is_dapi:
+            self.window.workflow_checkpoints[CURRENT_STEP] = True
+            self.window.navigation._refresh_pipeline_actions(CURRENT_STEP, True)
+        else:
+            # Gene channel cleaned — doesn't advance the DAPI-driven pipeline stage,
+            # just refresh the toolbar as-is so the lock/label state stays accurate.
+            self.window.navigation._refresh_pipeline_actions(
+                self.window.navigation._current_step
+            )
+
+        self.window._refresh_visualizer_list(self.experiment)
         self.window._hide_busy()
         
         
