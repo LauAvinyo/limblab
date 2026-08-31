@@ -6,7 +6,7 @@ import pyqtgraph.opengl as gl
 from config import *
 from limblab.design import theme
 from PyQt6.QtCore import QObject, Qt, pyqtSignal
-from PyQt6.QtGui import QAction, QIcon
+from PyQt6.QtGui import QAction, QIcon, QCursor, QColor
 from PyQt6.QtWidgets import (
     QLabel,
     QMenu,
@@ -16,7 +16,46 @@ from PyQt6.QtWidgets import (
     QToolButton,
     QVBoxLayout,
     QWidget,
+    QGraphicsDropShadowEffect, 
+    QStyleFactory
 )
+
+
+# def create_styled_button(
+#     text: str,
+#     color: str | None = None,
+#     hover_color: str | None = None,
+#     size: int | None = None,
+# ):
+#     """Create a styled push button with consistent styling."""
+#     if color is None:
+#         color = theme("palette.primary", "#0D7C66")
+#     if hover_color is None:
+#         hover_color = theme("palette.primaryHover", "#41B3A2")
+
+#     btn = QPushButton(text)
+#     btn.setStyleSheet(f"""
+#         QPushButton {{
+#             background-color: {color};
+#             color: {theme("palette.textPrimary", "#FFFFFF")};
+#             font-weight: {theme("typography.fontWeightBold", "bold")};
+#             font-size: {theme("typography.fontSizeLarge", 18)}px;
+#             border-radius: {theme("shape.borderRadiusButton", "20px")};
+#             padding: {theme("layout.spacingBase", "10px")} {theme("layout.spacingLarge", "30px")};
+#         }}
+#         QPushButton:hover {{ background-color: {hover_color}; }}
+#     """)
+#     if size:
+#         btn.setFixedHeight(size)
+#     btn.setCursor(Qt.CursorShape.PointingHandCursor)
+#     return btn
+
+
+
+
+from PyQt6.QtWidgets import QPushButton, QGraphicsDropShadowEffect, QStyleFactory
+from PyQt6.QtGui import QColor, QCursor
+from PyQt6.QtCore import Qt
 
 
 def create_styled_button(
@@ -24,29 +63,83 @@ def create_styled_button(
     color: str | None = None,
     hover_color: str | None = None,
     size: int | None = None,
+    pressed_color: str | None = None,
+    disabled_color: str | None = None,
+    with_shadow: bool = True,
+    border_color: str| None = None,
+    border_hover_color: str| None = None,
 ):
-    """Create a styled push button with consistent styling."""
+    """Create a styled push button with consistent, professional styling."""
+    # Dark grey fill — the button face itself
     if color is None:
-        color = theme("palette.primary", "#0D7C66")
+        color = theme("palette.buttonDark", "#3A3F42")
     if hover_color is None:
-        hover_color = theme("palette.primaryHover", "#41B3A2")
+        hover_color = theme("palette.buttonDarkHover", "#4A5054")
+    if pressed_color is None:
+        pressed_color = theme("palette.buttonDarkPressed", "#2C3033")
+    if disabled_color is None:
+        disabled_color = theme("palette.disabled", "#A0A0A0")
+
+    # Border keeps the original teal palette, independent of the fill color
+    if border_color is None and border_hover_color is None:
+        border_color = theme("palette.primary", "#0D7C66")
+        border_hover_color = theme("palette.primaryHover", "#41B3A2")
+
+    text_color = theme("palette.textPrimary", "#FFFFFF")
+    font_weight = theme("typography.fontWeightBold", "bold")
+    font_size = theme("typography.fontSizeLarge", 18)
+    radius = theme("shape.borderRadiusButton", "2px")
+    pad_v = theme("layout.spacingBase", "10px")
+    pad_h = theme("layout.spacingLarge", "30px")
 
     btn = QPushButton(text)
+
+    # Force Fusion style so border-radius/border actually render instead of
+    # being overridden by the native platform style (macOS/Windows).
+    btn.setStyle(QStyleFactory.create("Fusion"))
+
     btn.setStyleSheet(f"""
         QPushButton {{
             background-color: {color};
-            color: {theme("palette.textPrimary", "#FFFFFF")};
-            font-weight: {theme("typography.fontWeightBold", "bold")};
-            font-size: {theme("typography.fontSizeLarge", 18)}px;
-            border-radius: {theme("shape.borderRadiusButton", "20px")};
-            padding: {theme("layout.spacingBase", "10px")} {theme("layout.spacingLarge", "30px")};
+            color: {text_color};
+            font-weight: {font_weight};
+            font-size: {font_size}px;
+            border: 1px solid {border_color};
+            border-radius: {radius};
+            padding: {pad_v} {pad_h};
         }}
-        QPushButton:hover {{ background-color: {hover_color}; }}
+        QPushButton:hover {{
+            background-color: {hover_color};
+            border: 1px solid {border_hover_color};
+        }}
+        QPushButton:pressed {{
+            background-color: {pressed_color};
+            border: 1px solid {border_color};
+            padding-top: calc({pad_v} + 1px);
+            padding-bottom: calc({pad_v} - 1px);
+        }}
+        QPushButton:disabled {{
+            background-color: {disabled_color};
+            color: {text_color};
+            border: 1px solid {disabled_color};
+        }}
     """)
+
     if size:
         btn.setFixedHeight(size)
-    btn.setCursor(Qt.CursorShape.PointingHandCursor)
+
+    btn.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+
+    if with_shadow:
+        shadow = QGraphicsDropShadowEffect(btn)
+        shadow.setBlurRadius(6)
+        shadow.setXOffset(0)
+        shadow.setYOffset(1)
+        shadow.setColor(QColor(0, 0, 0, 50))
+        btn.setGraphicsEffect(shadow)
+
     return btn
+
 
 
 def create_label(text, style, alignment=Qt.AlignmentFlag.AlignLeft):

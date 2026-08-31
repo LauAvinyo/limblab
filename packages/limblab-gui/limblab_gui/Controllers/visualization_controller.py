@@ -168,7 +168,7 @@ class VisualizationController:
                 "This experiment has no channels to visualize."
             )
             return
- 
+
         channel_name = self.channel_combo.currentText()
         channel = next(
             (ch for ch in self.experiment.channels if ch.channel_name == channel_name),
@@ -178,13 +178,17 @@ class VisualizationController:
             QMessageBox.warning(self.window, "Channel not found", f"Couldn't find channel '{channel_name}'.")
             return
 
+        # Capture the mode BEFORE anything rebuilds self.mode_combo
+        mode_label = self.mode_combo.currentText()
+        mode = self.MODES[mode_label]
+
         print(channel)
         self.show_experiment(self.experiment)
 
         self.channel_readiness(self.experiment, channel)
- 
-        mode_label = self.mode_combo.currentText()
-        self._open_popup(self.MODES[mode_label], mode_label, channel)
+
+        printc(mode, c='blue')
+        self._open_popup(mode, mode_label, channel)
 
 
     @staticmethod
@@ -268,6 +272,8 @@ class VisualizationController:
         self.vtk_widget = vtk_widget
         self._current_frame = frame
 
+
+        printc(mode, c='green')
         #try:
         if mode == "raycast":
             rc_plotter = raycast(

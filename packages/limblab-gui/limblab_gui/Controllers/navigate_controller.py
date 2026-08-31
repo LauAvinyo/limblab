@@ -170,7 +170,7 @@ class NavigationController:
         self.navigate_to(lambda:self.window.visualizer.show_experiment(self.window.experiment))
 
 
-    def _refresh_pipeline_actions(self, current_step=None, to_next = None):#to_next = False
+    def _refresh_pipeline_actions(self, current_step=None, to_next=None):  # to_next = False
         printc("Refreshing the pipeline!", c="cyan")
         self.window.action_bar.setVisible(True)
         self._current_step = current_step
@@ -180,31 +180,37 @@ class NavigationController:
         last_done = -1
         for i, step in enumerate(PIPELINE_STEPS):
             if self.window.workflow_checkpoints[step]:
-
                 last_done = i
                 print(i)
                 print(step)
- 
+
         for idx, step in enumerate(PIPELINE_STEPS):
- 
+
             act = self._step_actions[step]
             is_done = self.window.workflow_checkpoints[step]
- 
+            is_current = step == current_step  # <-- always defined now, computed once up front
+
             # A step is reachable if it's already done (idx <= last_done),
             # or it's the very next step after the furthest done one
             # (idx == last_done + 1). Nothing further ahead is reachable.
-            is_reachable = idx <= last_done + 1
-            is_current = step == current_step
-            # Build the emoji prefix
-            if is_current:
-                prefix = "▶  "  # or "● ", "◉ ", "⚙ ", "→ "
-            elif is_done:
+
+            if self.window.experiment.transformation_matrix_path != None:
+                is_reachable = True
                 prefix = "✓ "
-            elif not is_reachable:
-                prefix = "🔒︎ "
+                # user probably already has done all dapi processing steps and wants to visualize
+
             else:
-                prefix = ""
- 
+                is_reachable = idx <= last_done + 1
+                # Build the emoji prefix
+                if is_current:
+                    prefix = "▶  "  # or "● ", "◉ ", "⚙ ", "→ "
+                elif is_done:
+                    prefix = "✓ "
+                elif not is_reachable:
+                    prefix = "🔒︎ "
+                else:
+                    prefix = ""
+
             act.setText(prefix + step)
             act.setEnabled(is_reachable or is_current)
             act.setChecked(is_current)
