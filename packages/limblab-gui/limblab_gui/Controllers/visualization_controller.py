@@ -51,17 +51,22 @@ class VisualizationController:
         self.show_btn = None
         self.clean_channels = []
 
-    # ------------------------------------------------------------------
     def build_action_bar(self, experiment):
-        """Call this from show_viz() and pass the result as `action_widget`
-        to `_build_workflow_container`, same as StageController does for
-        its Confirm Stage bar."""
-        
-
         bar = QWidget()
         bar.setStyleSheet(f"background-color: {theme('palette.surface', '#1E1E1E')};")
         layout = QHBoxLayout(bar)
         layout.setContentsMargins(20, 10, 20, 10)
+
+        layout.addWidget(create_label(
+            "Channel:", f"color: {theme('palette.textPrimary', '#FFFFFF')};"
+        ))
+        self.channel_combo = QComboBox()
+        ready_channels = [
+            ch for ch in experiment.channels
+            if self.channel_readiness(experiment, ch)[0]
+        ]
+        self.channel_combo.addItems([ch.channel_name for ch in ready_channels])
+        layout.addWidget(self.channel_combo)
 
         layout.addSpacing(12)
         layout.addWidget(create_label(
@@ -81,50 +86,10 @@ class VisualizationController:
         )
         self.status_label.setWordWrap(True)
         layout.addWidget(self.status_label, stretch=1)
- 
         layout.addStretch()
 
-    
         return bar
 
-    # def _update_channel_status(self, channel_name=None):
-    #     """Reflect, right on the action bar, whether the currently selected
-    #     channel is ready to be visualized (processing options enabled) or
-    #     not (options disabled + reason shown)."""
-    #     if not self.experiment or self.status_label is None:
-    #         return
- 
-    #     if channel_name is None:
-    #         channel_name = self.channel_combo.currentText() if self.channel_combo else ""
- 
-    #     channel = next(
-    #         (ch for ch in (self.experiment.channels or []) if ch.channel_name == channel_name),
-    #         None,
-    #     )
- 
-    #     if channel is None:
-    #         self.status_label.setText("")
-    #         if self.mode_combo is not None:
-    #             self.mode_combo.setEnabled(False)
-    #         if self.show_btn is not None:
-    #             self.show_btn.setEnabled(False)
-    #         return
- 
-    #     ready, message = self.channel_readiness(self.experiment, channel)
- 
-    #     if self.mode_combo is not None:
-    #         self.mode_combo.setEnabled(ready)
-    #     if self.show_btn is not None:
-    #         self.show_btn.setEnabled(ready)
- 
-    #     if ready:
-    #         self.status_label.setText(f"✓ '{channel.channel_name}' is ready to visualize.")
-    #         self.status_label.setStyleSheet(f"color: {theme('palette.primary', '#0D7C66')};")
-    #     else:
-    #         self.status_label.setText(message.replace("\n", " "))
-    #         self.status_label.setStyleSheet(f"color: {theme('palette.error', '#A6284F')};")
-
-    # ------------------------------------------------------------------
 
     def show_experiment(self, experiment):
         self.experiment = experiment
@@ -341,24 +306,20 @@ class VisualizationController:
 
 
     def _back_to_picker(self):
-        """Tear down the current render widget/plotter and return to the
-        channel/mode picker."""
-        
-        plotter = getattr(self, "_current_plotter", None)
-        if plotter is not None:
-            try:
-                plotter.close()
-            except Exception:
-                pass
+            """Tear down the current render widget/plotter and return to the
+            channel/mode picker."""
 
-        # vtk_widget = getattr(self, "_current_vtk_widget", None)
-        # if vtk_widget is not None:
-        #     vtk_widget.close()
-      
-        self._current_plotter = None
-        self._current_vtk_widget = None
-        self._current_frame = None
+            plotter = getattr(self, "_current_plotter", None)
+            if plotter is not None:
+                try:
+                    plotter.close()
+                except Exception:
+                    pass
 
-        self.show_experiment(self.experiment)
+            self._current_plotter = None
+            self._current_vtk_widget = None
+            self._current_frame = None
+
+            self.show_experiment(self.experiment)
 
     

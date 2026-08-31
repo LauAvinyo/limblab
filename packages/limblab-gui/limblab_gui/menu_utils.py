@@ -100,16 +100,11 @@ class MenuUtils:
             elif item.layout():
                 self._clear_layout(item.layout())
 
-        # Keep the metadata cache in sync with the live, mutated experiment —
-        # Clean/Surface/Stage/Align all write to self.experiment directly, and
-        # experiment_metadata is only a display cache for the sidebar.
-        if experiment is not None:
-            self.experiment_metadata[experiment.experiment_id] = experiment
-
         self._viz_channel_containers = {}
         self._viz_channel_checkboxes = {}
 
-        for exp_id in self.experiments:
+        if experiment is not None:
+            exp_id = experiment.experiment_id
             exp_data = self.experiment_metadata.get(exp_id)
             channels = exp_data.channels if exp_data else []
             displayed_name = exp_data.displayed_name if exp_data else exp_id
@@ -128,9 +123,6 @@ class MenuUtils:
                                 border: none; text-align: left; padding: 4px 0px;
                             }}
                         """)
-            exp_btn.setCheckable(True)
-
-         # <-- expanded by default
 
             exp_layout.addWidget(exp_btn)
 
@@ -138,14 +130,12 @@ class MenuUtils:
             channel_layout = QVBoxLayout(channel_container)
             channel_layout.setContentsMargins(16, 0, 0, 0)
             channel_layout.setSpacing(0)
-            channel_container.setVisible(True)   # <-- visible by default, matches exp_btn above
-
-            # menu_utils.py — inside _refresh_visualizer_list, replace the whole
-# "for channel in channels:" block with this:
+            channel_container.setVisible(True)
 
             for channel in channels:
                 is_dapi = channel.channel_name.upper() == "DAPI"
                 is_cleaned = bool(getattr(channel, "clean_path", None))
+                is_processed = bool(getattr(experiment, 'transformation_matrix_path', None))
 
                 row = QWidget()
                 row_layout = QHBoxLayout(row)
@@ -153,7 +143,6 @@ class MenuUtils:
                 row_layout.setSpacing(6)
 
                 ch_checkbox = QCheckBox(channel.channel_name)
-                ch_checkbox.setChecked(is_dapi or is_cleaned)
                 ch_checkbox.toggled.connect(
                     lambda checked, e=exp_id, c=channel: self._on_channel_selected(e, c, checked)
                 )
@@ -168,17 +157,24 @@ class MenuUtils:
                         font-weight: bold;
                     }}
                 """)
-
-                status_label = QLabel("✓ cleaned" if is_cleaned else "not cleaned")
-                status_label.setStyleSheet(f"""
-                    color: {theme('palette.primary', '#0D7C66') if is_cleaned else theme('palette.textDisabled', '#3A3A3A')};
-                    font-size: {theme('typography.fontSizeSmall', 10)}px;
-                    font-style: {'normal' if is_cleaned else 'italic'};
-                """)
+                if is_dapi:
+                    status_label = QLabel("✓ processed" if is_cleaned and is_processed else "not processed")
+                    status_label.setStyleSheet(f"""
+                                        color: {theme('palette.primary', '#0D7C66') if is_cleaned and is_processed else theme('palette.textDisabled', '#3A3A3A')};
+                                        font-size: {theme('typography.fontSizeSmall', 10)}px;
+                                        font-style: {'normal' if is_cleaned else 'italic'};
+                                    """)
+                else: #other gene channels
+                    status_label = QLabel("✓ cleaned" if is_cleaned else "not cleaned")
+                    status_label.setStyleSheet(f"""
+                        color: {theme('palette.primary', '#0D7C66') if is_cleaned else theme('palette.textDisabled', '#3A3A3A')};
+                        font-size: {theme('typography.fontSizeSmall', 10)}px;
+                        font-style: {'normal' if is_cleaned else 'italic'};
+                    """)
 
                 row_layout.addWidget(ch_checkbox)
-                row_layout.addStretch()
                 row_layout.addWidget(status_label)
+                row_layout.addStretch()
 
                 channel_layout.addWidget(row)
                 self._viz_channel_checkboxes[(exp_id, channel.channel_name)] = ch_checkbox
@@ -195,7 +191,6 @@ class MenuUtils:
 
             self.visualizer_list.addWidget(exp_container)
             self._viz_channel_containers[exp_id] = channel_container
-
 
 
     def _build_side_panel(self, experiment):

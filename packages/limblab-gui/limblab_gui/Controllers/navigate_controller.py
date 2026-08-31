@@ -67,10 +67,9 @@ class NavigationController:
     def limb_action_clicked(self, step):
         current_action_idx = PIPELINE_INDEX[step]
 
-        if self.window.workflow_checkpoints[step] == True:  #shouldnt be clickable anyway but just to make sure
+        if self.window.workflow_checkpoints[step] == True:
             affected = [s for s in PIPELINE_STEPS[current_action_idx:] if self.window.workflow_checkpoints.get(s)]
-            #actions affected until the action we're in"!
-            
+
             reply = QMessageBox.question(
                 self.window,
                 "Reset pipeline?",
@@ -79,15 +78,12 @@ class NavigationController:
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                 QMessageBox.StandardButton.No
             )
-            if reply != QMessageBox.StandardButton.Yes:#the user doesnt want to go back!
-                return 
+            if reply != QMessageBox.StandardButton.Yes:
+                return
 
             for s in affected:
-                self.window.workflow_checkpoints[s] = False #not done anymore
-                self._refresh_pipeline_actions(current_step=step)
-                self.state__navigate_to[step]()#the user goes back to that window!
-                
-            
+                self.window.workflow_checkpoints[s] = False
+
             channel, channel_cleared, experiment_cleared = delete_from_database_going_back_action(
                 db_path=self.window.db_path,
                 experiment=self.window.experiment,
@@ -95,17 +91,40 @@ class NavigationController:
                 action_undone=affected,
             )
 
-            self.window.log_pipeline(
-                f'Deleted database information:\n'
-                f'from channel: {channel_cleared}\n'
-                f'from experiment: {experiment_cleared}'
-            )
-            
-            #databse fcuntion called!
+            if channel_cleared != [] and experiment_cleared != []:#experiment and channel info deleted (dapi processing)
+                self.window.log_pipeline(
+                    f'Deleted database information:\n'
+                    f'from {channel.channel_name}: {", ".join(channel_cleared)}\n'
+                    f'from experiment (DAPI-only generated files): {", ".join(experiment_cleared)}'
+                )
 
-        else: #the step hasnt been done before!
+            elif channel_cleared != []:#just channel cleared info (gene channel processing)
+                 self.window.log_pipeline(
+                                    f'Deleted database information:\n'
+                                    f'from {channel.channel_name}: {", ".join(channel_cleared)}\n'
+                                )
+            else:
+                self.window.log_pipeline(
+                                    f'Deleted database information:\n'
+                                    f'from experiment (DAPI-only generated files): {", ".join(experiment_cleared)}'
+                                )
+
+
+            self._refresh_pipeline_actions(current_step=step)
             self.state__navigate_to[step]()
 
+        else:
+            if step == "Clean" and not getattr(self.window, "current_channel", None):
+                printc(self.window.current_channel, c='red')
+                #print(self.current_channel)
+                QMessageBox.warning(
+                    self.window,
+                    "Select a channel",
+                    "Please select a channel to clean before continuing."
+                )
+                return
+
+            self.state__navigate_to[step]()
 
     def navigate_to_clean(self):
         printc("Navigating to CLEAN", c="orange")
@@ -155,6 +174,7 @@ class NavigationController:
         printc("Refreshing the pipeline!", c="cyan")
         self.window.action_bar.setVisible(True)
         self._current_step = current_step
+        printc(self._current_step, c='pink')
 
         # -1 means nothing has been done yet.
         last_done = -1

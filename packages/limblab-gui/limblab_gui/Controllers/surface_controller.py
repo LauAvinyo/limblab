@@ -134,6 +134,7 @@ class SurfaceController(QObject):
 
         self.window.log_pipeline(f"Surface extracted (isovalue={isovalue:.3f}).\nWritten to:\n{self.experiment.surface_path}")
 
+        self.window._refresh_visualizer_list(self.experiment)
         self.window.workflow_checkpoints[CURRENT_STEP] = True
         self.window.navigation._refresh_pipeline_actions(CURRENT_STEP, True)
 

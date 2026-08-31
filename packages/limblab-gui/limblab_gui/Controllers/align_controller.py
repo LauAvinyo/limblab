@@ -129,6 +129,7 @@ class AlignController:
             f"Alignment completed.\nMatrix written to:\n{self.experiment.transformation_matrix_path}"
         )
 
+        self.window._refresh_visualizer_list(self.experiment)
         self.window.workflow_checkpoints[CURRENT_STEP] = True
         self.window.navigation._refresh_pipeline_actions(CURRENT_STEP, True)
 
