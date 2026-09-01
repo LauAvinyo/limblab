@@ -1014,65 +1014,6 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         self._load_experiments_from_db()
         self.show_user_experiment_list()
         QMessageBox.information(self, "Refreshed", "Experiment list updated.")
-
-
-    def update_viewer(self, filepath):
-        """Load REAL limb object from database and display"""
-        if not filepath:
-            return
-
-        # Get experiment data from database
-        exp_data = self.experiment_metadata.get(filepath)
-        if not exp_data:
-            print(f"Experiment not found in database: {filepath}")
-            return
-
-        # Get the volume file path
-        if exp_data.get("channels") and len(exp_data["channels"]) > 0:
-            # Use first channel
-            channel = exp_data["channels"][0]
-            channel_path = channel.get("path")
-
-            if channel_path:
-                full_path = os.path.join(exp_data["base"], channel_path)
-
-                # Check if file exists
-                if os.path.exists(full_path):
-                    print(f"Loading volume: {full_path}")
-
-                    self.show_basic_mesh(filepath)
-
-
-
-    def show_basic_mesh(self, path):
-        """Display a mesh in the vedo viewer"""
-        if not path or not os.path.exists(path):
-            print(f"File not found: {path}")
-            return None
-        # Reuse existing widgets or create once
-        if not hasattr(self, "frame"):
-            self.frame = QFrame()
-            self.vtkWidget = QVTKRenderWindowInteractor(self.frame)
-            self.plt = Plotter(qt_widget=self.vtkWidget)
-
-        try:
-            # Load the mesh
-            self.limb_object = Mesh(path)
-
-            # Clear previous objects and add new one
-            self.plt.clear()
-            self.plt.add(self.limb_object)
-
-            # Render the scene
-            self.plt.render()
-
-            return self.plt
-
-        except Exception as e:
-            print(f"Error loading mesh: {e}")
-            return None
-
-    ######################################################################################################
   
 
     def _show_busy(self, message):
@@ -1154,7 +1095,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
             print(f"Loaded {len(self.experiments)} experiments from database")
 
         except Exception as e:
-            print(f"Error loading experiments: {e}")
+            
             self.experiments = []
             self.experiment_metadata = {}
 
@@ -1322,10 +1263,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
             checkbox.setChecked(True)
             checkbox.blockSignals(False)
 
-        print('im on the set channel fcuntion!')
-
         self.current_channel = channel.channel_name
-        print(self.current_channel, 'this is supposed to work')
 
 
     def _on_channel_selected(self, exp_id, channel, checked):
@@ -1444,7 +1382,6 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         # on this page (gene channels) attaches to THIS experiment —
         # it never gets its own exp_id from its own filename.
             exp_id = filename.split('.')[0]
-            printc(exp_id, c='blue')
 
             if exp_id in self.experiments:
                 reply = QMessageBox(
@@ -1679,12 +1616,6 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
             return False, "Missing gene channels.\n\nPlease upload at least one gene channel:\n- HOXA11 \n- HOXA13\n- Sox9\n- BMP2"
 
         return True, f"Experiment has DAPI and {len(gene_channels)} gene channel(s): {', '.join(gene_channels)}"
-
-
-    #helper function -> TODO DELETE when everything is done!
-    def menu_button_clicked(self, s):
-        """Placeholder for menu button clicks."""
-        print("click", s)
 
 
     def log_pipeline(self, message):

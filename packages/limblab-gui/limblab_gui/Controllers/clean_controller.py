@@ -153,7 +153,6 @@ class CleanController:
 
         self.channel_name = channel.channel_name
         self.raw_volume_path = get_channel_path(self.experiment, self.channel_name)
-        print(self.raw_volume_path)
 
         self.window.current_channel = self.channel_name
         self.plotter = pick_isovalues(

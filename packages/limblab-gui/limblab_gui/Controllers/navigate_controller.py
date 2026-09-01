@@ -115,8 +115,7 @@ class NavigationController:
 
         else:
             if step == "Clean" and not getattr(self.window, "current_channel", None):
-                printc(self.window.current_channel, c='red')
-                #print(self.current_channel)
+
                 QMessageBox.warning(
                     self.window,
                     "Select a channel",
@@ -127,7 +126,6 @@ class NavigationController:
             self.state__navigate_to[step]()
 
     def navigate_to_clean(self):
-        printc("Navigating to CLEAN", c="orange")
         channel_obj = next(
             (c for c in self.window.experiment.channels
             if c.channel_name == self.window.current_channel),
@@ -147,42 +145,30 @@ class NavigationController:
 
 
     def navigate_to_surface(self):
-        printc("Navigating to SURFACE", c="orange")
-        print(self._current_step)
         self.navigate_to(lambda:self.window.surface.show(self.window.experiment))
 
 
     def navigate_to_stage(self):
-        printc("Navigating to STAGE", c="orange")
-        print(self._current_step)
         self.navigate_to(lambda:self.window.stage.show(self.window.experiment))
 
 
     def navigate_to_align(self):
-        printc("Navigating to ALIGN", c="orange")
-        print(self._current_step)
         self.navigate_to(lambda:self.window.align.show(self.window.experiment))
 
 
     def navigate_to_visualize(self):
-        printc("Navigating to VISUALIZE", c="orange")
-        print(self._current_step)
         self.navigate_to(lambda:self.window.visualizer.show_experiment(self.window.experiment))
 
 
     def _refresh_pipeline_actions(self, current_step=None, to_next=None):  # to_next = False
-        printc("Refreshing the pipeline!", c="cyan")
         self.window.action_bar.setVisible(True)
         self._current_step = current_step
-        printc(self._current_step, c='pink')
 
         # -1 means nothing has been done yet.
         last_done = -1
         for i, step in enumerate(PIPELINE_STEPS):
             if self.window.workflow_checkpoints[step]:
                 last_done = i
-                print(i)
-                print(step)
 
         for idx, step in enumerate(PIPELINE_STEPS):
 

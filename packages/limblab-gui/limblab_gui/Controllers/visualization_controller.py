@@ -120,9 +120,6 @@ class VisualizationController:
 
         self.window.setCentralWidget(workflow_container)
 
-        print(experiment.surface_path)
-
-        print('here!')
         self._channel_actors = {}  # (exp_id, channel_name) -> actor
 
         if experiment.surface_path is not None:
@@ -182,12 +179,10 @@ class VisualizationController:
         mode_label = self.mode_combo.currentText()
         mode = self.MODES[mode_label]
 
-        print(channel)
         self.show_experiment(self.experiment)
 
         self.channel_readiness(self.experiment, channel)
 
-        printc(mode, c='blue')
         self._open_popup(mode, mode_label, channel)
 
 
@@ -226,19 +221,6 @@ class VisualizationController:
  
         return True, ""
  
-    def show_clean_isosurfaces(self,clean_channels:list):
-        print('all channels are processed and ready to viz!')
-        
-            # params: dict[str, Any] = {"bg": theme("palette.background")}
-            # kwargs = generate_kwargs(params=params, renderer='pyqt', outside_class=self.window)
-            # plt = Plotter(**kwargs)
-            # clean_path = os.path.join(experiment.base, channel.clean_path)
-            # print(clean_path)
-            # volume = Volume(clean_path)
-            # plt += volume
-            # plt.show(interactive=True)
-
-
     # ------------------------------------------------------------------
     def _open_popup(self, mode, mode_label, channel):
         container = QWidget()
@@ -273,8 +255,6 @@ class VisualizationController:
         self._current_frame = frame
 
 
-        printc(mode, c='green')
-        #try:
         if mode == "raycast":
             rc_plotter = raycast(
                     self.window.experiment,

@@ -195,7 +195,6 @@ class MenuUtils:
 
     def _build_side_panel(self, experiment):
         """Build the collapsible right-side panel."""
-        print('side panel was called')
         panel = QWidget()
         panel.setFixedWidth(260)
         panel.setStyleSheet(f"background-color: {theme('palette.surface', '#1E1E1E')};")
