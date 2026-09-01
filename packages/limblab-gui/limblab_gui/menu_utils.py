@@ -1,7 +1,7 @@
 import webbrowser
 
 from limblab.design import theme
-from PyQt6.QtGui import QAction
+from PyQt6.QtGui import QAction, QIcon
 from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -15,6 +15,7 @@ from PyQt6.QtWidgets import (
 )
 from utils import create_back_button, create_collapsible_section
 from vedo import printc
+from config import *
 
 
 class MenuUtils:    
@@ -90,6 +91,15 @@ class MenuUtils:
         contact.addAction(QAction("EMBL, Barcelona", self))
         contact.addAction(QAction("info@embl.es", self))
         return contact
+
+    def _clear_layout(self, layout):
+        """Recursively clear a layout."""
+        while layout.count():
+            item = layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+            elif item.layout():
+                self._clear_layout(item.layout())
 
 
     def _refresh_visualizer_list(self, experiment):
@@ -275,3 +285,31 @@ class MenuUtils:
 
         self._refresh_visualizer_list(experiment)
         return panel
+
+
+    def create_left_button(self):
+        """Create the left menu button with dropdown."""
+        button = QToolButton()
+        button.setIcon(QIcon("left_icon.png"))
+        button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+
+        menu = QMenu(self)
+        menu.setStyleSheet(MENU_STYLE)
+
+        home = QAction("Home", self)
+        home.triggered.connect(lambda: self.navigation.navigate_to(self.show_home))
+        menu.addAction(home)
+
+        menu.addSeparator()
+        self._build_resources_menu(menu)
+
+        about = QAction("About us", self)
+        about.triggered.connect(
+                lambda: webbrowser.open("https://www.embl.org/groups/sharpe/")
+            )   
+        menu.addAction(about)
+
+        self._build_contact_menu(menu)
+
+        button.setMenu(menu)
+        return button

@@ -1,9 +1,6 @@
 # pyright: reportOptionalMemberAccess=false
 # pyright: ignore[reportAttributeAccessIssue]
 
-import os
-import shutil
-import traceback
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -16,38 +13,26 @@ from controllers.clean_controller import CleanController
 from controllers.stage_controller import StageController
 from controllers.surface_controller import SurfaceController
 from limblab.database.crud import (
-    delete_channel,
-    delete_experiment,
-    get_experiment,
     init_db,
-    list_experiments,
-    rename_experiment,
-    save_experiment,
 )
 from limblab.database.navigation import (
     seed_reference_limbs,
 )
 from limblab.design import theme
-from limblab.models import Channel, Experiment
 from limblab.utils import generate_kwargs
 from mixin.NavigationMixin import NavigationMixin
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QAction, QIcon
 from PyQt6.QtWidgets import (
     QApplication,
     QComboBox,
     QDialog,
     QDoubleSpinBox,
-    QFileDialog,
     QFrame,
     QGroupBox,
     QHBoxLayout,
-    QInputDialog,
     QLabel,
     QMainWindow,
-    QMenu,
     QMessageBox,
-    QPushButton,
     QStatusBar,
     QToolButton,
     QTreeWidget,
@@ -61,63 +46,17 @@ from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 
 vtkmodules.qt.QVTKRWIBase = "QGLWidget"
 
-import sys
-import webbrowser
+
 
 from controllers.navigate_controller import NavigationController
 from controllers.visualization_controller import VisualizationController
 from menu_utils import MenuUtils
-from vedo import printc
-
-# env = {}
-# with open("../../../.env") as f:
-#     for line in f:
-#         line = line.strip()
-#         # Skip empty lines and comments
-#         if not line or line.startswith("#"):
-#             continue
-#         # Ensure there is an '='
-#         if "=" not in line:
-#             continue
-#         # Split only on the first '='
-#         key, value = line.split("=", 1)
-#         key = key.strip()
-#         value = value.strip().replace('"', "").replace("'", "")
-#         env[key] = value
-
-# TEST_BASE_PATH = env["TEST_BASE_PATH"]
-# TEST_SURFACE_PATH = env["TEST_SURFACE_PATH"]
-# TEST_DAPI_FILENAME = env["TEST_RAW"]
-# TEST_DAPI_CLEAN = env["TEST_CLEAN"]
-
-# #for the test experiment i added the channels manually 
-# EXPERIMENT = Experiment(
-#     experiment_id="manual_test",
-#     base=TEST_BASE_PATH,
-#     spacing_x=1.0,
-#     spacing_y=1.0,
-#     spacing_z=1.0,
-#     side="F",
-#     position="L",
-#     species="mouse",
-#     # surface_path=TEST_SURFACE_PATH,
-#     # surface_isovalue=165,
-#     # stage=260,
-#     channels=[
-#         Channel(
-#             experiment_id="manual_test",
-#             channel_name="DAPI",
-#             path=TEST_DAPI_FILENAME,
-#             # clean_isovalue_min = 0,
-#             # clean_isovalue_max = 54,
-#             # current_state = "a", 
-#             # clean_path=TEST_DAPI_CLEAN,
-#         )
-#     ],
-# )
+from new_experiment_page_utils import NewExperimentPage
+from database_gui_utils import DatabaseGUI
+from visualization_page_utils import VisualizationPage
 
 
-class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
+class MainWindow(QMainWindow, NavigationMixin, MenuUtils, NewExperimentPage, DatabaseGUI, VisualizationPage):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("LimbLab")
@@ -188,7 +127,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
 
         self.uploaded_dapi_channel = False
         self.uploaded_gene_channel = {}
-        self.GENE_CHANNEL_TYPES = ['HOXA11', 'HOXA13', 'SOX9']
+        self.GENE_CHANNEL_TYPES = ['HOXA11', 'HOXA13', 'SOX9']#will be able to add other types of genes, user accepted gene argument name
 
 
         self.surface = SurfaceController(self)
@@ -200,43 +139,13 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         self.navigation = NavigationController(self)
         self.navigation._build_permanent_chrome()
 
-        self.menu = MenuUtils
-
         # self.navigate_to(lambda:self.align.show(experiment))
         self.navigation.navigate_to(self.show_home)
-
-
 
     # ------------------------------------------------------------------
     # Menu Building Methods
     # ------------------------------------------------------------------
 
-    def create_left_button(self):
-        """Create the left menu button with dropdown."""
-        button = QToolButton()
-        button.setIcon(QIcon("left_icon.png"))
-        button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
-
-        menu = QMenu(self)
-        menu.setStyleSheet(MENU_STYLE)
-
-        home = QAction("Home", self)
-        home.triggered.connect(lambda: self.navigation.navigate_to(self.show_home))
-        menu.addAction(home)
-
-        menu.addSeparator()
-        self._build_resources_menu(menu)
-
-        about = QAction("About us", self)
-        about.triggered.connect(
-                lambda: webbrowser.open("https://www.embl.org/groups/sharpe/")
-            )   
-        menu.addAction(about)
-
-        self._build_contact_menu(menu)
-
-        button.setMenu(menu)
-        return button
 
     # ------------------------------------------------------------------
     # Shared workflow-screen layout
@@ -423,8 +332,6 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         self.current_channel = None
         self.workflow_checkpoints = {step: False for step in self.workflow_checkpoints}
 
-
-
         top_row = QHBoxLayout()
         top_row.addWidget(create_back_button(self.navigation.go_back_using_arrow_btn))
         top_row.addWidget(self.create_left_button())
@@ -534,8 +441,6 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         if not self.limb_info:
             return
 
-        
-
         # ---- Upload group (DAPI + gene channels) ----
         upload_group = QGroupBox("Channels")
         upload_group.setStyleSheet(card_style)
@@ -614,7 +519,6 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         buttons_row.addLayout(left_column, stretch=1)
         buttons_row.addLayout(right_column, stretch=1)
 
-
         # ---- Output location (required before any upload) ----
         output_group = QGroupBox("Output Location")
         output_group.setStyleSheet(card_style)
@@ -679,45 +583,6 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
         layout.addStretch(2)
         layout.addLayout(visualize_row)
         self.setCentralWidget(container)
-
-
-    def _choose_output_parent_dir(self):
-        """User picks the parent folder; the actual experiment folder
-        (named after the experiment ID) gets created lazily once the
-        experiment ID is known, in create_new_experiment()."""
-        parent_dir = QFileDialog.getExistingDirectory(
-            self,
-            "Choose a location to save this experiment's files",
-            os.getcwd(),
-        )
-        if not parent_dir:
-            return
-        self.experiment_storage_folder = parent_dir
-        self.output_folder_label.setText(parent_dir)
-
-
-    def refresh_channel_status(self):
-        """Call this after uploading a DAPI or gene channel to update the status label."""
-        if hasattr(self, "channel_status_label"):
-            self.channel_status_label.setText(self._build_channel_status_text())
-
-
-    def _build_channel_status_text(self):
-        """Builds a human-readable summary of what's been uploaded so far."""
-        if self.uploaded_dapi_channel:
-            dapi_text = self.uploaded_dapi_channel  # filename
-        else:
-            dapi_text = 'Please, upload a DAPI channel'
-
-        if self.uploaded_gene_channel:
-            gene_text = ', '.join(
-                f"{channel_type} ({filename})"
-                for channel_type, filename in self.uploaded_gene_channel.items()
-            )
-        else:
-            gene_text = 'No gene channels were uploaded'
-
-        return f"DAPI channel: {dapi_text}\nGene channel(s): \n{gene_text}"
 
 
     def show_lobby(self):
@@ -1002,20 +867,6 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
 
         self.setCentralWidget(container)
 
-    # ---- Pipeline step screens (Viz -> Clean -> Surface -> Stage -> Align -> Viz) ----
-
-    def addchannel_button_clicked(self, checked=False):
-        """Add channel button handler - adds a channel to an existing experiment."""
-        self._add_channel_to_existing()
-
-
-    def _refresh_experiments(self):
-        """Refresh the experiments list."""
-        self._load_experiments_from_db()
-        self.show_user_experiment_list()
-        QMessageBox.information(self, "Refreshed", "Experiment list updated.")
-  
-
     def _show_busy(self, message):
         self._busy_dialog = QDialog(self)
         self._busy_dialog.setWindowTitle("Please wait")
@@ -1033,594 +884,4 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils):
             self._busy_dialog = None
 
 
-    def _show_message(self, message):
-        self._busy_dialog = QWidget(self)
-        self._busy_dialog.setWindowFlags(
-            Qt.WindowType.FramelessWindowHint | Qt.WindowType.Popup
-        )
-        self._busy_dialog.setStyleSheet(
-            f"background-color: {theme('palette.surface', '#1E1E1E')}; "
-            f"color: {theme('palette.textPrimary', '#FFFFFF')}; "
-            f"border: 1px solid {theme('palette.border', '#3A3A3A')};"
-        )
-        layout = QVBoxLayout(self._busy_dialog)
-        layout.addWidget(create_label(
-            message,
-            f"color: {theme('palette.textPrimary', '#FFFFFF')}; "
-            f"font-size: {theme('typography.fontSizeBase', 14)}px;"
-        ))
-        self._busy_dialog.setFixedSize(320, 100)
-        self._busy_dialog.show()
-        self._busy_dialog.raise_()
-        self._busy_dialog.activateWindow()
-        QApplication.processEvents()
     
-
-
-    # ------------------------------------------------------------------
-    # Side Panel Methods
-    # ------------------------------------------------------------------
-
-    
-
-    def _clear_layout(self, layout):
-        """Recursively clear a layout."""
-        while layout.count():
-            item = layout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
-            elif item.layout():
-                self._clear_layout(item.layout())
-
-        
-
-    def _load_experiments_from_db(self):
-        """Load all experiments from the database."""
-        try:
-            # Get list of experiment IDs from database
-            exp_ids = list_experiments(self.db_path)
-            self.experiments = exp_ids
-
-            # Load metadata for each experiment
-            self.experiment_metadata = {}
-            self.experiment_names = {}
-
-            for exp_id in exp_ids:
-                exp_data = get_experiment(self.db_path, exp_id)
-                if exp_data:
-                    self.experiment_metadata[exp_id] = exp_data
-                    # Use the persisted display name if set, otherwise fall back to the id
-                    self.experiment_names[exp_id] = exp_data.displayed_name or exp_id
-
-            print(f"Loaded {len(self.experiments)} experiments from database")
-
-        except Exception as e:
-            
-            self.experiments = []
-            self.experiment_metadata = {}
-
-    # ------------------------------------------------------------------
-    # Button Actions
-    # ------------------------------------------------------------------
-
-    def _rename_experiment(self, path, experiment_id, old_name):
-        """Rename an experiment and persist to DB."""
-
-        experiment = get_experiment(self.db_path, experiment_id)
-
-        current_name = old_name #exp_id as default in models.py
-        new_name, ok = QInputDialog.getText(
-            self, "Rename experiment", "New name:", text=current_name
-        )
-        if ok and new_name.strip():
-            success = rename_experiment(self.db_path, experiment_id, new_name.strip())
-            if success:
-                self.experiment_names[path] = new_name.strip()#internal main window variable to store the current experiments loaded
-                experiment.displayed_name = new_name
-                self.show_user_experiment_list()
-            else:
-                QMessageBox.warning(self, "Error", f"Experiment '{path}' not found in database.")
-
-    # DELETE FUNCTION CALLS DATABASE DELETE FUNCTION, AUXILIAR UI
-    def _delete_experiment(self, experiment_id, displayed_name):
-        """Delete an experiment from the database."""
-        # Confirm with user
-        reply = QMessageBox.question(
-            self,
-            "Delete Experiment",
-            f"Are you sure you want to delete experiment '{displayed_name}'?\nThis implies deleting all its associated channels from the database entry.",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
-
-        if reply == QMessageBox.StandardButton.Yes:
-
-            success = delete_experiment(self.db_path, experiment_id)#delete_experiment as a functioin imported from database.py
-
-            if success:#delete function returns True if exp ( exp = session.get(Experiment, experiment_id, if exp: session.delete(exp)session.commit() return True
-                # Remove from local lists (UI logistics)
-                if experiment_id in self.experiments:
-                    self.experiments.remove(experiment_id)
-                if experiment_id in self.experiment_names:
-                    del self.experiment_names[experiment_id]
-                if experiment_id in self.experiment_metadata:
-                    del self.experiment_metadata[experiment_id]
-
-                # Refresh the UI
-                self.show_user_experiment_list()
-                QMessageBox.information(
-                    self, "Success", f"Deleted experiment: {displayed_name}"
-                )
-            else:
-                QMessageBox.warning(
-                    self,
-                    "Error",
-                    f"Experiment '{displayed_name}' not found in database.",
-                )
-
-
-    def _delete_channel(self, experiment_id, channel_name, channel_id):
-        """Delete a channel from an experiment and persist to DB."""
-        reply = QMessageBox.question(
-            self,
-            "Delete Channel",
-            f"Are you sure you want to delete the selected channel '{channel_name}' from experiment '{experiment_id}'?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
-        if reply == QMessageBox.StandardButton.Yes:
-            success = delete_channel(self.db_path, channel_id)
-
-            if success:
-                self.show_user_experiment_list()
-                QMessageBox.information(
-                    self, "Success", f"Deleted channel: {channel_name}"
-                )
-            else:
-                QMessageBox.warning(
-                    self,
-                    "Error",
-                    f"Channel '{channel_name}' not found in database.",
-                )
-
-
-    def _view_experiment(self, experiment_id):
-        """View the selected experiment (show visualization)."""
-        experiment = get_experiment(self.db_path, experiment_id)
-        if not experiment:
-            QMessageBox.warning(self, "Error", "Experiment not found.")
-            return
-
-        channel_names = [channel.channel_name for channel in experiment.channels]
-
-        if 'DAPI' not in channel_names:
-            QMessageBox.warning(
-                self, "Error",
-                "DAPI-nuclei channel not found. Unable to visualize any surface. "
-                "You must upload a DAPI-nuclei channel for any experiment"
-            )
-            return
-
-        self._set_current_experiment(experiment)
-        self.navigation.navigate_to(lambda: self.visualizer.show_experiment(self.experiment))
-
-    def _infer_workflow_state(self, exp):
-        """Derive pipeline progress from what's actually persisted on the
-        experiment row + its channels, rather than trusting an in-memory flag
-        that could drift from what's really on disk/DB."""
-        channels = exp.channels or []
-
-        # A channel counts as "cleaned" if its stored path is a processed .vti,
-        # matching the same convention surface_controller already checks.
-        cleaned_channels = [ch for ch in channels if ch.path.lower().endswith(".vti")]
-        #clean_done = len(cleaned_channels) > 0
-        
-        last_cleaned_channel = cleaned_channels[-1].channel_name if cleaned_channels else None
-
-        return {
-            "clean_done": bool(last_cleaned_channel) , #clean_done (bool)
-            "last_cleaned_channel": last_cleaned_channel,
-            "surface_done": bool(exp.surface_path),
-            "stage_done": bool(exp.stage),
-            #"selected_stage": exp.stage,
-            "align_done": bool(exp.transformation_matrix_path),
-            #"alignment_method": "rigid" if exp.transformation_matrix_path else None,
-        }
-    
-
-
-    def _set_current_experiment(self, exp_obj):
-        """Switch the active experiment. Pipeline progress is derived from
-        what's actually saved on this experiment's row — so resuming an
-        experiment you cleaned/surfaced last week correctly shows those
-        steps unlocked, without needing a separate progress table."""
-        
-        self.experiment = exp_obj
-
-        #self.workflow_state = self._infer_workflow_state(exp_obj)
-        # self.align.source = None
-        # self.align.surface_path = str(
-        #     os.path.join(exp_obj.base, exp_obj.surface_path)
-        # ) if exp_obj.surface_path else None
-
-
-    DAPI_ONLY_STEPS = {"Surface", "Stage", "Align"}
-
-    DAPI_STEP_CONTROLLERS = {
-            "Surface": lambda self: self.surface,
-            "Stage": lambda self: self.stage,
-            "Align": lambda self: self.align,
-        }
-
-    def _set_processing_channel(self, exp_id, channel):
-        for (e, name), cb in self._viz_channel_checkboxes.items():
-            if (e, name) != (exp_id, channel.channel_name) and cb.isChecked():
-                cb.blockSignals(True)
-                cb.setChecked(False)
-                cb.blockSignals(False)
-
-        checkbox = self._viz_channel_checkboxes.get((exp_id, channel.channel_name))
-        if checkbox is not None:
-            checkbox.blockSignals(True)
-            checkbox.setChecked(True)
-            checkbox.blockSignals(False)
-
-        self.current_channel = channel.channel_name
-
-
-    def _on_channel_selected(self, exp_id, channel, checked):
-        current_step = getattr(self.navigation, "_current_step", None)
-        is_dapi = channel.channel_name.upper() == "DAPI"
-
-        if current_step in self.DAPI_ONLY_STEPS and not is_dapi:
-            self._warn_step_requires_dapi(current_step, exp_id, channel)
-            dapi = next((c for c in self.experiment.channels
-                        if c.channel_name.upper() == "DAPI"), None)
-            if current_step == "Surface":
-                if dapi and getattr(dapi, "clean_path", None):
-                    self.surface.show(self.experiment)
-            elif current_step == "Stage":
-                if self.experiment.surface_path:
-                    self.stage.show(self.experiment)
-            elif current_step == "Align":
-                if self.experiment.surface_path:
-                    self.align.show(self.experiment)
-            return
-        
-        if current_step == "Clean":
-            if not checked:
-                self._revert_checkbox(exp_id, channel)
-                return
-            self._set_processing_channel(exp_id, channel)
-            self.clean.show(self.experiment, channel)
-            return
-
-        if current_step != "Visualize":
-            return
-
-        if is_dapi:
-            if checked:
-                self.current_channel = channel.channel_name
-            return
-              # DAPI's actor is already shown by show_experiment; nothing to toggle here
-
-        ready, message = self.visualizer.channel_readiness(self.experiment, channel)
-        if checked and not ready:
-            self._warn_gene_channel_needs_cleaning(exp_id, channel)
-            return#a gene channel has been selected, so we get a warning!
-
-        if checked:
-            actor = self.visualizer._build_channel_actor(channel)
-            if actor is not None:
-                self.visualizer.plt.add(actor)
-                self.visualizer._channel_actors[(exp_id, channel.channel_name)] = actor
-                self.visualizer.plt.render()
-        else:
-            actor = self.visualizer._channel_actors.pop((exp_id, channel.channel_name), None)
-            if actor is not None:
-                self.visualizer.plt.remove(actor)
-                self.visualizer.plt.render()
-
-
-    def _warn_step_requires_dapi(self, current_step, exp_id, channel):
-        QMessageBox.warning(
-            self,
-            "DAPI channel required",
-            f"'{current_step}' can only be performed on the DAPI channel.\n"
-            f"'{channel.channel_name}' will not be used for this step."
-        )
-        self._revert_checkbox(exp_id, channel)
-
-    def _warn_gene_channel_needs_cleaning(self, exp_id, channel):
-        if channel.channel_name != 'DAPI':
-            self._revert_checkbox(exp_id, channel)
-
-            box = QMessageBox(self)
-            box.setIcon(QMessageBox.Icon.Warning)
-            box.setWindowTitle("Channel not cleaned")
-
-            
-            box.setText(
-                f"'{channel.channel_name}' hasn't been cleaned yet.\n"
-                "It needs to be cleaned before it can be visualized."
-            )
-            clean_btn = box.addButton("Clean now", QMessageBox.ButtonRole.AcceptRole)
-            box.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
-            box.exec()
-
-            if box.clickedButton() == clean_btn:
-                self.current_channel = channel.channel_name
-                self.navigation.navigate_to(lambda: self.clean.show(self.experiment, channel))
-
-
-    def _revert_checkbox(self, exp_id, channel):
-        checkbox = self._viz_channel_checkboxes.get((exp_id, channel.channel_name))
-        if checkbox is not None:
-            checkbox.blockSignals(True)
-            checkbox.setChecked(False)
-            checkbox.blockSignals(False)
-
-
-    def create_new_experiment(self, channel_type: str):
-        """Create a new experiment from any TIF volume (DAPI or gene channel)."""
-        filepath, _ = QFileDialog.getOpenFileName(
-            parent=self,
-            caption='Select TIF volume file!',
-            directory=os.getcwd(),
-            filter='Volume files (*.tif *.tiff *.vti *.nii *.nii.gz)'
-        )
-        if not filepath:
-            return
-
-        if not filepath.lower().endswith((".tif", ".tiff", ".vti", ".nii", ".nii.gz")):
-            QMessageBox.warning(self, "Invalid file", "Please select a valid volume file.")
-            return
-
-        exp_id = os.path.basename(filepath).split('.')[0]
-        filename = os.path.basename(filepath)
-
-        if channel_type == 'DAPI':
-        # Starting a brand-new experiment. Everything uploaded afterwards
-        # on this page (gene channels) attaches to THIS experiment —
-        # it never gets its own exp_id from its own filename.
-            exp_id = filename.split('.')[0]
-
-            if exp_id in self.experiments:
-                reply = QMessageBox(
-                    self, "Experiment Exists",
-                    f"Experiment '{exp_id}' already exists.\n")
-                return
-
-            if not self.experiment_storage_folder:
-                            QMessageBox.warning(
-                                self, "Choose an output folder first",
-                                "Please choose where to save this experiment's files before uploading a channel."
-                            )
-                            return
-
-            output_dir = os.path.join(self.experiment_storage_folder, exp_id)
-            os.makedirs(output_dir, exist_ok=True)
-            dest_path = os.path.join(output_dir, filename)
-            shutil.copy2(filepath, dest_path)
-
-            new_exp = Experiment(
-                experiment_id=exp_id,
-                displayed_name=exp_id,
-                base=output_dir,
-                spacing_x=self.limb_info['spacing'][0],
-                spacing_y=self.limb_info['spacing'][1],
-                spacing_z=self.limb_info['spacing'][2],
-                side=self.limb_info['side'],
-                position=self.limb_info['position'],
-                channels=[],
-            )
-            self.experiment = new_exp
-            save_experiment(self.db_path, new_exp)
-
-            channel_name = 'DAPI'
-
-
-        else:
-            # Attach a gene channel to the experiment already started on this
-            # page. Never mint a new experiment_id from the gene file's name.
-            if self.experiment is None or not self.uploaded_dapi_channel:
-                QMessageBox.warning(
-                    self, "Upload DAPI first",
-                    "Please upload a DAPI channel before adding a gene channel."
-                )
-                return
-
-            channel_name, ok = QInputDialog.getItem(
-                self, "Channel Type", "Select the channel type for this file:",
-                self.GENE_CHANNEL_TYPES, 0, False
-            )
-            if not ok or not channel_name:
-                return
-
-            if any(ch.channel_name.upper() == channel_name.upper() for ch in self.experiment.channels):
-                QMessageBox.warning(
-                    self, "Duplicate Channel",
-                    f"Channel '{channel_name}' has already been uploaded for this experiment."
-                )
-                return
-
-            # Copy into the SAME experiment folder the DAPI channel lives in.
-            dest_path = os.path.join(self.experiment.base, filename)
-            shutil.copy2(filepath, dest_path)
-
-        new_channel = Channel(
-            experiment_id=self.experiment.experiment_id,
-            channel_name=channel_name,
-            path=filename,
-        )
-        self.experiment.channels.append(new_channel)
-        save_experiment(self.db_path, self.experiment)
-        self._sync_db_copy(self.experiment.base)
-
-        if channel_type == 'DAPI':
-            self.uploaded_dapi_channel = filename
-        else:
-            self.uploaded_gene_channel[channel_name] = filename
-
-
-        if self.experiment_storage_folder == None:
-            QMessageBox('Select directory for output folder', 'Please select an output directory for the output folder to be generated')
-
-        self.refresh_channel_status()
-        self._load_experiments_from_db()
-        return
-
-
-    def _sync_db_copy(self, output_dir):
-        """Keep a snapshot of the shared experiments.db inside the
-        experiment's own output folder, so the folder is self-contained."""
-        try:
-            shutil.copy2(self.db_path, os.path.join(output_dir, "database.db"))
-        except Exception as e:
-            print(f"Warning: couldn't copy database.db into {output_dir}: {e}")
-
-
-    def viewexp_button_clicked(self):
-        """View experiment button handler."""
-        # Use the experiments tree selection to determine the experiment to view
-        if not hasattr(self, 'experiments_tree') or self.experiments_tree.currentItem() is None:
-            QMessageBox.warning(self, "No experiment selected", "Please select an experiment to visualize.")
-            return
-
-        item = self.experiments_tree.currentItem()
-        parent = item.parent() if item.parent() is not None else item
-        exp_id = parent.data(0, Qt.ItemDataRole.UserRole)
-        if not exp_id:
-            QMessageBox.warning(self, "No experiment selected", "Please select an experiment to visualize.")
-
-            return
-
-        exp_obj = get_experiment(self.db_path, exp_id)
-        if not exp_obj:
-            QMessageBox.warning(self, "Not found", f"Experiment '{exp_id}' not found in database.")
-            return
-
-        self._set_current_experiment(exp_obj)
-        self._hide_busy()
-
-
-    def _add_channel_to_existing(self, specific_exp_id=None):
-        if not specific_exp_id:
-            if not self.experiments:
-                QMessageBox.warning(self, "No experiments", "No existing experiments found.")
-                return
-            exp_id, ok = QInputDialog.getItem(
-                self, "Select Experiment", "Select experiment to add channel to:",
-                self.experiments, 0, False
-            )
-            if not ok or not exp_id:
-                return
-        else:
-            exp_id = specific_exp_id
-
-        exp_data = self.experiment_metadata.get(exp_id)
-        if not exp_data:
-            QMessageBox.warning(self, "Error", "Experiment not found.")
-            return
-
-        current_channels = [ch.channel_name for ch in (exp_data.channels or [])]
-        channel_info = f"Current channels: {', '.join(current_channels) if current_channels else 'None'}"
-
-        filepath, _ = QFileDialog.getOpenFileName(
-            parent=self, caption='Select gene channel TIF file!',
-            directory=os.getcwd(),
-            filter='Volume files (*.tif *.tiff *.vti *.nii *.nii.gz)'
-        )
-        if not filepath:
-            return
-        if not filepath.lower().endswith((".tif", ".tiff", ".vti", ".nii", ".nii.gz")):
-            QMessageBox.warning(self, "Invalid file", "Please select a valid volume file.")
-            return
-
-        channel_type, ok = QInputDialog.getItem(
-            self, "Channel Type", f"Select channel type to add:\n\n{channel_info}",
-            ["HOXA11", 'HOXA13', "SOX9", "BMP2", "SHH"], 0, False
-        )
-        if not ok or not channel_type:
-            return
-
-        try:
-            for channel in exp_data.channels or []:
-                if channel.channel_name.upper() == channel_type.upper():
-                    QMessageBox.warning(
-                        self, "Duplicate Channel",
-                        f"Channel '{channel_type}' already exists in this experiment.\n{channel_info}"
-                    )
-                    return
-
-            dest_path = os.path.join(exp_data.base, os.path.basename(filepath))
-            shutil.copy2(filepath, dest_path)
-
-            new_channel = Channel(
-                experiment_id=exp_id,
-                channel_name=channel_type,
-                path=os.path.basename(filepath),
-            )
-
-            exp_data.channels.append(new_channel)
-            save_experiment(self.db_path, exp_data)
-            self._sync_db_copy(exp_data.base) # exp_data is already a real Experiment — no need to rebuild it
-
-            self._load_experiments_from_db()
-            #self.show_exp()
-
-            is_valid, status = self._validate_experiment_channels(exp_id)
-            channel_list = ', '.join(ch.channel_name for ch in exp_data.channels)
-
-            if is_valid:
-                QMessageBox.information(
-                    self, "Success",
-                    f"Added {channel_type} channel to experiment: {exp_id}\n"
-                    f"File: {os.path.basename(filepath)}\n\n"
-                  
-                )
-            else:
-                QMessageBox.information(
-                    self, "Success",
-                    f"Added {channel_type} channel to experiment: {exp_id}\n"
-                    f"File: {os.path.basename(filepath)}\n\n"
-                )
-
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to add channel: {e}")
-            import traceback
-            traceback.print_exc()
-
-
-    def _validate_experiment_channels(self, exp_id):
-        exp_data = self.experiment_metadata.get(exp_id)
-        if not exp_data: 
-            return False, f"Experiment '{exp_id}' not found in database."
-
-        channels = exp_data.channels or []
-        if not channels:
-            return False, "No channels found in this experiment.\nPlease upload at least DAPI and one gene channel."
-
-        has_dapi = False
-        gene_channels = []
-        gene_names = ['HOXA11', 'HOXA13','SOX9', 'BMP2', 'SHH']
-
-        for channel in channels:
-            channel_name = channel.channel_name.upper()
-            if channel_name == 'DAPI':
-                has_dapi = True
-            elif channel_name in [g.upper() for g in gene_names]:
-                gene_channels.append(channel.channel_name)
-
-        if not has_dapi:
-            return False, "Missing required DAPI channel.\n\nPlease upload a DAPI .tiff file first."
-        if len(gene_channels) == 0:
-            return False, "Missing gene channels.\n\nPlease upload at least one gene channel:\n- HOXA11 \n- HOXA13\n- Sox9\n- BMP2"
-
-        return True, f"Experiment has DAPI and {len(gene_channels)} gene channel(s): {', '.join(gene_channels)}"
-
-
-    def log_pipeline(self, message):
-        """Add a message to the pipeline log."""
-        self.pipeline_log.append(message)
-        if hasattr(self, "pipeline_log_widget"):
-            self.pipeline_log_widget.setText("\n".join(self.pipeline_log[-10:]))
-
