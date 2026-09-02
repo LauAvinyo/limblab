@@ -169,11 +169,14 @@ class DatabaseGUI:
             exp_id = filename.split('.')[0]
 
             if exp_id in self.experiments:
-                reply = QMessageBox(
-                    self, "Experiment Exists",
-                    f"Experiment '{exp_id}' already exists.\n")
-                return
-
+                reply = QMessageBox.question(
+                self, "Experiment Exists",
+                f"Experiment '{exp_id}' already exists.\nOverwrite it?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+                if reply != QMessageBox.StandardButton.Yes:
+                    return
+                    
             if not self.experiment_storage_folder:
                             QMessageBox.warning(
                                 self, "Choose an output folder first",

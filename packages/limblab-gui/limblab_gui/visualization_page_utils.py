@@ -73,6 +73,10 @@ class VisualizationPage:
             checkbox.setChecked(True)
             checkbox.blockSignals(False)
 
+        # Move the "processing" indicator to the active channel's row
+        for key, label in getattr(self, "_viz_channel_processing_labels", {}).items():
+            label.setVisible(key == (exp_id, channel.channel_name))
+
         self.current_channel = channel.channel_name
 
 

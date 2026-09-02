@@ -112,6 +112,7 @@ class MenuUtils:
 
         self._viz_channel_containers = {}
         self._viz_channel_checkboxes = {}
+        self._viz_channel_processing_labels = {}
 
         if experiment is not None:
             exp_id = experiment.experiment_id
@@ -184,12 +185,25 @@ class MenuUtils:
 
                 row_layout.addWidget(ch_checkbox)
                 row_layout.addWidget(status_label)
-                row_layout.addStretch()
 
+                proc_label = QLabel("● processing")
+                proc_label.setStyleSheet(f"""
+                    color: {theme('palette.accent', '#E0A82E')};
+                    font-size: {theme('typography.fontSizeSmall', 10)}px;
+                    font-weight: bold;
+                """)
+                proc_label.setVisible(
+                    self.current_channel == channel.channel_name
+                    if hasattr(self, "current_channel") else False
+                )
+                row_layout.addWidget(proc_label)
                 channel_layout.addWidget(row)
+                
                 self._viz_channel_checkboxes[(exp_id, channel.channel_name)] = ch_checkbox
+                self._viz_channel_processing_labels[(exp_id, channel.channel_name)] = proc_label   # <-- new
                 self._viz_channel_status_labels = getattr(self, "_viz_channel_status_labels", {})
                 self._viz_channel_status_labels[(exp_id, channel.channel_name)] = status_label
+                row_layout.addStretch()
 
             exp_layout.addWidget(channel_container)
 
