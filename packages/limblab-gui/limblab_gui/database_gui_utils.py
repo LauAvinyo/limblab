@@ -386,11 +386,13 @@ class DatabaseGUI:
         try:
             for channel in exp_data.channels or []:
                 if channel.channel_name.upper() == channel_type.upper():
-                    QMessageBox.warning(
-                        self, "Duplicate Channel",
-                        f"Channel '{channel_type}' already exists in this experiment.\n{channel_info}"
-                    )
-                    return
+                    reply = QMessageBox.question(
+                                                    self, "Channel type already exists",
+                                                    f"Channel: '{channel_type}' is already in this experiment.\nOverwrite it?",
+                                                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                                                )
+                    if reply != QMessageBox.StandardButton.Yes:
+                        return
 
             dest_path = os.path.join(exp_data.base, os.path.basename(filepath))
             shutil.copy2(filepath, dest_path)

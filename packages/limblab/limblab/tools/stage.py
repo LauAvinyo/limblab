@@ -160,8 +160,6 @@ def stage_limb(experiment: Experiment) -> int:
     surface_name = experiment.surface_path
     base = experiment.base
 
-    print('!!we-re here', surface_name, base)
-
     if surface_name is None or base is None:
         raise ValueError(
             "Surface name and base path must be provided in the experiment object."

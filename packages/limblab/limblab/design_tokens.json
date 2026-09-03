@@ -13,8 +13,12 @@
     "secondary": "#54278F",
     "secondaryHover": "#756BB1",
     "accent": "#5FBF9F",
-    "warning": "#FF6B6B"
-  }, 
+    "warning": "#FF6B6B",
+    "buttonDark": "#3A3F42",
+    "buttonDarkHover": "#4A5054",
+    "buttonDarkPressed": "#2C3033",
+    "disabled": "#A0A0A0"
+  },
   "limblab": {
     "surface": "cyan",
     "channel0": "#B0DB43",
@@ -33,7 +37,7 @@
     "fontWeightBold": "bold"
   },
   "shape": {
-    "borderRadiusButton": "20px",
+    "borderRadiusButton": "2px",
     "borderRadiusPanel": "20px",
     "borderRadiusSmall": "20px"
   },
