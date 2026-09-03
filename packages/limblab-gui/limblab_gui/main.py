@@ -117,7 +117,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils, NewExperimentPage, Dat
 
         self.uploaded_dapi_channel = False
         self.uploaded_gene_channel = {}
-        self.GENE_CHANNEL_TYPES = ['HOXA11', 'HOXA13', 'SOX9', 'BMP2']#will be able to add other types of genes, user accepted gene argument name
+        self.GENE_CHANNEL_TYPES = ['HOXA11', 'HOXA13', 'SOX9', 'AFF3','BMP2']#will be able to add other types of genes, user accepted gene argument name
 
 
         self.surface = SurfaceController(self)
