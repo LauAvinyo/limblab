@@ -1,5 +1,6 @@
 import os
 import shutil
+from pathlib import Path
 
 from limblab.database.crud import (
     delete_channel,
@@ -84,12 +85,20 @@ class DatabaseGUI:
 
     # DELETE FUNCTION CALLS DATABASE DELETE FUNCTION, AUXILIAR UI
     def _delete_experiment(self, experiment_id, displayed_name):
-        """Delete an experiment from the database."""
+        """Delete an experiment from the database and its output folder on disk."""
+        # Grab the folder location before we remove the DB row (cascades to channels)
+        exp_data = self.experiment_metadata.get(experiment_id)
+        exp_base = getattr(exp_data, "base", None) if exp_data else None
+
         # Confirm with user
+        folder_note = f"\n\nFolder to be removed:\n{exp_base}" if exp_base else ""
         reply = QMessageBox.question(
             self,
             "Delete Experiment",
-            f"Are you sure you want to delete experiment '{displayed_name}'?\nThis implies deleting all its associated channels from the database entry.",
+            f"Are you sure you want to delete experiment '{displayed_name}'?\n"
+            f"This will permanently delete all its associated channels from the database "
+            f"and delete the entire generated output folder for this experiment.{folder_note}\n\n"
+            f"This action cannot be undone.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
 
@@ -98,6 +107,10 @@ class DatabaseGUI:
             success = delete_experiment(self.db_path, experiment_id)#delete_experiment as a functioin imported from database.py
 
             if success:#delete function returns True if exp ( exp = session.get(Experiment, experiment_id, if exp: session.delete(exp)session.commit() return True
+                # Remove the experiment's output folder from disk (best-effort)
+                if exp_base:
+                    self._delete_folder(exp_base)
+
                 # Remove from local lists (UI logistics)
                 if experiment_id in self.experiments:
                     self.experiments.remove(experiment_id)
@@ -120,17 +133,37 @@ class DatabaseGUI:
 
 
     def _delete_channel(self, experiment_id, channel_name, channel_id):
-        """Delete a channel from an experiment and persist to DB."""
+        """Delete a channel from an experiment, its DB entry, and the files
+        generated from it in the experiment's output folder."""
+        exp_data = self.experiment_metadata.get(experiment_id)
+        exp_base = getattr(exp_data, "base", None) if exp_data else None
+
+        # Find the channel's own record so we know its originally uploaded
+        # filename (used below to make sure that raw file is removed too).
+        channel_path = None
+        if exp_data:
+            for ch in (exp_data.channels or []):
+                if getattr(ch, "id", None) == channel_id:
+                    channel_path = getattr(ch, "path", None)
+                    break
+
         reply = QMessageBox.question(
             self,
             "Delete Channel",
-            f"Are you sure you want to delete the selected channel '{channel_name}' from experiment '{experiment_id}'?",
+            f"Are you sure you want to delete the selected channel '{channel_name}' from experiment '{experiment_id}'?\n"
+            f"This will permanently delete the channel's database entry and all files generated "
+            f"from this channel (the uploaded volume and any derived outputs) in the experiment's output folder.\n\n"
+            f"This action cannot be undone.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply == QMessageBox.StandardButton.Yes:
             success = delete_channel(self.db_path, channel_id)
 
             if success:
+                if exp_base:
+                    self._delete_channel_files(exp_base, channel_name, channel_path)
+
+                self._load_experiments_from_db()
                 self.show_user_experiment_list()
                 QMessageBox.information(
                     self, "Success", f"Deleted channel: {channel_name}"
@@ -142,6 +175,60 @@ class DatabaseGUI:
                     f"Channel '{channel_name}' not found in database.",
                 )
 
+    def _delete_folder(self, folder_path):
+        """Best-effort removal of an experiment's output folder from disk."""
+        try:
+            if folder_path and os.path.isdir(folder_path):
+                shutil.rmtree(folder_path)
+        except Exception as e:
+            QMessageBox.warning(
+                self,
+                "Cleanup warning",
+                f"The database entry was deleted, but the output folder couldn't be "
+                f"removed automatically:\n{folder_path}\n\n{e}\n\nYou may need to delete it manually.",
+            )
+
+    def _delete_channel_files(self, exp_base, channel_name, channel_path=None):
+        """Best-effort removal of the files generated for a specific channel
+        from the experiment's output folder.
+        assumes generated/derived files are named containing the
+        channel name (e.g. produced by the pipeline steps for that channel).
+        The originally uploaded volume is removed via its exact stored path
+        regardless of naming, since it may not contain the channel name.
+        """
+        try:
+            base = Path(exp_base)
+            if not base.is_dir():
+                return
+
+            removed_any = False
+
+            # 1) Remove the exact originally-uploaded file for this channel.
+            if channel_path:
+                raw_file = base / channel_path
+                if raw_file.is_file():
+                    raw_file.unlink()
+                    removed_any = True
+
+            # 2) Remove any other file whose name references this channel
+            #    (derived/generated outputs from the pipeline).
+            for f in base.iterdir():
+                if not f.is_file() or f.name == "database.db":
+                    continue
+                if channel_name.lower() in f.name.lower():
+                    f.unlink()
+                    removed_any = True
+
+            if not removed_any:
+                print(f"No files matching channel '{channel_name}' found in {exp_base}")
+
+        except Exception as e:
+            QMessageBox.warning(
+                self,
+                "Cleanup warning",
+                f"The channel's database entry was deleted, but some of its generated "
+                f"files couldn't be removed automatically from:\n{exp_base}\n\n{e}",
+            )
 
 
     def create_new_experiment(self, channel_type: str):
@@ -378,5 +465,3 @@ class DatabaseGUI:
             return False, "Missing gene channels.\n\nPlease upload at least one gene channel:\n- HOXA11 \n- HOXA13\n- Sox9\n- BMP2"
 
         return True, f"Experiment has DAPI and {len(gene_channels)} gene channel(s): {', '.join(gene_channels)}"
-
-

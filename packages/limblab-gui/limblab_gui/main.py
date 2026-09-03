@@ -48,7 +48,7 @@ from menu_utils import MenuUtils
 from new_experiment_page_utils import NewExperimentPage
 from database_gui_utils import DatabaseGUI
 from visualization_page_utils import VisualizationPage
-
+from main_windows_tools import MainWindowsTools
 
 class MainWindow(QMainWindow, NavigationMixin, MenuUtils, NewExperimentPage, DatabaseGUI, VisualizationPage):
     def __init__(self):
