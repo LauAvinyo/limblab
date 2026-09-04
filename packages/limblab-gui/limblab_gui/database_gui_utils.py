@@ -378,7 +378,7 @@ class DatabaseGUI:
 
         channel_type, ok = QInputDialog.getItem(
             self, "Channel Type", f"Select channel type to add:\n\n{channel_info}",
-            ['DAPI',"HOXA11", 'HOXA13', "SOX9", 'AFF3',"BMP2", "SHH"], 0, False
+            ['DAPI',"HOXA11", 'HOXA13', "SOX9", 'AFF3',"BMP2", 'BMP4', "SHH"], 0, False
         )
         if not ok or not channel_type:
             return
@@ -452,7 +452,7 @@ class DatabaseGUI:
 
         has_dapi = False
         gene_channels = []
-        gene_names = ['HOXA11', 'HOXA13','SOX9', 'BMP2', 'SHH']
+        gene_names = ['HOXA11', 'HOXA13','SOX9', 'BMP2', 'BMP4','SHH']
 
         for channel in channels:
             channel_name = channel.channel_name.upper()
