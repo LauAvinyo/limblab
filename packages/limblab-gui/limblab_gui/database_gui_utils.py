@@ -418,13 +418,31 @@ class DatabaseGUI:
             if not ok or not channel_name:
                 return
 
-            if any(ch.channel_name.upper() == channel_name.upper() for ch in self.experiment.channels):
-                QMessageBox.warning(
-                    self, "Duplicate Channel",
-                    f"Channel '{channel_name}' has already been uploaded for this experiment."
-                )
-                return
+            existing_channel = next(
+                (ch for ch in self.experiment.channels if ch.channel_name.upper() == channel_name.upper()),
+                None,
+            )
 
+            if existing_channel:
+                reply = QMessageBox.question(
+                    self, "Channel Exists",
+                    f"Channel '{channel_name}' has already been uploaded for this experiment.\nOverwrite it?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+                
+                if reply != QMessageBox.StandardButton.Yes:
+                    return
+
+                # If the old file on disk has a different name than the one
+                # being uploaded now, remove it so it doesn't linger orphaned.
+                old_path = getattr(existing_channel, "path", None)
+                if old_path and old_path != filename:
+                    old_file = os.path.join(self.experiment.base, old_path)
+                    if os.path.isfile(old_file):
+                        os.remove(old_file)
+
+                # Drop the old DB-side entry so the new one replaces it
+                # instead of sitting alongside it as a duplicate.
+                self.experiment.channels.remove(existing_channel)
             # Copy into the SAME experiment folder the DAPI channel lives in.
             dest_path = os.path.join(self.experiment.base, filename)
             shutil.copy2(filepath, dest_path)
@@ -492,15 +510,28 @@ class DatabaseGUI:
             return
 
         try:
-            for channel in exp_data.channels or []:
-                if channel.channel_name.upper() == channel_type.upper():
-                    reply = QMessageBox.question(
-                                                    self, "Channel type already exists",
-                                                    f"Channel: '{channel_type}' is already in this experiment.\nOverwrite it?",
-                                                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-                                                )
-                    if reply != QMessageBox.StandardButton.Yes:
-                        return
+            existing_channel = next(
+                (ch for ch in (exp_data.channels or []) if ch.channel_name.upper() == channel_type.upper()),None,
+            )
+            if existing_channel:
+                reply = QMessageBox.question(self, "Channel type already exists",
+                f"Channel: '{channel_type}' is already in this experiment.\nOverwrite it?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+
+                if reply != QMessageBox.StandardButton.Yes:
+                    return
+
+                # If the old file on disk has a different name than the one
+                # being uploaded now, remove it so it doesn't linger orphaned.
+                old_path = getattr(existing_channel, "path", None)
+                new_filename = os.path.basename(filepath)
+                if old_path and old_path != new_filename:
+                    old_file = os.path.join(exp_data.base, old_path)
+                    if os.path.isfile(old_file):
+                        os.remove(old_file)
+                # Drop the old DB-side entry so the new one replaces it
+                # instead of sitting alongside it as a duplicate.
+                exp_data.channels.remove(existing_channel)
 
             dest_path = os.path.join(exp_data.base, os.path.basename(filepath))
             shutil.copy2(filepath, dest_path)
