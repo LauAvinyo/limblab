@@ -734,10 +734,18 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils, NewExperimentPage, Dat
                 lambda checked=False, p=path: self._rename_experiment(p, exp_obj.experiment_id, exp_obj.displayed_name),
                 border=theme('palette.accent', '#5FBF9F'),
             )
+            details_btn = make_small_btn(
+                'Details',
+                theme('palette.buttonDark', '#3A3F42'),
+                theme('palette.buttonDarkHover', '#4A5054'),
+                lambda checked=False, p=path: self._open_experiment_details(p),
+                border=theme('palette.primary', '#0D7C66'),
+            )
 
             act_layout.addWidget(view_btn)
             act_layout.addWidget(add_ch_btn)
             act_layout.addWidget(rename_btn)
+            act_layout.addWidget(details_btn)
             act_layout.addWidget(del_btn)
             tree.setItemWidget(parent, 1, act_widget)
 
@@ -793,7 +801,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils, NewExperimentPage, Dat
         tree.setRootIsDecorated(True)
         tree.header().setStretchLastSection(False)
         tree.resizeColumnToContents(0)
-        tree.setColumnWidth(1, 300)
+        tree.setColumnWidth(1, 380)
 
         experiments_card = QWidget()
         experiments_layout = QVBoxLayout(experiments_card)

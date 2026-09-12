@@ -188,6 +188,114 @@ class DatabaseGUI:
                 f"removed automatically:\n{folder_path}\n\n{e}\n\nYou may need to delete it manually.",
             )
 
+    def _open_experiment_details(self, experiment_id):
+        """Show the experiment's current details (output directory, limb
+        side, position, spacing) and walk the user through a quick series of
+        popups to change any of them. Mirrors the values collected up-front
+        on the New Experiment page, but editable after the fact. Anything
+        changed is persisted back to the database."""
+        exp_data = self.experiment_metadata.get(experiment_id)
+        if not exp_data:
+            QMessageBox.warning(self, "Error", f"Experiment '{experiment_id}' not found in database.")
+            return
+
+        # ---- Show current info, ask whether to edit ----
+        current_info = (
+            f"Output Directory:\n{exp_data.base or 'Not set'}\n\n"
+            f"Limb Side: {exp_data.side or 'N/A'}\n"
+            f"Position: {exp_data.position or 'N/A'}\n"
+            f"Spacing (X, Y, Z): {exp_data.spacing_x}, {exp_data.spacing_y}, {exp_data.spacing_z}"
+        )
+        reply = QMessageBox.question(
+            self, f"Details \u2014 {exp_data.displayed_name or experiment_id}",
+            current_info + "\n\nWould you like to edit these details?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+
+        # ---- Output directory ----
+        new_base = exp_data.base
+        change_dir = QMessageBox.question(
+            self, "Output Directory",
+            f"Current output directory:\n{exp_data.base or 'Not set'}\n\nChange it?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if change_dir == QMessageBox.StandardButton.Yes:
+            chosen_parent = QFileDialog.getExistingDirectory(
+                self, "Choose a new parent folder for this experiment", os.getcwd()
+            )
+            if chosen_parent:
+                new_base = os.path.join(chosen_parent, experiment_id)
+
+        # ---- Limb side ----
+        side, ok = QInputDialog.getItem(
+            self, "Limb Side", "Select limb side:", ["L", "R"],
+            ["L", "R"].index(exp_data.side) if exp_data.side in ("L", "R") else 0, False
+        )
+        if not ok:
+            return
+
+        # ---- Position ----
+        position, ok = QInputDialog.getItem(
+            self, "Position", "Select limb position:", ["F", "H"],
+            ["F", "H"].index(exp_data.position) if exp_data.position in ("F", "H") else 0, False
+        )
+        if not ok:
+            return
+
+        # ---- Spacing ----
+        spacing_x, ok = QInputDialog.getDouble(
+            self, "Spacing X", "X spacing:", exp_data.spacing_x or 0.65, 0.01, 10.0, 2
+        )
+        if not ok:
+            return
+        spacing_y, ok = QInputDialog.getDouble(
+            self, "Spacing Y", "Y spacing:", exp_data.spacing_y or 0.65, 0.01, 10.0, 2
+        )
+        if not ok:
+            return
+        spacing_z, ok = QInputDialog.getDouble(
+            self, "Spacing Z", "Z spacing:", exp_data.spacing_z or 2.0, 0.01, 10.0, 2
+        )
+        if not ok:
+            return
+
+        # ---- Persist ----
+        old_base = exp_data.base
+        if new_base and new_base != old_base:
+            # Physically move the experiment's folder so the channel files
+            # inside it (referenced by relative filename) keep resolving
+            # correctly after the directory change.
+            try:
+                if old_base and os.path.isdir(old_base):
+                    os.makedirs(os.path.dirname(new_base), exist_ok=True)
+                    shutil.move(old_base, new_base)
+                else:
+                    os.makedirs(new_base, exist_ok=True)
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Could not move experiment folder:\n{e}")
+                return
+            exp_data.base = new_base
+
+        exp_data.side = side
+        exp_data.position = position
+        exp_data.spacing_x = spacing_x
+        exp_data.spacing_y = spacing_y
+        exp_data.spacing_z = spacing_z
+
+        try:
+            save_experiment(self.db_path, exp_data)
+            if exp_data.base and os.path.isdir(exp_data.base):
+                self._sync_db_copy(exp_data.base)
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Could not save changes:\n{e}")
+            return
+
+        self._load_experiments_from_db()
+        self.show_user_experiment_list()
+        QMessageBox.information(self, "Success", "Experiment details updated.")
+
     def _delete_channel_files(self, exp_base, channel_name, channel_path=None):
         """Best-effort removal of the files generated for a specific channel
         from the experiment's output folder.
