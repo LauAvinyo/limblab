@@ -136,7 +136,19 @@ class VisualizationController:
             self._channel_actors[(experiment.experiment_id, "DAPI")] = mesh
 
         else:
-            volume_path = os.path.join(experiment.base, experiment.experiment_id + '.tif')      
+            dapi_channel = next(
+                (ch for ch in experiment.channels if ch.channel_name.upper() == "DAPI"),
+                None,
+            )
+            if dapi_channel is None or not getattr(dapi_channel, "path", None):
+                QMessageBox.warning(
+                    self.window, "DAPI file missing",
+                    "No DAPI channel file is recorded for this experiment."
+                )
+                self.window._hide_busy()
+                return
+
+            volume_path = os.path.join(experiment.base, dapi_channel.path)
             vol, plt = preview_volume(volume_path, "pyqt", self.window)
             self.plt = plt
             self._channel_actors[(experiment.experiment_id, "DAPI")] = vol
