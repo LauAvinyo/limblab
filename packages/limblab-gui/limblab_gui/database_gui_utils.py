@@ -338,6 +338,16 @@ class DatabaseGUI:
                 f"files couldn't be removed automatically from:\n{exp_base}\n\n{e}",
             )
 
+    def _make_unique_experiment_id(self, base_exp_id):
+        """Return an experiment id that isn't already used in the DB, appending
+        ' (1)', ' (2)', etc. to base_exp_id until a free one is found."""
+        candidate = base_exp_id
+        counter = 1
+        while candidate in self.experiments:
+            candidate = f"{base_exp_id} ({counter})"
+            counter += 1
+        return candidate
+
 
     def create_new_experiment(self, channel_type: str):
         """Create a new experiment from any TIF volume (DAPI or gene channel)."""
@@ -358,28 +368,63 @@ class DatabaseGUI:
         filename = os.path.basename(filepath)
 
         if channel_type == 'DAPI':
-        # Starting a brand-new experiment. Everything uploaded afterwards
-        # on this page (gene channels) attaches to THIS experiment —
-        # it never gets its own exp_id from its own filename.
             exp_id = filename.split('.')[0]
 
-            if exp_id in self.experiments:
-                reply = QMessageBox.question(
-                self, "Experiment Exists",
-                f"Experiment '{exp_id}' already exists.\nOverwrite it?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-            )
-                if reply != QMessageBox.StandardButton.Yes:
-                    return
-                    
+            # Need the output folder up-front now, since it's part of the
+            # determinant for whether this is a real collision (same id AND same
+            # folder) or just a name reuse in a different location.
             if not self.experiment_storage_folder:
-                            QMessageBox.warning(
-                                self, "Choose an output folder first",
-                                "Please choose where to save this experiment's files before uploading a channel."
-                            )
-                            return
+                QMessageBox.warning(
+                    self, "Choose an output folder first",
+                    "Please choose where to save this experiment's files before uploading a channel."
+                )
+                return
 
-            output_dir = os.path.join(self.experiment_storage_folder, exp_id)
+            candidate_output_dir = os.path.join(self.experiment_storage_folder, exp_id)
+
+            existing_exp_data = self.experiment_metadata.get(exp_id) if exp_id in self.experiments else None
+            same_folder = bool(
+                existing_exp_data and existing_exp_data.base
+                and os.path.normpath(existing_exp_data.base) == os.path.normpath(candidate_output_dir)
+            )
+
+            if existing_exp_data and same_folder:
+                # True match: same id AND same output folder -> this genuinely is
+                # the same experiment on disk. Let the user overwrite it in place,
+                # duplicate it as a new sibling experiment, or cancel.
+                msg_box = QMessageBox(self)
+                msg_box.setWindowTitle("Experiment Exists")
+                msg_box.setText(
+                    f"Experiment '{exp_id}' already exists in this output folder.\n\n"
+                    f"Overwrite the existing experiment, or create a duplicate copy?"
+                )
+                overwrite_btn = msg_box.addButton("Overwrite", QMessageBox.ButtonRole.DestructiveRole)
+                duplicate_btn = msg_box.addButton("Duplicate", QMessageBox.ButtonRole.ActionRole)
+                msg_box.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
+                msg_box.exec()
+
+                clicked = msg_box.clickedButton()
+                if clicked == duplicate_btn:
+                    exp_id = self._make_unique_experiment_id(exp_id)
+                    candidate_output_dir = os.path.join(self.experiment_storage_folder, exp_id)
+                elif clicked != overwrite_btn:
+                    return  # Cancel
+
+            elif existing_exp_data and not same_folder:
+                # Same id, but pointing at a different output folder -> not a real
+                # collision on disk, just a reused name. Warn, then keep going
+                # under a disambiguated id instead of blocking creation.
+                original_exp_id = exp_id
+                exp_id = self._make_unique_experiment_id(exp_id)
+                candidate_output_dir = os.path.join(self.experiment_storage_folder, exp_id)
+                QMessageBox.information(
+                    self, "Name Already Used",
+                    f"An experiment named '{original_exp_id}' already exists in a different "
+                    f"output folder.\nThis new experiment will be saved as '{exp_id}' so it "
+                    f"doesn't conflict with it."
+                )
+
+            output_dir = candidate_output_dir
             os.makedirs(output_dir, exist_ok=True)
             dest_path = os.path.join(output_dir, filename)
             shutil.copy2(filepath, dest_path)
