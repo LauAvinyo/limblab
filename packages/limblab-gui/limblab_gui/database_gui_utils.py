@@ -549,7 +549,7 @@ class DatabaseGUI:
 
         channel_type, ok = QInputDialog.getItem(
             self, "Channel Type", f"Select channel type to add:\n\n{channel_info}",
-            ['DAPI',"HOXA11", 'HOXA13', "SOX9", 'AFF3',"BMP2", 'BMP4', 'BMPR1A','BMPR1B'], 0, False
+            ['DAPI',"HOXA11", 'HOXA13', "SOX9", 'AFF3',"BMP2", 'BMP4', 'BMPR1A','BMPR1B','COL1A1','COL1A2','COL2A1', 'COL3A1'], 0, False
         )
         if not ok or not channel_type:
             return
@@ -636,7 +636,7 @@ class DatabaseGUI:
 
         has_dapi = False
         gene_channels = []
-        gene_names = ['HOXA11', 'HOXA13','SOX9', 'BMP2', 'BMP4','BMPR1A','BMPR1B']
+        gene_names = ['HOXA11', 'HOXA13','SOX9', 'BMP2', 'BMP4','BMPR1A','BMPR1B', 'COL1A1','COL1A2','COL2A1', 'COL3A1']
 
         for channel in channels:
             channel_name = channel.channel_name.upper()
@@ -648,6 +648,6 @@ class DatabaseGUI:
         if not has_dapi:
             return False, "Missing required DAPI channel.\n\nPlease upload a DAPI .tiff file first."
         if len(gene_channels) == 0:
-            return False, 'Missing gene channels.\n\nPlease upload at least one gene channel:\n- HOXA11 \n- HOXA13\n- Sox9\n- BMP2\n- BMPR1A\n- BMPR1B'
+            return False, 'Missing gene channels.\n\nPlease upload at least one gene channel:\n- HOXA11 \n- HOXA13\n- Sox9\n- BMP2\n- BMPR1A\n- BMPR1B\n- COL1A1\n- COL1A2\n- COL2A1\n- COL3A1 ' 
 
         return True, f"Experiment has DAPI and {len(gene_channels)} gene channel(s): {', '.join(gene_channels)}"
