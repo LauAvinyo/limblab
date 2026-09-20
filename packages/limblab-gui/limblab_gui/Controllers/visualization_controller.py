@@ -127,7 +127,6 @@ class VisualizationController:
 
         return bar
 
-
     def show_experiment(self, experiment):
         self.experiment = experiment
         self.window.experiment_metadata[experiment.experiment_id] = experiment  # <-- add
@@ -251,18 +250,28 @@ class VisualizationController:
         clean_path = getattr(channel, "clean_path", None)
  
         if not clean_path:
-            if is_dapi and not getattr(experiment, "transformation_matrix_path", None):
+            if is_dapi:
                 return False, (
+                    "This DAPI channel hasn't been processed yet.\n"
+                    "Run it through Clean before visualizing it."
+                )
+            return False, (
+                f"'{channel.channel_name}' hasn't been cleaned yet.\n"
+                "Gene channels must be cleaned before they can be visualized."
+            )
+
+        if is_dapi and not getattr(experiment, "transformation_matrix_path", None):
+            return False, (
                 "The DAPI channel hasn't been fully processed yet.\n"
                 "Finish Clean → Surface → Stage → Align before visualizing it."
             )
- 
+
         full_path = os.path.join(experiment.base, clean_path)
         if not os.path.exists(full_path):
             return False, (
-                f"The cleaned file {full_path}\n for '{channel.channel_name}' is missing :"
+                f"The cleaned file {full_path}\n for '{channel.channel_name}' is missing."
             )
- 
+
         return True, ""
  
     # ------------------------------------------------------------------

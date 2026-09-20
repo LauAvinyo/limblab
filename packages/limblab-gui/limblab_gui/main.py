@@ -51,6 +51,13 @@ from database_gui_utils import DatabaseGUI
 from visualization_page_utils import VisualizationPage
 from main_windows_tools import MainWindowsTools
 
+import sys, traceback
+
+def _excepthook(exc_type, exc, tb):
+    traceback.print_exception(exc_type, exc, tb)   # print instead of aborting
+
+sys.excepthook = _excepthook
+
 class MainWindow(QMainWindow, NavigationMixin, MenuUtils, NewExperimentPage, DatabaseGUI, VisualizationPage):
     def __init__(self):
         super().__init__()
@@ -180,27 +187,43 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils, NewExperimentPage, Dat
         left_layout.setContentsMargins(0, 0, 0, 0)
         left_layout.setSpacing(6)
 
+        # Fresh VTK widget each time (reusing an old one can raise
+        # "wrapped C/C++ object has been deleted")
+        try:
+            self.frame = QFrame()
+            self.vtkWidget = QVTKRenderWindowInteractor(self.frame)
+            try:
+                self.plt = Plotter(qt_widget=self.vtkWidget)
+            except Exception:
+                self.plt = None
+        except Exception:
+            self.vtkWidget = QWidget()
 
-        left.setMinimumWidth(420)                      # experiment view always stays usable
+        self.vtk_widget = getattr(self, "vtkWidget")
+
+        left_layout.addWidget(self.vtkWidget, stretch=1)
+
+        if action_widget is not None:
+            left_layout.addWidget(action_widget)
+
+        left.setMinimumWidth(420)
 
         side = self._build_side_panel(experiment)
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
-        splitter.setChildrenCollapsible(False)         # neither side can be dragged shut
+        splitter.setChildrenCollapsible(False)
         splitter.setHandleWidth(6)
         splitter.addWidget(left)
         splitter.addWidget(side)
         splitter.setStretchFactor(0, 3)
         splitter.setStretchFactor(1, 1)
         splitter.setSizes(getattr(self, "_splitter_sizes", [900, 300]))
-        # remember the user's chosen width across screen rebuilds
         splitter.splitterMoved.connect(
             lambda *_: setattr(self, "_splitter_sizes", splitter.sizes())
         )
         h_layout.addWidget(splitter)
 
         return container
-
         # # Top row (Back / menu / Next)
 
         # # Create a fresh VTK viewer widget for this container.
