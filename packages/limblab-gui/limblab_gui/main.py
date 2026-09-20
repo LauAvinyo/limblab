@@ -835,8 +835,32 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils, NewExperimentPage, Dat
                     }}
                 """)
                 ch_del.clicked.connect(lambda checked=False, p=path, c=ch_name, cid=ch_id: self._delete_channel(p, c, cid))
+
+
+                if ch_name.upper() != "DAPI":   # DAPI name is used as a key across the pipeline
+                    ch_ren = QToolButton()
+                    ch_ren.setText('Rename')
+                    ch_ren.setFixedSize(70, 26)
+                    ch_ren.setStyleSheet(f"""
+                        QToolButton {{
+                            background-color: {theme('palette.buttonDark', '#3A3F42')};
+                            color: {theme('palette.textPrimary', '#FFFFFF')};
+                            border: 1px solid {theme('palette.accent', '#5FBF9F')};
+                            border-radius: {theme('shape.borderRadiusSmall', '2px')};
+                            font-size: 12px; padding: 0px 6px;
+                        }}
+                        QToolButton:hover {{ background-color: {theme('palette.accent', '#5FBF9F')}; }}
+                    """)
+                    ch_ren.clicked.connect(
+                        lambda checked=False, p=path, c=ch_name, cid=ch_id:
+                            self._rename_channel(p, c, cid)
+                    )
+                    ch_act_layout.addWidget(ch_ren)
+
+
                 ch_act_layout.addWidget(ch_del)
                 tree.setItemWidget(child, 1, ch_act)
+                
 
         # expose tree for other handlers (view button, bulk actions)
         self.experiments_tree = tree

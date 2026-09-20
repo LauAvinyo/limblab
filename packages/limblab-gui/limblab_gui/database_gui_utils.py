@@ -10,6 +10,7 @@ from limblab.database.crud import (
     list_experiments,
     rename_experiment,
     save_experiment,
+    rename_channel
 )
 from limblab.models import Channel, Experiment
 from PyQt6.QtWidgets import (
@@ -651,3 +652,70 @@ class DatabaseGUI:
             return False, 'Missing gene channels.\n\nPlease upload at least one gene channel:\n- HOXA11 \n- HOXA13\n- Sox9\n- BMP2\n- BMPR1A\n- BMPR1B\n- COL1A1\n- COL1A2\n- COL2A1\n- COL3A1 ' 
 
         return True, f"Experiment has DAPI and {len(gene_channels)} gene channel(s): {', '.join(gene_channels)}"
+
+
+    def _rename_channel(self, experiment_id, old_name, channel_id):
+        exp_data = self.experiment_metadata.get(experiment_id)
+        if not exp_data:
+            QMessageBox.warning(self, "Error", f"Experiment '{experiment_id}' not found.")
+            return
+
+        # choose from the same gene list used at experiment creation,
+        # leaving out names this experiment already has
+        used = {c.channel_name.upper() for c in exp_data.channels if c.id != channel_id}
+        options = [g for g in self.GENE_CHANNEL_TYPES if g.upper() not in used]
+        if old_name not in options:
+            options.insert(0, old_name)          # keep the current name selectable
+        if len(options) < 2:
+            QMessageBox.information(self, "No names available",
+                                    "All gene names are already used in this experiment.")
+            return
+
+        new_name, ok = QInputDialog.getItem(
+            self, "Rename channel", f"Select the new name for '{old_name}':",
+            options, options.index(old_name), False
+        )
+        if not ok or not new_name or new_name == old_name:
+            return
+
+        channel = next((c for c in exp_data.channels if c.id == channel_id), None)
+        if channel is None:
+            QMessageBox.warning(self, "Error", "Channel not found.")
+            return
+
+        # Generated files are named after the channel (delete relies on that),
+        # so rename them too, matching the old name as a whole token only.
+        pattern = re.compile(rf"(?<![A-Za-z0-9]){re.escape(old_name)}(?![A-Za-z0-9])", re.IGNORECASE)
+        renamed = []   # (old_path, new_path) for rollback
+        new_path, new_clean = channel.path, getattr(channel, "clean_path", None)
+        try:
+            base = Path(exp_data.base) if exp_data.base else None
+            if base and base.is_dir():
+                for f in list(base.iterdir()):
+                    if f.is_file() and f.name != "database.db" and pattern.search(f.name):
+                        target = f.with_name(pattern.sub(new_name, f.name))
+                        if target.exists():
+                            raise FileExistsError(f"{target.name} already exists")
+                        f.rename(target)
+                        renamed.append((f, target))
+            new_path = pattern.sub(new_name, channel.path) if channel.path else channel.path
+            new_clean = pattern.sub(new_name, new_clean) if new_clean else new_clean
+
+            ok_db = rename_channel(self.db_path, channel_id, new_name,
+                                   path=new_path, clean_path=new_clean)
+            if not ok_db:
+                raise RuntimeError("Channel not found in database.")
+
+        except Exception as e:
+            for old, new in reversed(renamed):     # undo file renames
+                try: new.rename(old)
+                except Exception: pass
+            QMessageBox.critical(self, "Error", f"Could not rename channel:\n{e}")
+            return
+
+        if getattr(self, "current_channel", None) == old_name:
+            self.current_channel = new_name
+        if exp_data.base and os.path.isdir(exp_data.base):
+            self._sync_db_copy(exp_data.base)
+        self._load_experiments_from_db()
+        self.show_user_experiment_list()
