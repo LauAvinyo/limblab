@@ -110,28 +110,53 @@ class VisualizationPage:
         if current_step != "Visualize":
             return
 
+        viz = self.visualizer
+
+        # DAPI: independent show / hide
         if is_dapi:
+            actor = viz._channel_actors.get((exp_id, channel.channel_name))
+            if actor is not None:
+                if checked:
+                    viz.plt.add(actor)
+                else:
+                    viz.plt.remove(actor)
+                viz.plt.render()
             if checked:
                 self.current_channel = channel.channel_name
             return
-              # DAPI's actor is already shown by show_experiment; nothing to toggle here
 
-        ready, message = self.visualizer.channel_readiness(self.experiment, channel)
+        # gene channels
+        ready, message = viz.channel_readiness(self.experiment, channel)
         if checked and not ready:
             self._warn_gene_channel_needs_cleaning(exp_id, channel)
-            return#a gene channel has been selected, so we get a warning!
+            return
 
         if checked:
-            actor = self.visualizer._build_channel_actor(channel)
-            if actor is not None:
-                self.visualizer.plt.add(actor)
-                self.visualizer._channel_actors[(exp_id, channel.channel_name)] = actor
-                self.visualizer.plt.render()
+            actor = viz._build_channel_actor(channel)
+            if actor is None:
+                self._revert_checkbox(exp_id, channel)
+                return
+
+            # only one gene channel at a time: drop any other gene channel first
+            for (e, name), cb in self._viz_channel_checkboxes.items():
+                if name.upper() == "DAPI" or (e, name) == (exp_id, channel.channel_name):
+                    continue
+                if cb.isChecked():
+                    cb.blockSignals(True)
+                    cb.setChecked(False)
+                    cb.blockSignals(False)
+                old = viz._channel_actors.pop((e, name), None)
+                if old is not None:
+                    viz.plt.remove(old)
+
+            viz.plt.add(actor)
+            viz._channel_actors[(exp_id, channel.channel_name)] = actor
+            viz.plt.render()
         else:
-            actor = self.visualizer._channel_actors.pop((exp_id, channel.channel_name), None)
+            actor = viz._channel_actors.pop((exp_id, channel.channel_name), None)
             if actor is not None:
-                self.visualizer.plt.remove(actor)
-                self.visualizer.plt.render()
+                viz.plt.remove(actor)
+                viz.plt.render()
 
 
     def _warn_step_requires_dapi(self, current_step, exp_id, channel):
