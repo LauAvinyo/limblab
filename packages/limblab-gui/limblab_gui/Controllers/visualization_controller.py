@@ -31,10 +31,46 @@ from pathlib import Path
 
 CURRENT_STAGE = 'Visualize'
 
+import inspect
+from PyQt6.QtWidgets import QCheckBox, QMenu, QToolButton, QWidgetAction
+
+class MultiChannelSelector(QToolButton):
+    """Drop-down with one checkbox per ready channel (menu stays open while ticking)."""
+    def __init__(self, names, preselected=(), parent=None):
+        super().__init__(parent)
+        self.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        self._menu = QMenu(self)
+        self._boxes = {}
+        for name in names:
+            box = QCheckBox(name)
+            box.setChecked(name in preselected)
+            box.setStyleSheet("padding: 4px 10px;")
+            box.toggled.connect(self._update_text)
+            act = QWidgetAction(self._menu)
+            act.setDefaultWidget(box)
+            self._menu.addAction(act)
+            self._boxes[name] = box
+        self.setMenu(self._menu)
+        self.setEnabled(bool(names))
+        self._update_text()
+
+    def selected(self):
+        return [n for n, b in self._boxes.items() if b.isChecked()]
+
+    def _update_text(self, *_):
+        sel = self.selected()
+        if not self._boxes:
+            text = "No channels ready"
+        elif not sel:
+            text = "Select channels…"
+        elif len(sel) <= 2:
+            text = ", ".join(sel)
+        else:
+            text = f"{len(sel)} channels"
+        self.setText(text + " ▾")
+
+
 class VisualizationController:
-
-
-    
     MODES = {
         "Raycast": "raycast",
         "Isosurface": "isosurface",
@@ -45,7 +81,8 @@ class VisualizationController:
     def __init__(self, window):
         self.window = window
         self.experiment = None
-        self.channel_combo = None
+        self.channel_selector = None
+        self._selected_names = []
         self.mode_combo = None
         self.status_label = None
         self.show_btn = None
@@ -58,15 +95,15 @@ class VisualizationController:
         layout.setContentsMargins(20, 10, 20, 10)
 
         layout.addWidget(create_label(
-            "Channel:", f"color: {theme('palette.textPrimary', '#FFFFFF')};"
+            "Channels:", f"color: {theme('palette.textPrimary', '#FFFFFF')};"
         ))
-        self.channel_combo = QComboBox()
-        ready_channels = [
-            ch for ch in experiment.channels
+        ready_names = [
+            ch.channel_name for ch in experiment.channels
             if self.channel_readiness(experiment, ch)[0]
         ]
-        self.channel_combo.addItems([ch.channel_name for ch in ready_channels])
-        layout.addWidget(self.channel_combo)
+        keep = [n for n in self._selected_names if n in ready_names] or ready_names[:1]
+        self.channel_selector = MultiChannelSelector(ready_names, preselected=keep)
+        layout.addWidget(self.channel_selector)
 
         layout.addSpacing(12)
         layout.addWidget(create_label(
@@ -172,31 +209,30 @@ class VisualizationController:
 
     def _on_show_clicked(self):                
         if not self.experiment or not self.experiment.channels:
-            QMessageBox.warning(
-                self.window, "No channels",
-                "This experiment has no channels to visualize."
-            )
+            QMessageBox.warning(self.window, "No channels",
+                                "This experiment has no channels to visualize.")
             return
 
-        channel_name = self.channel_combo.currentText()
-        channel = next(
-            (ch for ch in self.experiment.channels if ch.channel_name == channel_name),
-            None,
-        )
-        if channel is None:
-            QMessageBox.warning(self.window, "Channel not found", f"Couldn't find channel '{channel_name}'.")
+        names = self.channel_selector.selected()
+        if not names:
+            QMessageBox.warning(self.window, "No channel selected",
+                                "Select at least one channel to visualize.")
             return
 
-        # Capture the mode BEFORE anything rebuilds self.mode_combo
-        mode_label = self.mode_combo.currentText()
+        channels = [ch for ch in self.experiment.channels if ch.channel_name in names]
+        self._selected_names = names          # survives the action-bar rebuild below
+
+        mode_label = self.mode_combo.currentText()   # capture BEFORE rebuild
         mode = self.MODES[mode_label]
 
+        for ch in channels:
+            ready, message = self.channel_readiness(self.experiment, ch)
+            if not ready:
+                QMessageBox.warning(self.window, "Can't visualize", message)
+                return
+
         self.show_experiment(self.experiment)
-
-        self.channel_readiness(self.experiment, channel)
-
-        self._open_popup(mode, mode_label, channel)
-
+        self._open_popup(mode, mode_label, channels)
 
     @staticmethod
     def channel_readiness(experiment, channel):
@@ -215,14 +251,10 @@ class VisualizationController:
         clean_path = getattr(channel, "clean_path", None)
  
         if not clean_path:
-            if is_dapi:
+            if is_dapi and not getattr(experiment, "transformation_matrix_path", None):
                 return False, (
-                    "This DAPI channel hasn't been processed yet.\n"
-                    "Run it through Clean before visualizing it."
-                )
-            return False, (
-                f"'{channel.channel_name}' hasn't been cleaned yet.\n"
-                "Gene channels must be cleaned before they can be visualized."
+                "The DAPI channel hasn't been fully processed yet.\n"
+                "Finish Clean → Surface → Stage → Align before visualizing it."
             )
  
         full_path = os.path.join(experiment.base, clean_path)
@@ -234,7 +266,9 @@ class VisualizationController:
         return True, ""
  
     # ------------------------------------------------------------------
-    def _open_popup(self, mode, mode_label, channel):
+    def _open_popup(self, mode, mode_label, channels):
+        names = [c.channel_name for c in channels]
+
         container = QWidget()
         outer_layout = QVBoxLayout(container)
         outer_layout.setContentsMargins(0, 0, 0, 0)
@@ -247,7 +281,7 @@ class VisualizationController:
     
         top_layout.addWidget(back_btn)
         top_layout.addWidget(create_label(
-            f"{mode_label} — {channel.channel_name}",
+            f"{mode_label} — {', '.join(names)}",
             f"color: {theme('palette.textPrimary', '#FFFFFF')};"
         ))
         top_layout.addStretch()
@@ -266,41 +300,26 @@ class VisualizationController:
         self.vtk_widget = vtk_widget
         self._current_frame = frame
 
-
-        if mode == "raycast":
-            rc_plotter = raycast(
-                    self.window.experiment,
-                    channel_name=channel.channel_name,
-                    renderer='pyqt',
-                    outside_class=self,)
-            self._current_plotter = rc_plotter
-
-        elif mode == 'isosurface':
-            iso_plotter = one_channel_isosurface(
-                    self.window.experiment,
-                        channel_name=channel.channel_name,
-                        renderer='pyqt',
-                        outside_class=self,
-                        )
-            self._current_plotter = iso_plotter
-
-        elif mode == "slab":
-            slab_plotter = dynamic_slab(self.window.experiment, 
-                    channel_name=channel.channel_name,
-                    renderer='pyqt',
-                    outside_class=self,
-                    )
-            self._current_plotter = slab_plotter
-
-        elif mode == "probe":
-            probe_plotter = probe(self.window.experiment,
-                    channel_names=[channel.channel_name],
-                    renderer='pyqt',
-                    outside_class=self,
-                    )
-            self._current_plotter = probe_plotter
-
+        fns = {"raycast": raycast, "isosurface": one_channel_isosurface,
+               "slab": dynamic_slab, "probe": probe}
+        self._current_plotter = self._run_vis(fns[mode], names)
         return
+
+
+    def _run_vis(self, fn, names):
+        """Call a limblab vis function with all channels if it supports it,
+        otherwise fall back to the first channel and tell the user."""
+        params = inspect.signature(fn).parameters
+        common = dict(renderer='pyqt', outside_class=self)
+        if "channel_names" in params:
+            return fn(self.window.experiment, channel_names=names, **common)
+        if len(names) > 1:
+            QMessageBox.information(
+                self.window, "Single channel only",
+                f"This mode only supports one channel at a time. "
+                f"Showing '{names[0]}'."
+            )
+        return fn(self.window.experiment, channel_name=names[0], **common)
 
 
     def _back_to_picker(self):
