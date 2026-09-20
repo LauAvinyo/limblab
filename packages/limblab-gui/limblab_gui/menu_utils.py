@@ -11,12 +11,12 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
     QCheckBox,
-    QMessageBox
+    QSizePolicy    
 )
 from utils import create_back_button, create_collapsible_section
 from vedo import printc
 from config import *
-
+from PyQt6.QtCore import Qt
 
 class MenuUtils:    
     def _build_home_topbar(self):
@@ -63,8 +63,6 @@ class MenuUtils:
         layout.addWidget(contact)
 
         return bar
-
-
 
     def _build_resources_menu(self, menu):
         """Build the Resources submenu."""
@@ -182,6 +180,8 @@ class MenuUtils:
                         font-size: {theme('typography.fontSizeSmall', 10)}px;
                         font-style: {'normal' if is_cleaned else 'italic'};
                     """)
+                status_label.setWordWrap(True)
+                status_label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
 
                 row_layout.addWidget(ch_checkbox)
                 row_layout.addWidget(status_label)
@@ -220,19 +220,12 @@ class MenuUtils:
     def _build_side_panel(self, experiment):
         """Build the collapsible right-side panel."""
         panel = QWidget()
-        panel.setFixedWidth(260)
+        panel.setMinimumWidth(240)                     # was setFixedWidth(260)
         panel.setStyleSheet(f"background-color: {theme('palette.surface', '#1E1E1E')};")
 
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
-        scroll_area.setStyleSheet(f"""
-            QScrollArea {{ border: none; background-color: {theme('palette.surface', '#1E1E1E')}; }}
-            QScrollBar:vertical {{ border: none; background: {theme('palette.panel', '#2A2A2A')}; width: 10px; margin: 0px; }}
-            QScrollBar::handle:vertical {{ background: {theme('palette.primaryHover', '#41B3A2')}; border-radius: 5px; min-height: 20px; }}
-            QScrollBar::handle:vertical:hover {{ background: {theme('palette.primary', '#5FBF9F')}; }}
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ border: none; background: none; }}
-        """)
-
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         scroll_content = QWidget()
         scroll_layout = QVBoxLayout(scroll_content)
         scroll_layout.setContentsMargins(0, 0, 0, 0)
@@ -276,6 +269,7 @@ class MenuUtils:
             else "pipeline.log was automatically generated. \nNo actions yet."
         )
         self.pipeline_log_widget.setWordWrap(True)
+        self.pipeline_log_widget.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         self.pipeline_log_widget.setStyleSheet(f"color: {theme('palette.textSecondary', '#A0A0A0')}; font-size: {theme('typography.fontSizeSmall', 12)}px;")
         pipeline_layout.addWidget(self.pipeline_log_widget)
 

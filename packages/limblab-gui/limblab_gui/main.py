@@ -35,6 +35,7 @@ from PyQt6.QtWidgets import (
     QTreeWidgetItem,
     QVBoxLayout,
     QWidget,
+    QSplitter
 )
 from utils import create_back_button, create_label, create_styled_button
 from vedo import Mesh, Plotter
@@ -179,41 +180,62 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils, NewExperimentPage, Dat
         left_layout.setContentsMargins(0, 0, 0, 0)
         left_layout.setSpacing(6)
 
-        # Top row (Back / menu / Next)
 
-        # Create a fresh VTK viewer widget for this container.
-        # Reusing a previously-created QVTKRenderWindowInteractor can lead
-        # to "wrapped C/C++ object has been deleted" errors when Qt
-        # has already destroyed the old widget. Always instantiate a new
-        # widget here and overwrite any previous references.
-        try:
-            self.frame = QFrame()
-            self.vtkWidget = QVTKRenderWindowInteractor(self.frame)
-            # create a Plotter for convenience (may be re-used by controllers)
-            try:
-                self.plt = Plotter(qt_widget=self.vtkWidget)
-            except Exception:
-                self.plt = None
-        except Exception:
-            self.vtkWidget = QWidget()
+        left.setMinimumWidth(420)                      # experiment view always stays usable
 
-        self.vtk_widget = getattr(self, "vtkWidget")
-
-        # Add the viewer to the layout
-        left_layout.addWidget(self.vtkWidget, stretch=1)
-
-        # Optional per-step action bar below the viewer
-        if action_widget is not None:
-            left_layout.addWidget(action_widget)
-
-        h_layout.addWidget(left, stretch=3)
-
-        # --- Right: side panel ---
         side = self._build_side_panel(experiment)
-        
-        h_layout.addWidget(side, stretch=1)
+
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setChildrenCollapsible(False)         # neither side can be dragged shut
+        splitter.setHandleWidth(6)
+        splitter.addWidget(left)
+        splitter.addWidget(side)
+        splitter.setStretchFactor(0, 3)
+        splitter.setStretchFactor(1, 1)
+        splitter.setSizes(getattr(self, "_splitter_sizes", [900, 300]))
+        # remember the user's chosen width across screen rebuilds
+        splitter.splitterMoved.connect(
+            lambda *_: setattr(self, "_splitter_sizes", splitter.sizes())
+        )
+        h_layout.addWidget(splitter)
 
         return container
+
+        # # Top row (Back / menu / Next)
+
+        # # Create a fresh VTK viewer widget for this container.
+        # # Reusing a previously-created QVTKRenderWindowInteractor can lead
+        # # to "wrapped C/C++ object has been deleted" errors when Qt
+        # # has already destroyed the old widget. Always instantiate a new
+        # # widget here and overwrite any previous references.
+        # try:
+        #     self.frame = QFrame()
+        #     self.vtkWidget = QVTKRenderWindowInteractor(self.frame)
+        #     # create a Plotter for convenience (may be re-used by controllers)
+        #     try:
+        #         self.plt = Plotter(qt_widget=self.vtkWidget)
+        #     except Exception:
+        #         self.plt = None
+        # except Exception:
+        #     self.vtkWidget = QWidget()
+
+        # self.vtk_widget = getattr(self, "vtkWidget")
+
+        # # Add the viewer to the layout
+        # left_layout.addWidget(self.vtkWidget, stretch=1)
+
+        # # Optional per-step action bar below the viewer
+        # if action_widget is not None:
+        #     left_layout.addWidget(action_widget)
+
+        # h_layout.addWidget(left, stretch=3)
+
+        # # --- Right: side panel ---
+        # side = self._build_side_panel(experiment)
+        
+        # h_layout.addWidget(side, stretch=1)
+
+        # return container
  
     # ------------------------------------------------------------------
     # Screen Methods
