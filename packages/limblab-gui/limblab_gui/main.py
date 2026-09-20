@@ -125,7 +125,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils, NewExperimentPage, Dat
 
         self.uploaded_dapi_channel = False
         self.uploaded_gene_channel = {}
-        self.GENE_CHANNEL_TYPES = ['HOXA11', 'HOXA13', 'SOX9', 'AFF3','BMP2', 'BMP4','BMPR1A','BMPR1B', 'COL1A1','COL1A2','COL2A1', 'COL3A1']#will be able to add other types of genes, user accepted gene argument name
+        self.GENE_CHANNEL_TYPES = ['DAPI','HOXA11', 'HOXA13', 'SOX9', 'AFF3','BMP2', 'BMP4','BMPR1A','BMPR1B', 'COL1A1','COL1A2','COL2A1', 'COL3A1']#will be able to add other types of genes, user accepted gene argument name
 
 
         self.surface = SurfaceController(self)
@@ -836,28 +836,25 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils, NewExperimentPage, Dat
                 """)
                 ch_del.clicked.connect(lambda checked=False, p=path, c=ch_name, cid=ch_id: self._delete_channel(p, c, cid))
 
+                ch_ren = QToolButton()
+                ch_ren.setText('Rename')
+                ch_ren.setFixedSize(70, 26)
+                ch_ren.setStyleSheet(f"""
+                    QToolButton {{
+                        background-color: {theme('palette.buttonDark', '#3A3F42')};
+                        color: {theme('palette.textPrimary', '#FFFFFF')};
+                        border: 1px solid {theme('palette.accent', '#5FBF9F')};
+                        border-radius: {theme('shape.borderRadiusSmall', '2px')};
+                        font-size: 12px; padding: 0px 6px;
+                    }}
+                    QToolButton:hover {{ background-color: {theme('palette.accent', '#5FBF9F')}; }}
+                """)
+                ch_ren.clicked.connect(
+                    lambda checked=False, p=path, c=ch_name, cid=ch_id:
+                        self._rename_channel(p, c, cid)
+                )
 
-                if ch_name.upper() != "DAPI":   # DAPI name is used as a key across the pipeline
-                    ch_ren = QToolButton()
-                    ch_ren.setText('Rename')
-                    ch_ren.setFixedSize(70, 26)
-                    ch_ren.setStyleSheet(f"""
-                        QToolButton {{
-                            background-color: {theme('palette.buttonDark', '#3A3F42')};
-                            color: {theme('palette.textPrimary', '#FFFFFF')};
-                            border: 1px solid {theme('palette.accent', '#5FBF9F')};
-                            border-radius: {theme('shape.borderRadiusSmall', '2px')};
-                            font-size: 12px; padding: 0px 6px;
-                        }}
-                        QToolButton:hover {{ background-color: {theme('palette.accent', '#5FBF9F')}; }}
-                    """)
-                    ch_ren.clicked.connect(
-                        lambda checked=False, p=path, c=ch_name, cid=ch_id:
-                            self._rename_channel(p, c, cid)
-                    )
-                    ch_act_layout.addWidget(ch_ren)
-
-
+                ch_act_layout.addWidget(ch_ren)
                 ch_act_layout.addWidget(ch_del)
                 tree.setItemWidget(child, 1, ch_act)
                 

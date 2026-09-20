@@ -2,6 +2,8 @@ import os
 import shutil
 from pathlib import Path
 
+import re
+
 from limblab.database.crud import (
     delete_channel,
     delete_experiment,

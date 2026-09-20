@@ -181,10 +181,10 @@ class MenuUtils:
                         font-style: {'normal' if is_cleaned else 'italic'};
                     """)
                 status_label.setWordWrap(True)
-                status_label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+                status_label.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
 
                 row_layout.addWidget(ch_checkbox)
-                row_layout.addWidget(status_label)
+                row_layout.addWidget(status_label, 1)
 
                 proc_label = QLabel(" ●")
                 proc_label.setStyleSheet(f"""
@@ -203,7 +203,6 @@ class MenuUtils:
                 self._viz_channel_processing_labels[(exp_id, channel.channel_name)] = proc_label   # <-- new
                 self._viz_channel_status_labels = getattr(self, "_viz_channel_status_labels", {})
                 self._viz_channel_status_labels[(exp_id, channel.channel_name)] = status_label
-                row_layout.addStretch()
 
             exp_layout.addWidget(channel_container)
 
