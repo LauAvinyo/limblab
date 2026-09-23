@@ -25,52 +25,68 @@ primary = theme("palette.primary", "#0d1b2a")
 secondary = theme("palette.secondary", "#1b263b")
 background = theme("palette.background", "#fb8f00")
 
+CHANNEL_COLORS = ["#B0DB43", "#DB43B0", "#43B0DB", "#F2A93B", "#8E6BF2", "#F25C5C"]
 
 #function call from controller -> raycast(self.experiment, channel_name=channel.channel_name, plotter=plotter)
-def _raycast(
-    volume_path: str,
-    renderer: Optional[Literal["pyqt"]] = None,
-    outside_class: Optional[Any] = None,
-    ):  
+MULTI_MODE = 1   # 0 composite, 1 max-intensity, 4 additive ... try 0 or 4 if overlaps look odd
 
-    volume = Volume(volume_path)
 
-    volume.mode(1).cmap("jet")  # raycasting mode
-
+def _raycast(volume_paths, channel_names, renderer=None, outside_class=None):
+    params = generate_kwargs({'bg': theme('palette.background'), 'axes': 7})
     if renderer == 'pyqt':
-
-        params = generate_kwargs({'bg': theme('palette.background'), 'axes': 7})
         kwargs = generate_kwargs(params, renderer, outside_class)
-
-        plt = RayCastPlotter(volume, **kwargs)
-
-        plt.show()
-        return plt   
-
-    
-    else:  
-        params = generate_kwargs({'bg': theme('palette.background'), 'axes': 7})
+    else:
         kwargs = generate_kwargs(params)
-        
+
+    # ---- single channel: unchanged behaviour ----
+    if len(volume_paths) == 1:
+        volume = Volume(volume_paths[0])
+        volume.mode(1).cmap("jet")
         plt = RayCastPlotter(volume, **kwargs)
-       
         plt.show()
+        if renderer == 'pyqt':
+            return plt
         plt.close()
+        return None
 
-def raycast(
-    experiment: Experiment,
-    channel_name: str, 
-    renderer: Literal["pyqt"] | None = None,
-    outside_class: Any | None = None,
-) -> None: 
+    # ---- several channels: one volume per channel in the same scene ----
+    plt = Plotter(**kwargs)
+    for k, (path, name) in enumerate(zip(volume_paths, channel_names)):
+        color = CHANNEL_COLORS[k % len(CHANNEL_COLORS)]        
+        vol = Volume(path)
+        vol.mode(MULTI_MODE)
+        vol.cmap(["black", color]).alpha([0.0, 0.3, 0.9])
+        vol.name = name
+        plt.add(vol)
 
-    channel = next((c for c in experiment.channels if c.channel_name == channel_name), None)
-    if channel is None:
-        raise ValueError(f"No channel named '{channel_name}' found on this experiment.")
+        def make_cb(v):
+            def cb(widget, event):
+                v.alpha_unit(float(widget.value))   # higher = more transparent
+            return cb
 
-    if not channel.clean_path:
-        raise ValueError(f"Channel '{channel_name}' has no clean_path — clean it before visualizing.")
+        y = 0.05 + 0.07 * k
+        plt.add_slider(make_cb(vol), xmin=0.1, xmax=10, value=1,
+                       pos=([0.05, y], [0.3, y]), c=color,
+                       title=f"{name}: transparency")
 
-    volume_path = os.path.join(experiment.base, channel.clean_path)
-    _raycast(volume_path, renderer, outside_class)
+    plt.show()
+    if renderer == 'pyqt':
+        return plt
+    plt.close()
+    return None
 
+
+def raycast(experiment: Experiment, channel_names, renderer=None, outside_class=None):
+    names = [channel_names] if isinstance(channel_names, str) else list(channel_names)
+    by_name = {c.channel_name: c for c in experiment.channels}
+    missing = [n for n in names if n not in by_name]
+    if missing:
+        raise ValueError(f"Channel(s) {missing} not found on this experiment.")
+
+    paths = []
+    for n in names:
+        ch = by_name[n]
+        if not ch.clean_path:
+            raise ValueError(f"Channel '{n}' has no clean_path — clean it before visualizing.")
+        paths.append(os.path.join(experiment.base, ch.clean_path))
+    return _raycast(paths, names, renderer, outside_class)

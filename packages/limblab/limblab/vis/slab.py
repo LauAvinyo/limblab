@@ -18,6 +18,9 @@ import os
 from limblab.utils import generate_kwargs
 from limblab.design import theme
 
+CHANNEL_COLORS = ["#B0DB43", "#DB43B0", "#43B0DB", "#F2A93B", "#8E6BF2", "#F25C5C"]
+LAYER_GAP = 30   # z distance between the slabs of different channels
+
 
 def get_stage_to_angle_dict(start_x, end_x, start_y, end_y):
     x_values = np.arange(start_x, end_x + 1).astype(int)
@@ -32,133 +35,89 @@ angle_d = get_stage_to_angle_dict(248, 320, 20, 40)
 
 def _dynamic_slab(
     experiment: Experiment,
-    volume_path: str,
-    channel_name: str,
+    volumes_info: list[tuple[str, str]],     # [(channel_name, volume_path), ...]
     renderer: Optional[Literal["pyqt"]] = None,
     outside_class: Optional[Any] = None,
 ):
     printc("Starting dynamic slab viewer...", c="y")
-
-    # # pipeline.log (surface, stage, transformation) lives next to the volume
-    # folder = os.path.dirname(volume_path)
-    # pipeline_file = os.path.join(folder, "pipeline.log")
-    # pipeline = file2dic(pipeline_file)
-    # stage = pipeline["STAGE"]
-
     CMAP = "Greys"
-    printc(f"Loading volume: {volume_path}", c="lg")
-    vol = Volume(volume_path)  # .resize([100, 100, 100])
-    printc("Volume loaded successfully", c="g")
+    multi = len(volumes_info) > 1
 
     if experiment.transformation_matrix_path is None:
-        printc("No transformation found... exit", c="r")
-        exit()
+        # raise instead of exit(): exit() would close the whole GUI
+        raise ValueError("No transformation found — align the experiment before using Slab.")
+    T = LinearTransform(os.path.join(experiment.base, experiment.transformation_matrix_path))
+    angle = -angle_d[int(experiment.stage)]
 
-    else:
-        # Apply non linear tranformation
-        tname = experiment.transformation_matrix_path
-        
-        T = LinearTransform(tname)
-        # elif "morphing" in pipeline["TRANSFORMATION"]:
-        #     T = NonLinearTransform(tname)
-
-        printc("Rotation transformation loaded", c="lg")
-
+    vols = []
+    for name, path in volumes_info:
+        printc(f"Loading volume: {path}", c="lg")
+        vol = Volume(path)
         vol.apply_transform(T)
-        vol.rotate_y(-angle_d[int(experiment.stage)])
-        printc("Rotation applied to volume and limb meshes", c="g")
+        vol.rotate_y(angle)
+        vols.append(vol)
+    printc("Volumes loaded and transformed", c="g")
 
     # Load the limb surface
-    surface = os.path.join(experiment.base, experiment.surface_path)
-    limb = Mesh(surface)
-
-    #TODO THIS IS UNCHANGED!
-#########################################################
+    limb = Mesh(os.path.join(experiment.base, experiment.surface_path))
     limb.c(theme('limblab.surface')).alpha(0.1)
-#########################################################
-
     limb.extract_largest_region()
     limb.apply_transform(T)
-    limb.rotate_y(-angle_d[int(experiment.stage)])
-    vaxes = Axes(
-        vol,
-        xygrid=False,
-    )  # htitle=volume.replace("_", "-")
+    limb.rotate_y(angle)
+    vaxes = Axes(vols[0], xygrid=False)
     printc("Limb surface loaded and transformed", c="g")
-    # Box
-    global slab, slab_box, box_limits
 
     # TODO: Get a better min/max for slab range
-    box_vmin = 0
-    box_vmax = 1000
-    box_min = box_vmin
-    box_max = box_vmax
-    box_limits = [box_min, box_max]
-    slab = vol.slab(box_limits, axis="z", operation="mean")
-    bbox = slab.metadata["slab_bounding_box"]
-    zslab = slab.zbounds()[0] + 1000
-    slab.z(-zslab)  # move slab to the bottom  # move slab to the bottom
-    slab_box = Box(bbox).c("dodgerblue").alpha(0.15).lw(2).lc("white")
-    slab.cmap(CMAP)  # .add_scalarbar("slab")
+    box_vmin, box_vmax = 0, 1000
+    limits = [box_vmin, box_vmax]
+    state = {"slabs": [], "box": None}
 
-    def slider1(widget, event):
-        global slab, slab_box, box_limits
-
-        box_limits[0] = int(widget.value)
-        plt.remove(slab)
-        plt.remove(slab_box)
-        slab = vol.slab(box_limits, axis="z", operation="mean")
-        bbox = slab.metadata["slab_bounding_box"]
-        zslab = slab.zbounds()[0] + 1000
-        slab.z(-zslab)  # move slab to the bottom
-        slab_box = Box(bbox).c("dodgerblue").alpha(0.15).lw(2).lc("white")
-        slab.cmap(CMAP)  # .add_scalarbar("slab")
-        plt.add(slab)
-        plt.add(slab_box)
-
-    def slider2(widget, event):
-        global slab, slab_box, box_limits
-
-        new_value = int(widget.value)
-
-        # if new_value <= box_limits[0]:
-        #     return
-
-        box_limits[1] = new_value
-        plt.remove(slab)
-        plt.remove(slab_box)
-        slab = vol.slab(box_limits, axis="z", operation="mean")
-        bbox = slab.metadata["slab_bounding_box"]
-        zslab = slab.zbounds()[0] + 1000
-        slab.z(-zslab)  # move slab to the bottom
-        slab_box = Box(bbox).c("dodgerblue").alpha(0.15).lw(2).lc("white")
-        slab.cmap(CMAP)  # .add_scalarbar("slab")
-        plt.add(slab)
-        plt.add(slab_box)
-
-    limb_clone = limb.clone()
-    limb_clone.project_on_plane()
-    # limb_clone.z(slab.z() - 360)
-    printc("Ready to display the scene", c="y")
-    # exit()
-
-    params = generate_kwargs({
-            "bg": theme("palette.background"), 
-            "axes": 14
-        })
+    params = generate_kwargs({"bg": theme("palette.background"), "axes": 14})
     kwargs = generate_kwargs(params, renderer, outside_class)
-
     plt = Plotter(**kwargs)
 
-    plt += vol.isosurface()
+    def build():
+        for s in state["slabs"]:
+            plt.remove(s)
+        if state["box"] is not None:
+            plt.remove(state["box"])
+
+        slabs, bbox = [], None
+        for k, vol in enumerate(vols):
+            s = vol.slab(limits, axis="z", operation="mean")
+            if bbox is None:
+                bbox = s.metadata["slab_bounding_box"]
+            zslab = s.zbounds()[0] + 1000
+            s.z(-zslab - k * LAYER_GAP)          # each channel on its own layer
+            if multi:
+                s.cmap(["black", CHANNEL_COLORS[k % len(CHANNEL_COLORS)]])
+            else:
+                s.cmap(CMAP)
+            slabs.append(s)
+
+        state["slabs"] = slabs
+        state["box"] = Box(bbox).c("dodgerblue").alpha(0.15).lw(2).lc("white")
+        for s in slabs:
+            plt.add(s)
+        plt.add(state["box"])
+
+    for k, vol in enumerate(vols):
+        iso = vol.isosurface()
+        if multi:
+            iso.color(CHANNEL_COLORS[k % len(CHANNEL_COLORS)]).alpha(0.4)
+        plt += iso
     plt += limb
-    # plt += limb_clone.color("black").alpha(0.01)
-    plt += slab
-    plt += slab_box
+    build()
     plt += vaxes
 
+    def make_slider(idx):
+        def cb(widget, event):
+            limits[idx] = int(widget.value)
+            build()
+        return cb
+
     plt.add_slider(
-        slider1,
+        make_slider(0),
         xmin=box_vmin,
         xmax=box_vmax,
         value=box_vmin,
@@ -168,7 +127,7 @@ def _dynamic_slab(
     )
 
     plt.add_slider(
-        slider2,
+        make_slider(1),
         xmin=box_vmin,
         xmax=box_vmax,
         value=box_vmax,
@@ -179,41 +138,26 @@ def _dynamic_slab(
 
     if renderer == "pyqt":
         plt.show()
-        return plt#shows the plot!
+        return plt
 
-    l, u = slab.metadata["slab_range"]
-    slab_path = os.path.join(experiment.base, f"{channel_name}_slab_{l}_{u}.py")
-
-    show(
-        slab,
-        #  limb_clone.silhouette(top_camera_slab, border_edges=False),
-        # camera=dict(
-        #     pos=(781.020, 70.1935, 2107.68),
-        #     focal_point=(781.020, 70.1935, 33.6000),
-        #     viewup=(-2.46519e-32, 1.00000, 0),
-        #     roll=-1.41245e-30,
-        #     distance=2074.08,
-        #     clipping_range=(2904.91, 3356.75),
-        # )
-    ).screenshot(slab_path).close()#screenshot would be nice to open a differnt window still!@
+    l, u = state["slabs"][0].metadata["slab_range"]
+    slab_path = os.path.join(experiment.base, f"{volumes_info[0][0]}_slab_{l}_{u}.png")
+    show(state["slabs"][0]).screenshot(slab_path).close()
 
 
 def dynamic_slab(
     experiment: Experiment,
-        channel_name: str, 
-        renderer: Literal["pyqt"] = None,
-        outside_class: Any | None = None,
-    ) -> None: 
-
-    channels = experiment.channels
-    channel = ""
-    for i in channels:
-        if i.channel_name == channel_name:
-            print(i)
-            channel: Channel = i
-
-
-    volume_path = channel.path
-    # printc(volume_path, c='green')
-    #volume_path = os.path.join(experiment.base, experiment.surface_path)
-    _dynamic_slab(experiment, volume_path, channel_name, renderer, outside_class)
+    channel_names: list[str] | str,
+    renderer: Literal["pyqt"] | None = None,
+    outside_class: Any | None = None,
+):
+    names = [channel_names] if isinstance(channel_names, str) else list(channel_names)
+    by_name = {c.channel_name: c for c in experiment.channels}
+    missing = [n for n in names if n not in by_name]
+    if missing:
+        raise ValueError(f"Channel(s) {missing} not found on this experiment.")
+    info = [
+        (n, os.path.join(experiment.base, by_name[n].clean_path or by_name[n].path))
+        for n in names
+    ]
+    return _dynamic_slab(experiment, info, renderer, outside_class)

@@ -69,6 +69,28 @@ def delete_channel(db_path: Path, channel_id: int) -> bool:
         return False
 
 
+def rename_channel(
+    db_path: Path,
+    channel_id: int,
+    new_name: str,
+    path: Optional[str] = None,
+    clean_path: Optional[str] = None,
+) -> bool:
+    """UPDATE: rename a channel (and its stored file paths, if they changed)."""
+    engine = get_engine(db_path)
+    with Session(engine) as session:
+        channel = session.get(Channel, channel_id)
+        if channel is None:
+            return False
+        channel.channel_name = new_name
+        if path is not None:
+            channel.path = path
+        if clean_path is not None:
+            channel.clean_path = clean_path
+        session.add(channel)
+        session.commit()
+        return True
+
 def update_experiment(
     db_path: Path, experiment_id: str, **kwargs
 ) -> Optional[Experiment]:

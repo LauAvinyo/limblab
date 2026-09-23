@@ -12,7 +12,8 @@ from .database.crud import (
     save_experiment,
     update_experiment,
     delete_channel,
-    rename_experiment
+    rename_experiment,
+    rename_channel
 )
 
 from .database.navigation import (
@@ -72,6 +73,7 @@ __all__ = [
     'stage_limb_embedded',
     'preview_volume',
     'delete_channel',
+    'rename_channel',
     'rename_experiment',
     'one_channel_isosurface',
     'two_chanel_isosurface',
