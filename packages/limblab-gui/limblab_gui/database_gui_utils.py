@@ -685,34 +685,8 @@ class DatabaseGUI:
             QMessageBox.warning(self, "Error", "Channel not found.")
             return
 
-        # Generated files are named after the channel (delete relies on that),
-        # so rename them too, matching the old name as a whole token only.
-        pattern = re.compile(rf"(?<![A-Za-z0-9]){re.escape(old_name)}(?![A-Za-z0-9])", re.IGNORECASE)
-        renamed = []   # (old_path, new_path) for rollback
-        new_path, new_clean = channel.path, getattr(channel, "clean_path", None)
-        try:
-            base = Path(exp_data.base) if exp_data.base else None
-            if base and base.is_dir():
-                for f in list(base.iterdir()):
-                    if f.is_file() and f.name != "database.db" and pattern.search(f.name):
-                        target = f.with_name(pattern.sub(new_name, f.name))
-                        if target.exists():
-                            raise FileExistsError(f"{target.name} already exists")
-                        f.rename(target)
-                        renamed.append((f, target))
-            new_path = pattern.sub(new_name, channel.path) if channel.path else channel.path
-            new_clean = pattern.sub(new_name, new_clean) if new_clean else new_clean
-
-            ok_db = rename_channel(self.db_path, channel_id, new_name,
-                                   path=new_path, clean_path=new_clean)
-            if not ok_db:
-                raise RuntimeError("Channel not found in database.")
-
-        except Exception as e:
-            for old, new in reversed(renamed):     # undo file renames
-                try: new.rename(old)
-                except Exception: pass
-            QMessageBox.critical(self, "Error", f"Could not rename channel:\n{e}")
+        if not rename_channel(self.db_path, channel_id, new_name):
+            QMessageBox.critical(self, "Error", "Could not rename channel in database.")
             return
 
         if getattr(self, "current_channel", None) == old_name:
