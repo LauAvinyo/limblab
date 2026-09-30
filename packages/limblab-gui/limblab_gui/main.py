@@ -16,7 +16,6 @@ from limblab.database.crud import init_db
 from limblab.database.navigation import seed_reference_limbs
 from limblab.design import theme
 from limblab.utils import generate_kwargs
-from mixin.NavigationMixin import NavigationMixin
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QApplication,
@@ -37,7 +36,7 @@ from PyQt6.QtWidgets import (
     QWidget,
     QSplitter
 )
-from utils import create_back_button, create_label, create_styled_button
+from utils import create_back_button, create_label, create_styled_button, create_gradient_label
 from vedo import Mesh, Plotter
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 
@@ -58,7 +57,7 @@ def _excepthook(exc_type, exc, tb):
 
 sys.excepthook = _excepthook
 
-class MainWindow(QMainWindow, NavigationMixin, MenuUtils, NewExperimentPage, DatabaseGUI, VisualizationPage):
+class MainWindow(QMainWindow, MenuUtils, NewExperimentPage, DatabaseGUI, VisualizationPage):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("LimbLab")
@@ -277,15 +276,10 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils, NewExperimentPage, Dat
             lambda: self.navigation.navigate_to(self.show_lobby)
         )
 
-        label_main = QLabel("LimbLab")
-        try:
-            hero_size = int(theme("typography.fontSizeHero", 100))
-        except Exception:
-            hero_size = 100
-        fnt = label_main.font()
-        fnt.setPointSize(hero_size)
-        fnt.setBold(True)
-        label_main.setFont(fnt)
+        title = create_gradient_label("LimbLab", theme("palette.secondary", "#54278F"),
+                                    theme("palette.primary", "#0D7C66"), font_size=28)
+        layout.addWidget(title)
+        layout.addStretch()
 
         sublabel_main = create_label(
             "Analyze your 3D limb data with unprecedented ease.",
@@ -294,7 +288,7 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils, NewExperimentPage, Dat
 
         left_layout = QVBoxLayout(left_panel)
         left_layout.addStretch(1)
-        left_layout.addWidget(label_main, alignment=Qt.AlignmentFlag.AlignHCenter)
+        left_layout.addWidget(title, alignment=Qt.AlignmentFlag.AlignHCenter)
         left_layout.addWidget(sublabel_main, alignment=Qt.AlignmentFlag.AlignHCenter)
         left_layout.addSpacing(12)
         left_layout.addWidget(get_started_btn, alignment=Qt.AlignmentFlag.AlignHCenter)
@@ -889,7 +883,6 @@ class MainWindow(QMainWindow, NavigationMixin, MenuUtils, NewExperimentPage, Dat
 
         self.add_btn.clicked.connect(lambda: self.navigation.navigate_to(self.create_new_experiment_page))
         #self.add_channel_btn.clicked.connect(self.addchannel_button_clicked)
-        #self.view_btn.clicked.connect(self.viewexp_button_clicked)
         self.refresh_btn.clicked.connect(self._refresh_experiments)
 
         buttons_row = QVBoxLayout()

@@ -11,8 +11,11 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
     QCheckBox,
-    QSizePolicy    
+    QSizePolicy,
+    QTextEdit,          
 )
+from PyQt6.QtGui import QTextOption  
+
 from utils import create_back_button, create_collapsible_section
 from vedo import printc
 from config import *
@@ -257,19 +260,32 @@ class MenuUtils:
             self.viz_sections_layout.addWidget(vsection)
             self._current_viz_section_widgets[viz_name] = vsection
 
-        # Pipeline section
+       # Pipeline section
         pipeline_content = QWidget()
         pipeline_layout = QVBoxLayout(pipeline_content)
         pipeline_layout.setContentsMargins(10, 6, 10, 10)
 
-        self.pipeline_log_widget = QLabel(
+        self.pipeline_log_widget = QTextEdit()
+        self.pipeline_log_widget.setReadOnly(True)
+        self.pipeline_log_widget.setFrameShape(QTextEdit.Shape.NoFrame)
+        self.pipeline_log_widget.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
+        self.pipeline_log_widget.wordWrapMode = None  # placeholder, real call below
+        self.pipeline_log_widget.setWordWrapMode(QTextOption.WrapMode.WrapAnywhere)
+        self.pipeline_log_widget.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+        self.pipeline_log_widget.setFixedHeight(160)  # tweak to taste, or drop for auto-grow
+        self.pipeline_log_widget.setStyleSheet(f"""
+            QTextEdit {{
+                background-color: transparent;
+                color: {theme('palette.textSecondary', '#A0A0A0')};
+                font-size: {theme('typography.fontSizeSmall', 12)}px;
+                border: none;
+            }}
+        """)
+        self.pipeline_log_widget.setPlainText(
             "\n".join(self.pipeline_log[-10:])
             if self.pipeline_log
             else "pipeline.log was automatically generated. \nNo actions yet."
         )
-        self.pipeline_log_widget.setWordWrap(True)
-        self.pipeline_log_widget.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
-        self.pipeline_log_widget.setStyleSheet(f"color: {theme('palette.textSecondary', '#A0A0A0')}; font-size: {theme('typography.fontSizeSmall', 12)}px;")
         pipeline_layout.addWidget(self.pipeline_log_widget)
 
         scroll_layout.addWidget(

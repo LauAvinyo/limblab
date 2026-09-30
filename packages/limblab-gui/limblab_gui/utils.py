@@ -17,7 +17,13 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
     QGraphicsDropShadowEffect, 
-    QStyleFactory
+    QStyleFactory, 
+    
+)
+
+from PyQt6.QtGui import (
+    QAction, QIcon, QCursor, QColor,
+    QFont, QFontMetrics, QLinearGradient, QPainter, QPen, QBrush, QPixmap,  # <-- new
 )
 
 
@@ -56,6 +62,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtWidgets import QPushButton, QGraphicsDropShadowEffect, QStyleFactory
 from PyQt6.QtGui import QColor, QCursor
 from PyQt6.QtCore import Qt
+
 
 
 def create_styled_button(
@@ -229,3 +236,43 @@ def create_back_button(callback):
     back_button.clicked.connect(callback)
     return back_button
 
+
+def create_gradient_label(
+    text: str,
+    color_start: str | None = None,
+    color_end: str | None = None,
+    font_size: int | None = None,
+    bold: bool = True,
+) -> QLabel:
+    """Render text onto a transparent pixmap with a horizontal gradient fill,
+    since QLabel/QSS can't gradient text directly."""
+    if color_start is None:
+        color_start = theme("palette.secondary", "#54278F")   # purple
+    if color_end is None:
+        color_end = theme("palette.primary", "#0D7C66")       # green
+    if font_size is None:
+        font_size = theme("typography.fontSizeHero", 40)
+
+    font = QFont(theme("typography.fontFamilyBase", "Arial"), font_size)
+    font.setBold(bold)
+    metrics = QFontMetrics(font)
+    rect = metrics.boundingRect(text)
+    width, height = rect.width() + 12, metrics.height() + 12
+
+    pixmap = QPixmap(width, height)
+    pixmap.fill(Qt.GlobalColor.transparent)
+
+    painter = QPainter(pixmap)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    painter.setFont(font)
+
+    gradient = QLinearGradient(0, 0, width, 0)
+    gradient.setColorAt(0, QColor(color_start))
+    gradient.setColorAt(1, QColor(color_end))
+    painter.setPen(QPen(QBrush(gradient), 0))
+    painter.drawText(pixmap.rect(), Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, text)
+    painter.end()
+
+    label = QLabel()
+    label.setPixmap(pixmap)
+    return label

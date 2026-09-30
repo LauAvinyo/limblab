@@ -46,19 +46,11 @@ class VisualizationPage:
             "last_cleaned_channel": last_cleaned_channel,
             "surface_done": bool(exp.surface_path),
             "stage_done": bool(exp.stage),
-            #"selected_stage": exp.stage,
             "align_done": bool(exp.transformation_matrix_path),
             #"alignment_method": "rigid" if exp.transformation_matrix_path else None,
         }
     
-
     DAPI_ONLY_STEPS = {"Surface", "Stage", "Align"}
-
-    DAPI_STEP_CONTROLLERS = {
-            "Surface": lambda self: self.surface,
-            "Stage": lambda self: self.stage,
-            "Align": lambda self: self.align,
-        }
 
     def _set_processing_channel(self, exp_id, channel):
         for (e, name), cb in self._viz_channel_checkboxes.items():
@@ -78,7 +70,6 @@ class VisualizationPage:
             label.setVisible(key == (exp_id, channel.channel_name))
 
         self.current_channel = channel.channel_name
-
 
     def _on_channel_selected(self, exp_id, channel, checked):
         current_step = getattr(self.navigation, "_current_step", None)
@@ -189,7 +180,6 @@ class VisualizationPage:
                 self.current_channel = channel.channel_name
                 self.navigation.navigate_to(lambda: self.clean.show(self.experiment, channel))
 
-
     def _revert_checkbox(self, exp_id, channel):
         checkbox = self._viz_channel_checkboxes.get((exp_id, channel.channel_name))
         if checkbox is not None:
@@ -197,32 +187,8 @@ class VisualizationPage:
             checkbox.setChecked(False)
             checkbox.blockSignals(False)
 
-    def viewexp_button_clicked(self):
-        """View experiment button handler."""
-        # Use the experiments tree selection to determine the experiment to view
-        if not hasattr(self, 'experiments_tree') or self.experiments_tree.currentItem() is None:
-            QMessageBox.warning(self, "No experiment selected", "Please select an experiment to visualize.")
-            return
-
-        item = self.experiments_tree.currentItem()
-        parent = item.parent() if item.parent() is not None else item
-        exp_id = parent.data(0, Qt.ItemDataRole.UserRole)
-        if not exp_id:
-            QMessageBox.warning(self, "No experiment selected", "Please select an experiment to visualize.")
-
-            return
-
-        exp_obj = get_experiment(self.db_path, exp_id)
-        if not exp_obj:
-            QMessageBox.warning(self, "Not found", f"Experiment '{exp_id}' not found in database.")
-            return
-
-        self._set_current_experiment(exp_obj)
-        self._hide_busy()
-
-
     def log_pipeline(self, message):
         """Add a message to the pipeline log."""
         self.pipeline_log.append(message)
         if hasattr(self, "pipeline_log_widget"):
-            self.pipeline_log_widget.setText("\n".join(self.pipeline_log[-10:]))
+            self.pipeline_log_widget.setPlainText("\n".join(self.pipeline_log[-10:]))
