@@ -276,10 +276,11 @@ class MainWindow(QMainWindow, MenuUtils, NewExperimentPage, DatabaseGUI, Visuali
             lambda: self.navigation.navigate_to(self.show_lobby)
         )
 
-        title = create_gradient_label("LimbLab", theme("palette.secondary", "#54278F"),
-                                    theme("palette.primary", "#0D7C66"), font_size=28)
-        layout.addWidget(title)
-        layout.addStretch()
+        label_main = create_gradient_label("LimbLab", theme("palette.secondary", "#54278F"),
+                               theme("palette.primary", "#0D7C66"),
+                                 font_size=44,
+                                 bold=True,)
+
 
         sublabel_main = create_label(
             "Analyze your 3D limb data with unprecedented ease.",
@@ -288,7 +289,7 @@ class MainWindow(QMainWindow, MenuUtils, NewExperimentPage, DatabaseGUI, Visuali
 
         left_layout = QVBoxLayout(left_panel)
         left_layout.addStretch(1)
-        left_layout.addWidget(title, alignment=Qt.AlignmentFlag.AlignHCenter)
+        left_layout.addWidget(label_main, alignment=Qt.AlignmentFlag.AlignHCenter)
         left_layout.addWidget(sublabel_main, alignment=Qt.AlignmentFlag.AlignHCenter)
         left_layout.addSpacing(12)
         left_layout.addWidget(get_started_btn, alignment=Qt.AlignmentFlag.AlignHCenter)
